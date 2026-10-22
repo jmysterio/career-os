@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Career OS - review</title>
+<style>
+body{font:14px system-ui;margin:2rem auto;max-width:980px;color:#1b1b1b}
+.banner{background:#fff3cd;border:1px solid #e0c36a;padding:.5rem 1rem;font-weight:600}
+.warn{background:#fde2e2;border:1px solid #d99;padding:.5rem 1rem;margin:.5rem 0}
+.ep{border:1px solid #ccc;border-radius:6px;padding:1rem;margin:1.5rem 0}
+.claim{border-left:4px solid #888;padding:.25rem .75rem;margin:.6rem 0}
+.claim.observation{border-color:#2b6cb0}.claim.attribution{border-color:#b7791f}.claim.interpretation{border-color:#6b46c1}
+.v{color:#a00;font-size:12px}.prov{font:12px ui-monospace,monospace;color:#555}
+.tag{font-size:11px;background:#eee;border-radius:3px;padding:0 .3rem}
+form{display:inline}button{cursor:pointer}
+</style></head><body>
+<div class="banner">SYNTHETIC DATA - demo workspace</div>
+{% if sync_warning %}<div class="warn">{{ sync_warning }}</div>{% endif %}
+{% if msg %}<div class="warn">{{ msg }}</div>{% endif %}
+<h1>Review</h1>
+{% for e in episodes %}
+<div class="ep">
+  <h2>{{ e.anchor.title }}</h2>
+  {% if e.stale %}<div class="warn">Needs review: cited evidence changed after approval.</div>{% endif %}
+  <h3>Linked activity</h3>
+  <ul>
+  {% for m in e.members %}
+    <li><span class="tag">{{ m.status }}/{{ m.origin }} {{ '%.1f'|format(m.confidence) }}</span>
+      {{ m.title }} <i>({{ m.reason }})</i>
+      <form method="post" action="/episodes/{{ e.anchor.id }}/{{ 'unlink' if m.status == 'linked' else 'link' }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="activity_id" value="{{ m.activity_id }}">
+        <button>{{ 'Unlink' if m.status == 'linked' else 'Confirm link' }}</button></form>
+      {% if m.status == 'suggested' %}<form method="post" action="/episodes/{{ e.anchor.id }}/unlink">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="activity_id" value="{{ m.activity_id }}">
+        <button>Reject</button></form>{% endif %}
+    </li>
+  {% else %}<li>none</li>{% endfor %}
+  </ul>
+  {% for layer in ['observation','attribution','interpretation'] %}
+    <h3>{{ layer|capitalize }} claims</h3>
+    {% for c in e.claims if c.layer == layer %}
+    <div class="claim {{ layer }}">
+      <div>{{ c.text }} <span class="tag">{{ c.verification_status }}</span> <span class="tag">by {{ c.authored_by }}</span></div>
+      {% for ev in c.evidence %}<div class="prov">{{ ev.ref }} ({{ ev.polarity }}): "{{ ev.excerpt }}"
+        {% if ev.url %}<a href="{{ ev.url }}" rel="noreferrer">source</a>{% endif %}</div>{% endfor %}
+      {% for v in c.violations %}<div class="v">blocked: {{ v }}</div>{% endfor %}
+      {% if c.verification_status != 'human_approved' and c.verification_status != 'rejected' %}
+      <form method="post" action="/claims/{{ c.id }}/approve"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Approve</button></form>
+      <form method="post" action="/claims/{{ c.id }}/reject"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Reject</button></form>
+      <form method="post" action="/claims/{{ c.id }}/edit"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <input name="object" value="{{ c.object }}" size="40"><button>Save edit</button></form>
+      {% endif %}
+    </div>
+    {% else %}<p><i>none</i></p>{% endfor %}
+  {% endfor %}
+  <h3>Open questions</h3>
+  <ul>{% for u in e.unknowns %}<li>{{ u }}</li>{% else %}<li>none</li>{% endfor %}</ul>
+  <form method="post" action="/episodes/{{ e.anchor.id }}/impact"><input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="text" size="60" placeholder="Impact / why it mattered (your words)"><button>Add impact</button></form>
+  <form method="post" action="/episodes/{{ e.anchor.id }}/redraft"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Re-draft</button></form>
+  <form method="post" action="/episodes/{{ e.anchor.id }}/publish"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Publish approved claims</button></form>
+  {% for v in e.versions %}<div class="prov">v{{ v.version }} {{ v.state }}</div>{% endfor %}
+</div>
+{% else %}<p>No episodes yet. Run <code>careeros demo seed</code>.</p>{% endfor %}
+</body></html>

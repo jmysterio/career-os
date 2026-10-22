@@ -1,0 +1,32 @@
+[project]
+name = "careeros"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Jordan", email = "jtetzel@salesforce.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20.0",
+    "fastapi>=0.158.2",
+    "jinja2>=3.1.6",
+    "pydantic>=2.14.1",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2",
+    "typer>=0.27.3",
+    "uvicorn>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.18,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "hypothesis>=6.170.5",
+    "pytest>=9.1.1",
+]
+
+[project.scripts]
+careeros = "careeros.cli:app"
