@@ -60,8 +60,9 @@ def test_imported_text_is_escaped(seeded):
 def test_page_shows_layers_provenance_and_traps(seeded):
     _, c, _ = seeded
     html = c.get("/").text
-    assert "SYNTHETIC DATA" in html and "cos://obs/" in html
-    assert "Unconfirmed link" in html and "Impact / why it mattered is unknown" in html
+    assert "made-up demo data" in html and "cos://obs/" in html
+    assert "What happened" in html and "What I did" in html and "Why it mattered" in html
+    assert "maybe related" in html and "Why did this matter?" in html
     assert "Team deployed 12 changes" in html or "team deployed 12 changes" in html.lower()
 
 
@@ -74,7 +75,7 @@ def test_review_flow_approve_publish_export(seeded):
         attr = [x.id for x in s.scalars(select(Claim).where(Claim.layer == "attribution"))]
     # publish with nothing approved is blocked with a message, not a crash
     r = form(c, f"/episodes/{aid}/publish", tok)
-    assert r.status_code == 303 and "Blocked" in r.headers["location"]
+    assert r.status_code == 303 and "Not%20saved%20yet" in r.headers["location"]
     for cid in obs + attr:
         assert form(c, f"/claims/{cid}/approve", tok).status_code == 303
     form(c, f"/episodes/{aid}/impact", tok, text="Fewer failed deployments")
@@ -92,14 +93,14 @@ def test_unlink_via_ui_persists_constraint(seeded):
     dd, c, tok = seeded
     aid = anchor_id(dd)
     html = c.get("/").text
-    assert "Unlink" in html
+    assert "This isn't part of it" in html
     with make_session_factory(make_engine(dd.db))() as s:
         from careeros.storage.models import Activity
         m1 = s.scalar(select(Activity).where(Activity.title.contains("DEMO-101"))).id
     form(c, f"/episodes/{aid}/unlink", tok, activity_id=m1)
     r = CliRunner().invoke(cli, ["import", "--data-dir", str(dd.root)])  # full rebuild
     assert r.exit_code == 0
-    assert "DEMO-101-fix-validation" not in c.get("/").text.split("Attribution claims")[0]
+    assert "DEMO-101-fix-validation" not in c.get("/").text.split("What I did")[0]
 
 
 def test_cli_edit_flags_and_purge_flow(seeded):
@@ -127,3 +128,34 @@ def test_export_without_published_version_is_a_friendly_error(seeded):
     dd, _, _ = seeded
     r = CliRunner().invoke(cli, ["export", "--anchor", str(anchor_id(dd)), "--data-dir", str(dd.root)])
     assert r.exit_code == 1 and "Publish approved claims" in r.output and "Traceback" not in r.output
+
+
+def test_real_browser_origin_is_accepted_but_null_origin_is_not(seeded):
+    """Regression: Referrer-Policy no-referrer made browsers send 'Origin: null' on form posts."""
+    dd, c, tok = seeded
+    ok = c.post("/theme", data={"csrf": tok, "theme": "light"}, headers={"Origin": "http://127.0.0.1:8765"},
+                follow_redirects=False)
+    assert ok.status_code == 303
+    assert c.post("/theme", data={"csrf": tok, "theme": "light"}, headers={"Origin": "null"},
+                  follow_redirects=False).status_code == 403
+    assert c.get("/").headers["referrer-policy"] == "same-origin"
+
+
+def test_dark_by_default_and_theme_toggle_persists(seeded):
+    _, c, tok = seeded
+    assert 'data-theme="dark"' in c.get("/").text
+    r = c.post("/theme", data={"csrf": tok, "theme": "light"}, follow_redirects=False)
+    assert "theme=light" in r.headers["set-cookie"] and "HttpOnly" in r.headers["set-cookie"]
+    assert 'data-theme="light"' in c.get("/").text
+    c.post("/theme", data={"csrf": tok, "theme": "dark"})
+    assert 'data-theme="dark"' in c.get("/").text
+
+
+def test_page_avoids_internal_jargon(seeded):
+    _, c, _ = seeded
+    html = c.get("/").text
+    import re
+    visible = re.sub(r"<[^>]+>", " ", html.split("</style>", 1)[1])  # text a person can see
+    for word in ("rule_checked", "human_approved", "by template", "claims", "Attribution", "Interpretation",
+                 "Observation", "unverified", "suggested/ambiguous"):
+        assert word not in visible, word

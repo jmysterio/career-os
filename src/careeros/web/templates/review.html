@@ -1,62 +1,115 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Career OS - review</title>
+<html lang="en" data-theme="{{ theme }}"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My work notebook</title>
 <style>
-body{font:14px system-ui;margin:2rem auto;max-width:980px;color:#1b1b1b}
-.banner{background:#fff3cd;border:1px solid #e0c36a;padding:.5rem 1rem;font-weight:600}
-.warn{background:#fde2e2;border:1px solid #d99;padding:.5rem 1rem;margin:.5rem 0}
-.ep{border:1px solid #ccc;border-radius:6px;padding:1rem;margin:1.5rem 0}
-.claim{border-left:4px solid #888;padding:.25rem .75rem;margin:.6rem 0}
-.claim.observation{border-color:#2b6cb0}.claim.attribution{border-color:#b7791f}.claim.interpretation{border-color:#6b46c1}
-.v{color:#a00;font-size:12px}.prov{font:12px ui-monospace,monospace;color:#555}
-.tag{font-size:11px;background:#eee;border-radius:3px;padding:0 .3rem}
-form{display:inline}button{cursor:pointer}
+:root[data-theme=dark]{--bg:#1c1917;--card:#26221f;--text:#efe8dd;--muted:#a89f93;--line:#3b352f;
+  --accent:#e3a857;--accent-text:#1c1917;--good:#9ccc9c;--note-bg:#33291d;--note-line:#6b5530;
+  --btn:#332e29;--c-happened:#7fb0e0;--c-did:#e3a857;--c-why:#b79af0}
+:root[data-theme=light]{--bg:#faf6ef;--card:#fffdf8;--text:#2b2620;--muted:#7a6f62;--line:#e4dccd;
+  --accent:#b7701f;--accent-text:#fffdf8;--good:#3d7a3d;--note-bg:#fff3d6;--note-line:#e0c36a;
+  --btn:#f1e9da;--c-happened:#2b6cb0;--c-did:#b7701f;--c-why:#6b46c1}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:16px/1.5 -apple-system,system-ui,sans-serif;
+  margin:0 auto;max-width:860px;padding:1.5rem 1.25rem 4rem}
+h1,h2,h3{font-family:Georgia,'Iowan Old Style',serif;font-weight:600;margin:0}
+h1{font-size:1.9rem}h2{font-size:1.35rem}
+h3{font-size:1.02rem;color:var(--muted);margin:1.4rem 0 .3rem;letter-spacing:.01em}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
+.sub{color:var(--muted);margin:.2rem 0 0}
+.note{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.55rem .9rem;margin:1rem 0;font-size:.92rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.2rem 1.4rem;margin:1.4rem 0}
+.item{border-left:4px solid var(--line);padding:.3rem 0 .3rem .9rem;margin:.7rem 0}
+.item.happened{border-color:var(--c-happened)}.item.did{border-color:var(--c-did)}.item.why{border-color:var(--c-why)}
+.chip{display:inline-block;font-size:.76rem;border-radius:99px;padding:.05rem .6rem;margin-left:.4rem;
+  background:var(--btn);color:var(--muted);vertical-align:middle}
+.chip.done{color:var(--good)}
+.muted{color:var(--muted);font-size:.88rem}
+details{margin:.25rem 0}summary{cursor:pointer;color:var(--muted);font-size:.88rem}
+blockquote{margin:.3rem 0 .3rem .2rem;padding-left:.8rem;border-left:2px solid var(--line);color:var(--muted)}
+code{font-size:.76rem;color:var(--muted)}
+.attn{color:var(--accent);font-size:.9rem;margin:.25rem 0}
+form{display:inline}
+button{font:inherit;font-size:.88rem;background:var(--btn);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:.28rem .8rem;cursor:pointer;margin:.2rem .25rem .2rem 0}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600}
+input[type=text],input:not([type]){font:inherit;font-size:.92rem;background:var(--bg);color:var(--text);
+  border:1px solid var(--line);border-radius:8px;padding:.35rem .6rem;width:min(100%,30rem)}
+ul{padding-left:1.2rem;margin:.3rem 0}
+.actions{margin-top:1.1rem;padding-top:.8rem;border-top:1px dashed var(--line)}
 </style></head><body>
-<div class="banner">SYNTHETIC DATA - demo workspace</div>
-{% if sync_warning %}<div class="warn">{{ sync_warning }}</div>{% endif %}
-{% if msg %}<div class="warn">{{ msg }}</div>{% endif %}
-<h1>Review</h1>
-{% for e in episodes %}
-<div class="ep">
-  <h2>{{ e.anchor.title }}</h2>
-  {% if e.stale %}<div class="warn">Needs review: cited evidence changed after approval.</div>{% endif %}
-  <h3>Linked activity</h3>
-  <ul>
-  {% for m in e.members %}
-    <li><span class="tag">{{ m.status }}/{{ m.origin }} {{ '%.1f'|format(m.confidence) }}</span>
-      {{ m.title }} <i>({{ m.reason }})</i>
-      <form method="post" action="/episodes/{{ e.anchor.id }}/{{ 'unlink' if m.status == 'linked' else 'link' }}">
-        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="activity_id" value="{{ m.activity_id }}">
-        <button>{{ 'Unlink' if m.status == 'linked' else 'Confirm link' }}</button></form>
-      {% if m.status == 'suggested' %}<form method="post" action="/episodes/{{ e.anchor.id }}/unlink">
-        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="activity_id" value="{{ m.activity_id }}">
-        <button>Reject</button></form>{% endif %}
-    </li>
-  {% else %}<li>none</li>{% endfor %}
-  </ul>
-  {% for layer in ['observation','attribution','interpretation'] %}
-    <h3>{{ layer|capitalize }} claims</h3>
-    {% for c in e.claims if c.layer == layer %}
-    <div class="claim {{ layer }}">
-      <div>{{ c.text }} <span class="tag">{{ c.verification_status }}</span> <span class="tag">by {{ c.authored_by }}</span></div>
-      {% for ev in c.evidence %}<div class="prov">{{ ev.ref }} ({{ ev.polarity }}): "{{ ev.excerpt }}"
-        {% if ev.url %}<a href="{{ ev.url }}" rel="noreferrer">source</a>{% endif %}</div>{% endfor %}
-      {% for v in c.violations %}<div class="v">blocked: {{ v }}</div>{% endfor %}
-      {% if c.verification_status != 'human_approved' and c.verification_status != 'rejected' %}
-      <form method="post" action="/claims/{{ c.id }}/approve"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Approve</button></form>
-      <form method="post" action="/claims/{{ c.id }}/reject"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Reject</button></form>
-      <form method="post" action="/claims/{{ c.id }}/edit"><input type="hidden" name="csrf" value="{{ csrf }}">
-        <input name="object" value="{{ c.object }}" size="40"><button>Save edit</button></form>
-      {% endif %}
-    </div>
-    {% else %}<p><i>none</i></p>{% endfor %}
-  {% endfor %}
-  <h3>Open questions</h3>
-  <ul>{% for u in e.unknowns %}<li>{{ u }}</li>{% else %}<li>none</li>{% endfor %}</ul>
-  <form method="post" action="/episodes/{{ e.anchor.id }}/impact"><input type="hidden" name="csrf" value="{{ csrf }}">
-    <input name="text" size="60" placeholder="Impact / why it mattered (your words)"><button>Add impact</button></form>
-  <form method="post" action="/episodes/{{ e.anchor.id }}/redraft"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Re-draft</button></form>
-  <form method="post" action="/episodes/{{ e.anchor.id }}/publish"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Publish approved claims</button></form>
-  {% for v in e.versions %}<div class="prov">v{{ v.version }} {{ v.state }}</div>{% endfor %}
+<div class="top">
+  <div><h1>{{ greeting }}</h1><p class="sub">Your work notebook</p></div>
+  <form method="post" action="/theme"><input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="theme" value="{{ 'light' if theme == 'dark' else 'dark' }}">
+    <button>{{ 'Switch to light' if theme == 'dark' else 'Switch to dark' }}</button></form>
 </div>
-{% else %}<p>No episodes yet. Run <code>careeros demo seed</code>.</p>{% endfor %}
+<div class="note">This is a practice notebook. Everything in it is made-up demo data.</div>
+{% if sync_warning %}<div class="note">{{ sync_warning }}</div>{% endif %}
+{% if msg %}<div class="note">{{ msg }}</div>{% endif %}
+
+{% for e in episodes %}
+<section class="card">
+  <h2>{{ e.title }}</h2>
+  {% if e.stale %}<div class="note">Heads up: something this was based on changed after you confirmed it. Have another look.</div>{% endif %}
+
+  <h3>Connected work</h3>
+  {% for m in e.members %}
+  <div class="item">
+    {{ m.title }}
+    <span class="chip {{ 'done' if m.status == 'linked' }}">{{ 'connected' if m.status == 'linked' else 'maybe related' }}</span>
+    <div class="muted">Why: {{ m.reason }}</div>
+    {% if m.status == 'linked' %}
+      <form method="post" action="/episodes/{{ e.id }}/unlink"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="activity_id" value="{{ m.activity_id }}"><button>This isn't part of it</button></form>
+    {% else %}
+      <span class="muted">Is this part of this release?</span>
+      <form method="post" action="/episodes/{{ e.id }}/link"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="activity_id" value="{{ m.activity_id }}"><button>Yes, it is</button></form>
+      <form method="post" action="/episodes/{{ e.id }}/unlink"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="activity_id" value="{{ m.activity_id }}"><button>No, it isn't</button></form>
+    {% endif %}
+  </div>
+  {% else %}<p class="muted">Nothing connected yet.</p>{% endfor %}
+
+  {% for section in sections %}
+  <h3>{{ section.title }} <span class="muted">{{ section.hint }}</span></h3>
+  {% for c in e.claims if c.layer == section.layer %}
+  <div class="item {{ section.css }}">
+    <div>{{ c.text }}<span class="chip {{ 'done' if c.verification_status == 'human_approved' }}">{{ c.state_label }}</span>
+      <span class="chip">{{ 'written by you' if c.authored_by == 'user' else 'drafted by the app' }}</span></div>
+    <details><summary>Where this came from</summary>
+      {% for ev in c.evidence %}
+        <blockquote>&ldquo;{{ ev.excerpt }}&rdquo;
+          {% if ev.url %}<a href="{{ ev.url }}" rel="noreferrer" style="color:var(--accent)">open original</a>{% endif %}
+          <br><code>{{ ev.ref }}</code></blockquote>
+      {% endfor %}
+    </details>
+    {% for v in c.violations %}<div class="attn">Needs your attention: {{ v }}</div>{% endfor %}
+    {% if c.verification_status not in ('human_approved', 'rejected') %}
+      <form method="post" action="/claims/{{ c.id }}/approve"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="primary">Looks right</button></form>
+      <form method="post" action="/claims/{{ c.id }}/reject"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Set aside</button></form>
+      <details><summary>Change the wording</summary>
+        <form method="post" action="/claims/{{ c.id }}/edit"><input type="hidden" name="csrf" value="{{ csrf }}">
+          <input name="object" value="{{ c.object }}"><button>Save</button></form></details>
+    {% endif %}
+  </div>
+  {% else %}<p class="muted">Nothing here yet.</p>{% endfor %}
+  {% endfor %}
+
+  <h3>Questions for you</h3>
+  <ul>{% for u in e.unknowns %}<li>{{ u }}</li>{% else %}<li class="muted">All answered.</li>{% endfor %}</ul>
+
+  <div class="actions">
+    <form method="post" action="/episodes/{{ e.id }}/impact"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <input name="text" placeholder="Why did this matter? In your own words."><button>Add</button></form>
+    <div style="margin-top:.6rem">
+      <form method="post" action="/episodes/{{ e.id }}/redraft"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Refresh suggestions</button></form>
+      <form method="post" action="/episodes/{{ e.id }}/publish"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="primary">Save to my accomplishments</button></form>
+    </div>
+    {% for v in e.versions %}<div class="muted">Saved as version {{ v.version }}{{ ' (current)' if v.state == 'active' }}{{ ' (replaced)' if v.state == 'superseded' }}{{ ' (withdrawn)' if v.state == 'withdrawn' }}</div>{% endfor %}
+  </div>
+</section>
+{% else %}<p>Nothing here yet. Run <code>careeros demo seed</code> to load the practice notebook.</p>{% endfor %}
 </body></html>

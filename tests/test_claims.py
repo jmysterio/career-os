@@ -37,8 +37,8 @@ def test_traps_do_not_become_first_person_or_achieved(ep):
 
 def test_unknowns_ask_for_impact_and_flag_ambiguous_link(ep):
     _, _, unknowns = ep
-    assert any("Impact" in u for u in unknowns)
-    assert any("Unconfirmed link" in u for u in unknowns)
+    assert any("Why did this matter" in u for u in unknowns)
+    assert any("part of this release" in u for u in unknowns)
 
 
 def test_attribution_only_for_self_authored_linked_merges(ep):

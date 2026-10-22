@@ -5,6 +5,7 @@ import hashlib
 import os
 import hmac
 import threading
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
@@ -26,6 +27,46 @@ ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
 CSP = ("default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; "
        "base-uri 'none'; frame-ancestors 'none'")
 _write_lock = threading.Lock()
+
+# Plain-language versions of the rule codes in claims/rules.py.
+FRIENDLY = {
+    "uncited": "I can't find where this came from.",
+    "contradicted": "Another record disagrees with this.",
+    "stale_evidence": "The record behind this has changed since it was written.",
+    "stale_link": "This relied on something you've since un-linked.",
+    "interpretation_not_user_authored": "Why it mattered should come from you, not from me.",
+    "no_completion_evidence": "The records don't say this was finished yet.",
+    "metric_not_in_evidence": "That number doesn't appear in the records.",
+    "metric_unit_not_in_evidence": "The records don't use that unit with that number.",
+    "metric_scope_mismatch": "That number comes from a different release.",
+    "metric_is_target": "The records call this a goal, not a result.",
+    "team_result_claimed_as_self": "That was a team result, not something recorded as yours.",
+    "role_not_supported": "The records don't show you in that role.",
+    "first_person_without_role": "The records don't show what your part was.",
+    "attribution_without_role": "The records don't show what your part was.",
+    "nothing_confirmed": "Nothing is confirmed yet. Mark at least one item as 'Looks right' first.",
+}
+STATE_LABEL = {"unverified": "needs a look", "rule_checked": "ready for you",
+               "human_approved": "confirmed", "rejected": "set aside"}
+SECTIONS = [
+    dict(layer="observation", title="What happened", hint="what the records show", css="happened"),
+    dict(layer="attribution", title="What I did", hint="your part in it", css="did"),
+    dict(layer="interpretation", title="Why it mattered", hint="in your words", css="why"),
+]
+
+
+def friendly(violation: str) -> str:
+    return FRIENDLY.get(violation.split(":")[0].strip(), violation)
+
+
+def greeting(now: datetime | None = None) -> str:
+    h = (now or datetime.now()).hour
+    return "Good morning" if h < 12 else "Good afternoon" if h < 18 else "Good evening"
+
+
+def claim_text(c: Claim) -> str:
+    text = f"{c.subject[:1].upper() + c.subject[1:]} {c.action} {c.object}"
+    return text if c.status == "completed" else f"{text} ({c.status.replace('_', ' ')})"
 
 
 def _hostname(value: str) -> str:
@@ -53,7 +94,7 @@ def create_app(dd: DataDir) -> FastAPI:
         resp = await call_next(request)
         resp.headers["Content-Security-Policy"] = CSP
         resp.headers["X-Content-Type-Options"] = "nosniff"
-        resp.headers["Referrer-Policy"] = "no-referrer"
+        resp.headers["Referrer-Policy"] = "same-origin"
         return resp
 
     def db():
@@ -79,7 +120,7 @@ def create_app(dd: DataDir) -> FastAPI:
             with _write_lock:
                 fn()
         except svc.ClaimBlocked as exc:
-            return back("Blocked: " + "; ".join(exc.violations))
+            return back("Not saved yet: " + " ".join(friendly(v) for v in exc.violations))
         return back()
 
     @app.get("/", response_class=HTMLResponse)
@@ -98,17 +139,28 @@ def create_app(dd: DataDir) -> FastAPI:
                     act = s.scalar(select(Activity).where(Activity.source_record_id == obs.source_record_id))
                     ev.append(dict(ref=svc.provenance_ref(sup), polarity=sup.polarity,
                                    excerpt=svc.excerpt_text(s, sup), url=act.source_url if act else None))
-                claims.append(dict(id=c.id, layer=c.layer, text=svc.render_claim(c), object=c.object,
+                claims.append(dict(id=c.id, layer=c.layer, text=claim_text(c), object=c.object,
                                    verification_status=c.verification_status, authored_by=c.authored_by,
-                                   evidence=ev, violations=svc.violations(s, c)))
+                                   state_label=STATE_LABEL[c.verification_status], evidence=ev,
+                                   violations=[friendly(v) for v in svc.violations(s, c)]
+                                   if c.verification_status != "rejected" else []))
             versions = list(s.scalars(select(AccomplishmentVersion).where(
                 AccomplishmentVersion.anchor_activity_id == a.id)))
-            episodes.append(dict(anchor=a, members=members, claims=claims, versions=versions,
+            episodes.append(dict(id=a.id, title=a.title.split(": ", 1)[-1], members=members, claims=claims, versions=versions,
                                  unknowns=svc.unknowns_for(s, a.id),
                                  stale=any(v.id in stale for v in versions)))
         html = env.get_template("review.html").render(
-            episodes=episodes, csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning())
+            episodes=episodes, csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(),
+            theme="light" if request.cookies.get("theme") == "light" else "dark",
+            greeting=greeting(), sections=SECTIONS)
         return HTMLResponse(html)
+
+    @app.post("/theme", dependencies=[Depends(check_csrf)])
+    def set_theme(theme: str = Form(...)):
+        resp = back()
+        resp.set_cookie("theme", "light" if theme == "light" else "dark", max_age=31_536_000,
+                        httponly=True, samesite="strict")
+        return resp
 
     @app.post("/claims/{cid}/approve", dependencies=[Depends(check_csrf)])
     def approve(cid: int, s: Session = Depends(db)):
@@ -143,6 +195,8 @@ def create_app(dd: DataDir) -> FastAPI:
         def run():
             ids = [c.id for c in s.scalars(select(Claim).where(
                 Claim.anchor_activity_id == aid, Claim.verification_status == "human_approved"))]
+            if not ids:
+                raise svc.ClaimBlocked(["nothing_confirmed"])
             svc.publish(s, aid, ids)
         return guarded(run)
 

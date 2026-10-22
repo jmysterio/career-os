@@ -173,13 +173,13 @@ def unknowns_for(s: Session, anchor_id: int) -> list[str]:
     for mem in s.scalars(select(EpisodeMember).where(EpisodeMember.anchor_activity_id == anchor_id)):
         if mem.status != "linked":
             act = s.get(Activity, mem.activity_id)
-            out.append(f"Unconfirmed link: '{act.title}' ({mem.reason}) - link or ignore it.")
+            out.append(f"Is '{act.title}' part of this release? ({mem.reason})")
     if not s.scalar(select(Claim).where(Claim.anchor_activity_id == anchor_id,
                                         Claim.layer == "interpretation",
                                         Claim.verification_status != "rejected")):
-        out.append("Impact / why it mattered is unknown - add it yourself; it is not inferred.")
+        out.append("Why did this matter? Add it in your own words. I won't guess.")
     if status.lower() != "deployed":
-        out.append(f"Release status is '{status}', not deployed.")
+        out.append(f"This release is marked '{status}', not deployed yet.")
     return out
 
 

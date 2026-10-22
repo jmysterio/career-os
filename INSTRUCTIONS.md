@@ -15,7 +15,7 @@ The demo story is a fake release called "October B": a spreadsheet row, some git
    - turning "team deployed 12 changes" into "I deployed 12 changes"
    - turning "target: 20%" into "achieved 20%"
    - inventing impact. It leaves impact blank and asks you.
-5. **Waits for you.** Nothing counts until you click approve. You then publish, and it exports a Markdown file with a source reference on every claim.
+5. **Waits for you.** Nothing counts until you click "Looks right". You then save it to your accomplishments, and it exports a Markdown file with a source reference on every claim.
 6. **Can delete a source completely**: database, leftover files, and exports. Tests prove it.
 
 ## Start the demo
@@ -34,40 +34,41 @@ Open **http://127.0.0.1:8765** in a browser. Leave the terminal running. Press *
 
 ## What you should see
 
-- A yellow **SYNTHETIC DATA** banner.
-- Two release boxes: "October B release" and "October C release".
-- In the B box, under *Linked activity*: two merges linked automatically, plus a "Share deploy script" item marked **suggested**. That means the app isn't sure.
-- Claims in three groups:
-  - **Observation:** what the source says.
-  - **Attribution:** what *you* did.
-  - **Interpretation:** why it mattered.
-- Under every claim, its evidence quote and a reference like `cos://obs/7#status[0:8]` (the numbers will vary), with a "source" link where the source has a URL.
-- Under *Open questions*: "Impact / why it mattered is unknown - add it yourself."
+- A greeting ("Good morning") and a note saying this is a practice notebook with made-up data.
+- The page opens in **dark mode**. The **Switch to light** button (top right) changes it, and the app remembers your choice.
+- Two release cards: "October B release" and "October C release".
+- In the B card, under **Connected work**: two merges marked *connected*, plus a "Share deploy script" item marked *maybe related*. That means the app isn't sure and is asking you.
+- Three groups of notes:
+  - **What happened:** what the records show.
+  - **What I did:** your part in it.
+  - **Why it mattered:** in your words only.
+- Under every note, a collapsed **Where this came from** with the quote from the source. Open it to see it.
+- Under **Questions for you**: "Why did this matter? Add it in your own words. I won't guess."
 
 ## Testing steps (about 10 minutes)
 
 Do these in order.
 
-1. Click **Approve** on a few claims. They turn "human_approved".
-2. Type an impact in the box, for example "Fewer failed deployments reduced on-call load". Click **Add impact**, then **Approve** it. The app never writes impact for you.
-3. Click **Publish approved claims**. A "v1 active" line appears.
-4. Click **Unlink** on one of the merges. Claims drawn from it should disappear or show a blocked message. This shows the app respects your correction.
+1. Click **Looks right** on a few notes. They turn *confirmed*.
+2. In the box at the bottom, type why it mattered, for example "Fewer failed deployments reduced on-call load", and click **Add**. Then click **Looks right** on it. The app never writes this part for you.
+3. Click **Save to my accomplishments**. A "Saved as version 1 (current)" line appears.
+4. Click **This isn't part of it** on one of the merges. Notes drawn from it go away or show a "Needs your attention" message. This shows the app respects your correction.
 5. Simulate a source change. In a second Terminal window:
    ```
    cd ~/Documents/career-os
    uv run careeros demo edit --data-dir /tmp/cos-demo
    ```
-   Refresh the page. A **"Needs review"** warning appears, because evidence changed after you approved it.
+   Refresh the page. A "Heads up" message appears, because something you confirmed has changed.
 6. Export the result. In the seeded demo the "October B" release is number 5:
    ```
    uv run careeros export --anchor 5 --data-dir /tmp/cos-demo
    ```
-   If you haven't published yet, it tells you to do that first. Otherwise it prints the path of a Markdown file. Open it. Every claim shows its layer, its approval state, and where the evidence came from.
+   If you haven't saved yet, it tells you to do that first. Otherwise it prints the path of a Markdown file. Open it. Every note shows where its evidence came from.
 7. Test deletion:
    ```
    uv run careeros purge --source demo-sheet --reason test --data-dir /tmp/cos-demo
    ```
-   It asks you to confirm. It then wipes everything that came from the demo spreadsheet, including derived claims and exports. The demo git data stays.
+   It asks you to confirm. It then wipes everything that came from the demo spreadsheet, including derived notes and exports. The demo git data stays.
 
 If something looks wrong or confusing, note what you clicked and what you saw. That feedback matters most right now.
 
@@ -78,7 +79,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `57 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `60 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -95,4 +96,17 @@ Keep real data out of `/tmp/cos-demo`. The app refuses anything not marked demo 
 
 ## Q&A
 
-*(Add questions and answers here as they come up.)*
+**I ran `demo seed` and saw `duplicate: 3`. Is that an error?**
+No. It means the demo data was already loaded and the app recognized the files and skipped them. That is the "importing twice changes nothing" safety working.
+
+**Every button showed `{"error":"bad origin"}`. Was that expected?**
+No, it was a bug on my side. The page told the browser not to send any referrer, and Chrome then labels form submissions with an origin of "null", which the app's safety check rejects. I fixed it, and a real Chrome click-through now works. The app still rejects "null" and foreign origins on purpose, and a test guards both.
+
+**Why "What happened / What I did / Why it mattered" and not "Tasks I completed"?**
+The first layer includes things the records say about the team, such as "Team deployed 12 changes". Under "Tasks I completed" those would read as yours. Keeping them separate is how the app avoids overclaiming for you. The wording is meant to feel like a notebook, not a courtroom. Tell me if you want different words.
+
+**Is there a dark mode?**
+Yes, it is the default. Use the button at the top right to switch. The choice is stored in a cookie in your browser.
+
+**Where do meetings, Slack conversations, and documents I created show up?**
+Not yet. Today the app only knows the demo release sheet and git. Calendar and Docs come with the Google connector, and Slack after that. Quick manual entries ("had a meeting with X", "wrote 3 docs") and a Today / This week view are planned and can be moved earlier, since they need no approvals.
