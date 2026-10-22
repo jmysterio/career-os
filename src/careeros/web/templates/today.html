@@ -7,12 +7,14 @@
     </select>
     <input name="a_title" maxlength="200" placeholder="A name for it (optional)" aria-label="Name">
   </div>
+  <p class="help"><b>What it is</b> labels the pasted text. <b>Name</b> is optional, like &ldquo;Gemini notes, Oct 22&rdquo;. A link only needs the web address. The long text is kept exactly as pasted and shown as plain text.</p>
+  <p class="warn"><b>Before you paste:</b> only keep what you're allowed to keep on this laptop. Meeting notes and transcripts can hold names, decisions, or sensitive details, and some work (for example anything IRS-related) has handling rules. If you're unsure, write a short summary in your own words instead. This app never sends your notes anywhere, and Remove deletes them for good.</p>
   <textarea name="a_body" maxlength="200000" placeholder="Paste a link, meeting notes, a transcript, a Slack canvas, or a prompt here" aria-label="Paste here"></textarea>
 {% endmacro %}
 
 <section class="card">
   <h2>What did you get up to?</h2>
-  <p class="muted">Jot it down in a few words. You can paste the longer stuff underneath. It's just for you.</p>
+  <p class="muted">Jot it down in a few words. You can paste the longer stuff underneath. It's just for you, it stays on this computer, and nothing is sent anywhere.</p>
   <form method="post" action="/journal/add" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="row">
@@ -22,6 +24,7 @@
       <input name="text" required maxlength="500" placeholder="Who or what? e.g. Sam, about the rollout" aria-label="Details" style="flex:1;min-width:14rem">
       <input type="date" name="day" value="{{ today }}" max="{{ today }}" aria-label="Day">
     </div>
+    <p class="help"><b>Kind</b> sorts it for your weekly tally. <b>Who or what</b> is a short headline, like &ldquo;Sam, about the rollout&rdquo;, and it's what search and the list show first. <b>Day</b> is when it happened, so you can catch up on yesterday.</p>
     <details><summary>Paste notes, a link, or a transcript (optional)</summary>
       <div class="stack">{{ attach_fields() }}</div></details>
     <div><button class="primary">Add to notebook</button></div>

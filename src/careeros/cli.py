@@ -9,7 +9,7 @@ import typer
 from sqlalchemy import select
 
 from .claims import service as svc
-from .config import DataDir, load_approvals, resolve, write_approval
+from .config import PERSONAL_DIR, DataDir, NotDemoData, load_approvals, resolve, write_approval
 from .correlate.engine import rebuild_episodes
 from .correlate.project import ensure_self, project_activities
 from .export.markdown import export_markdown
@@ -43,7 +43,10 @@ def _refresh(s, dd: DataDir) -> dict:
 @demo_app.command("seed")
 def demo_seed(data_dir: Optional[str] = DataOpt) -> None:
     """Create a demo workspace, ingest the synthetic story, and draft claims."""
-    dd = resolve(data_dir)
+    dd = resolve(data_dir, demo=True)
+    if dd.is_personal:
+        typer.echo("That folder is your personal notebook. Demo data is never put there.")
+        raise typer.Exit(1)
     dd.create()
     dd.demo_marker.write_text("synthetic data only\n")
     expires = fx.T0 + timedelta(days=365)
@@ -67,7 +70,7 @@ def demo_seed(data_dir: Optional[str] = DataOpt) -> None:
 @demo_app.command("edit")
 def demo_edit(data_dir: Optional[str] = DataOpt) -> None:
     """Deliver a later sheet export that renames the release row (source edit scenario)."""
-    dd = resolve(data_dir)
+    dd = resolve(data_dir, demo=True)
     handoff(fx.sheet_title_edit(), dd.inbox)
     with _open(dd) as s:
         typer.echo(str(_refresh(s, dd)))
@@ -76,7 +79,7 @@ def demo_edit(data_dir: Optional[str] = DataOpt) -> None:
 @demo_app.command("tombstone")
 def demo_tombstone(data_dir: Optional[str] = DataOpt) -> None:
     """Deliver an export that explicitly deletes release row C."""
-    dd = resolve(data_dir)
+    dd = resolve(data_dir, demo=True)
     handoff(fx.sheet_tombstone_c(), dd.inbox)
     with _open(dd) as s:
         typer.echo(str(_refresh(s, dd)))
@@ -127,6 +130,26 @@ def purge_cmd(source: str = typer.Option(..., help="Connector instance id"),
                f"{rep.versions_withdrawn} versions withdrawn, {len(rep.files_deleted)} files")
     for m in rep.manual_actions:
         typer.echo(f"  ! {m}")
+
+
+notebook_app = typer.Typer(no_args_is_help=True, help="Your personal notebook")
+app.add_typer(notebook_app, name="notebook")
+
+
+@notebook_app.command("init")
+def notebook_init(data_dir: Optional[str] = typer.Option(None, "--data-dir", help="Default: ~/Library/Application Support/CareerOS")) -> None:
+    """Create your real, permanent notebook (journal only). Imports of work data stay off."""
+    os.umask(0o077)
+    dd = DataDir(__import__("pathlib").Path(data_dir).expanduser()) if data_dir else DataDir(PERSONAL_DIR)
+    try:
+        dd.init_personal()
+    except NotDemoData as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    with_db = make_engine(dd.db)
+    init_db(with_db)
+    typer.echo(f"Your notebook is ready at {dd.root}")
+    typer.echo("Start it with:  uv run careeros serve" + (f" --data-dir {dd.root}" if data_dir else ""))
 
 
 @app.command("serve")

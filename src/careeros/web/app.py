@@ -66,7 +66,7 @@ ATTACH_LABEL = dict(ATTACH_KINDS)
 MAX_BODY = 200_000
 TAGLINES = ["Fresh cup, fresh page.", "Pull up a chair. Nothing here is a test.",
             "Take your time. Jot down what you did."]
-PAGES = {"/", "/releases"}
+PAGES = {"/", "/releases", "/search"}
 
 
 def day_label(d: date, today: date) -> str:
@@ -96,7 +96,8 @@ def _hostname(value: str) -> str:
 
 
 def create_app(dd: DataDir) -> FastAPI:
-    dd.require_demo()
+    dd.require_known()
+    personal = dd.is_personal
     os.umask(0o077)
     engine = make_engine(dd.db)
     init_db(engine)
@@ -177,7 +178,45 @@ def create_app(dd: DataDir) -> FastAPI:
         html = env.get_template("today.html").render(
             days=days, tally=tally, kinds=KINDS, attach_kinds=ATTACH_KINDS, today=today.isoformat(),
             tagline=TAGLINES[today.toordinal() % len(TAGLINES)], csrf=csrf_token, msg=msg,
-            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), page="/")
+            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), page="/", personal=personal, q="")
+        return HTMLResponse(html)
+
+    @app.get("/search", response_class=HTMLResponse)
+    def search(request: Request, q: str = "", s: Session = Depends(db)):
+        q = q.strip()[:200]
+        hits = []
+        if q:
+            terms = [w for w in q.split() if w][:6]
+            by_entry: dict[int, dict] = {}
+            for e in s.scalars(select(JournalEntry).order_by(JournalEntry.day.desc(), JournalEntry.id.desc())):
+                by_entry[e.id] = dict(e=e, atts=[])
+            for a in s.scalars(select(JournalAttachment)):
+                if a.entry_id in by_entry:
+                    by_entry[a.entry_id]["atts"].append(a)
+            for v in by_entry.values():
+                e = v["e"]
+                texts = [("", e.text)] + [(f"{ATTACH_LABEL.get(a.kind, 'Text')}: {a.title}".strip(": "), a.body)
+                                          for a in v["atts"]] + [("", a.title) for a in v["atts"] if a.title]
+                blob = "\n".join(x for _, x in texts).lower()
+                if not all(w.lower() in blob for w in terms):
+                    continue
+                snippets = []
+                for label, body in texts[1:] if len(texts) > 1 else []:
+                    low = body.lower()
+                    i = low.find(terms[0].lower())
+                    if i < 0:
+                        continue
+                    lo, hi = max(0, i - 80), min(len(body), i + len(terms[0]) + 120)
+                    snippets.append(dict(label=label, before=("…" if lo else "") + body[lo:i].replace("\n", " "),
+                                         hit=body[i:i + len(terms[0])],
+                                         after=body[i + len(terms[0]):hi].replace("\n", " ") + ("…" if hi < len(body) else "")))
+                hits.append(dict(day=e.day, kind_label=KIND_LABEL.get(e.kind, "Note"), text=e.text,
+                                 snippets=snippets[:2]))
+                if len(hits) >= 50:
+                    break
+        html = env.get_template("search.html").render(
+            q=q, hits=hits, csrf=csrf_token, msg=None, sync_warning=dd.sync_warning(), theme=theme_of(request),
+            greeting=greeting(), tagline=TAGLINES[0], page="/search", personal=personal)
         return HTMLResponse(html)
 
     @app.post("/journal/add", dependencies=[Depends(check_csrf)])
@@ -235,6 +274,8 @@ def create_app(dd: DataDir) -> FastAPI:
 
     @app.get("/releases", response_class=HTMLResponse)
     def index(request: Request, msg: str | None = None, s: Session = Depends(db)):
+        if personal:
+            return HTMLResponse("Not found", status_code=404)
         stale = svc.stale_versions(s)
         episodes = []
         for a in s.scalars(select(Activity).where(Activity.type == "release_row", Activity.state == "present")):
@@ -261,7 +302,7 @@ def create_app(dd: DataDir) -> FastAPI:
                                  stale=any(v.id in stale for v in versions)))
         html = env.get_template("review.html").render(
             episodes=episodes, csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(),
-            theme=theme_of(request), greeting=greeting(), sections=SECTIONS, page="/releases", tagline=TAGLINES[0])
+            theme=theme_of(request), greeting=greeting(), sections=SECTIONS, page="/releases", tagline=TAGLINES[0], personal=personal, q="")
         return HTMLResponse(html)
 
     @app.post("/theme", dependencies=[Depends(check_csrf)])

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="card">
+  <h2>{{ 'Search results' if q else 'Search your notebook' }}</h2>
+  {% if not q %}<p class="muted">Type a word or two (a name, a project, a phrase) in the box above. It looks through your entries and everything pasted under them.</p>
+  {% elif not hits %}<p class="muted">Nothing found for &ldquo;{{ q }}&rdquo;. Try fewer or different words.</p>
+  {% else %}<p class="muted">{{ hits|length }} found for &ldquo;{{ q }}&rdquo;, newest first.</p>{% endif %}
+  {% for h in hits %}
+  <div class="entry">
+    <div><span class="muted">{{ h.day }}</span> <span class="chip">{{ h.kind_label }}</span> {{ h.text }}</div>
+    {% for sn in h.snippets %}<div class="att muted">{% if sn.label %}<span class="chip">{{ sn.label }}</span> {% endif %}{{ sn.before }}<mark>{{ sn.hit }}</mark>{{ sn.after }}</div>{% endfor %}
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

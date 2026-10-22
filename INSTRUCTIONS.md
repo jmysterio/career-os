@@ -86,7 +86,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `64 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `68 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -126,3 +126,17 @@ Yes. An entry is the thing you did ("Rollout sync with Sam"). Under it you can a
 
 **Is it okay to paste real meeting notes or transcripts?**
 Not into the practice folder for anything real, since that folder is for made-up data and lives in `/tmp`. Before real pasting, we need a permanent notebook folder with the right protections, and you should decide whether that content is allowed to sit on this laptop (some work content, like IRS-related material, has handling rules).
+
+**How do I start a real notebook?**
+Run this once (Terminal, in `~/Documents/career-os`):
+```
+uv run careeros notebook init
+uv run careeros serve
+```
+`init` creates `~/Library/Application Support/CareerOS` with owner-only permissions, tells Spotlight not to index it, and refuses any folder under iCloud, Dropbox, Google Drive, or OneDrive. After that, plain `uv run careeros serve` opens your real notebook (the practice one needs `--data-dir /tmp/cos-demo`). The real notebook is journal-only: no Releases tab, and importing work data stays switched off until a source is approved. It never mixes with demo data, and `demo seed` refuses to write into it.
+
+**How do I search?**
+Use the search box at the top of any page. It looks through your entry headlines, pasted text, and names, and every word you type must appear somewhere in the entry. It is not case-sensitive and the match is highlighted. `%` and `_` are searched as ordinary characters.
+
+**Is my real notebook backed up?**
+Not yet. Time Machine has no destination configured on this Mac, so if the laptop's disk is lost, so is the notebook. A backup or "save a copy as a Markdown file" command is the next thing worth adding.

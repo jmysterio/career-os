@@ -212,3 +212,44 @@ def test_journal_attachments_multiple_escaped_and_removed_with_entry(seeded):
     form(c, f"/journal/{eid}/delete", token)
     with make_session_factory(make_engine(dd.db))() as s:
         assert not list(s.scalars(select(JournalAttachment)))
+
+
+def test_search_finds_titles_and_pasted_text_escaped(seeded):
+    dd, c, token = seeded
+    form(c, "/journal/add", token, kind="meeting", text="Rollout sync", a_kind="transcript",
+         a_title="Gemini notes", a_body="Priya said the <b>Runbook</b> is ready; 100% done_ok")
+    form(c, "/journal/add", token, kind="note", text="Unrelated thing")
+    html = c.get("/search", params={"q": "runbook"}).text
+    assert "Rollout sync" in html and "<mark>Runbook</mark>" in html and "<b>Runbook" not in html
+    assert "Unrelated thing" not in html
+    assert "Rollout sync" in c.get("/search", params={"q": "priya rollout"}).text
+    assert "Nothing found" in c.get("/search", params={"q": "priya zebra"}).text
+    assert "Rollout sync" in c.get("/search", params={"q": "100%"}).text
+    pct = c.get("/search", params={"q": "%"}).text  # a literal percent sign, not a wildcard
+    assert "Rollout sync" in pct and "Unrelated thing" not in pct
+
+
+def test_page_has_help_text_and_paste_warning(seeded):
+    dd, c, token = seeded
+    html = c.get("/").text
+    assert "Before you paste" in html and "IRS" in html and "Who or what</b>" in html
+
+
+def test_personal_notebook_is_journal_only(tmp_path):
+    root = tmp_path / "mine"
+    r = CliRunner().invoke(cli, ["notebook", "init", "--data-dir", str(root)])
+    assert r.exit_code == 0, r.output
+    dd = DataDir(root)
+    assert (root / ".metadata_never_index").exists() and oct(root.stat().st_mode & 0o777) == "0o700"
+    c = TestClient(create_app(dd), base_url=BASE)
+    html = c.get("/").text
+    assert "practice notebook" not in html and "Releases" not in html
+    assert c.get("/releases").status_code == 404
+    assert CliRunner().invoke(cli, ["demo", "seed", "--data-dir", str(root)]).exit_code == 1
+    assert not dd.is_demo
+    assert CliRunner().invoke(cli, ["import", "--data-dir", str(root)]).exit_code != 0
+
+
+def test_personal_init_refuses_synced_folders(tmp_path):
+    r = CliRunner().invoke(cli, ["notebook", "init", "--data-dir", str(tmp_path / "Dropbox" / "n")])
+    assert r.exit_code == 1 and "synced" in r.output
