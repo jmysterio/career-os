@@ -41,7 +41,7 @@ Open **http://127.0.0.1:8765** in a browser. Leave the terminal running. Press *
   - **Observation:** what the source says.
   - **Attribution:** what *you* did.
   - **Interpretation:** why it mattered.
-- Under every claim, its evidence quote and a reference like `cos://obs/5#status[0:8]`, with a "source" link where the source has a URL.
+- Under every claim, its evidence quote and a reference like `cos://obs/7#status[0:8]` (the numbers will vary), with a "source" link where the source has a URL.
 - Under *Open questions*: "Impact / why it mattered is unknown - add it yourself."
 
 ## Testing steps (about 10 minutes)
@@ -62,7 +62,7 @@ Do these in order.
    ```
    uv run careeros export --anchor 5 --data-dir /tmp/cos-demo
    ```
-   It prints the path of a Markdown file. Open it. Every claim shows its layer, its approval state, and where the evidence came from.
+   If you haven't published yet, it tells you to do that first. Otherwise it prints the path of a Markdown file. Open it. Every claim shows its layer, its approval state, and where the evidence came from.
 7. Test deletion:
    ```
    uv run careeros purge --source demo-sheet --reason test --data-dir /tmp/cos-demo
@@ -78,7 +78,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `56 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `57 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

@@ -121,3 +121,9 @@ def test_data_files_are_owner_only(seeded):
               *(dd.inbox / "processed").glob("*.json")]:
         assert stat.S_IMODE(p.stat().st_mode) == 0o600, p
     assert stat.S_IMODE(dd.root.stat().st_mode) == 0o700
+
+
+def test_export_without_published_version_is_a_friendly_error(seeded):
+    dd, _, _ = seeded
+    r = CliRunner().invoke(cli, ["export", "--anchor", str(anchor_id(dd)), "--data-dir", str(dd.root)])
+    assert r.exit_code == 1 and "Publish approved claims" in r.output and "Traceback" not in r.output

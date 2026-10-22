@@ -106,7 +106,12 @@ def export_cmd(anchor: int = typer.Option(..., help="Episode anchor activity id"
                data_dir: Optional[str] = DataOpt) -> None:
     dd = resolve(data_dir)
     with _open(dd) as s:
-        typer.echo(str(export_markdown(s, anchor, dd.exports)))
+        try:
+            typer.echo(str(export_markdown(s, anchor, dd.exports)))
+        except ValueError:
+            typer.echo("Nothing to export yet: approve some claims and click 'Publish approved claims' "
+                       "on the review page first.")
+            raise typer.Exit(1)
 
 
 @app.command("purge")
