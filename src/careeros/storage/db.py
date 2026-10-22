@@ -30,6 +30,8 @@ def init_db(engine: Engine) -> None:
         have = {r[1] for r in c.exec_driver_sql("PRAGMA table_info(journal_entry)")}
         if "source" not in have:
             c.exec_driver_sql("ALTER TABLE journal_entry ADD COLUMN source VARCHAR NOT NULL DEFAULT ''")
+        if "status" not in have:
+            c.exec_driver_sql("ALTER TABLE journal_entry ADD COLUMN status VARCHAR NOT NULL DEFAULT ''")
         if "external_id" not in have:
             c.exec_driver_sql("ALTER TABLE journal_entry ADD COLUMN external_id VARCHAR")
 

@@ -1,0 +1,33 @@
+{% macro attach_fields() %}
+  <div class="row">
+    <select name="a_kind" aria-label="What are you adding">
+      {% for k, label in attach_kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
+    </select>
+    <input name="a_title" maxlength="200" placeholder="A name for it (optional)" aria-label="Name">
+  </div>
+  <p class="help"><b>What it is</b> labels the pasted text. <b>Name</b> is optional, like &ldquo;Gemini notes, Oct 22&rdquo;. A link only needs the web address. The long text is kept exactly as pasted and shown as plain text.</p>
+  <p class="warn"><b>Before you paste:</b> only keep what you're allowed to keep on this laptop. Meeting notes and transcripts can hold names, decisions, or sensitive details, and some work (for example anything IRS-related) has handling rules. If you're unsure, write a short summary in your own words instead. This app never sends your notes anywhere, and Remove deletes them for good.</p>
+  <textarea name="a_body" maxlength="200000" placeholder="Paste a link, meeting notes, a transcript, a Slack canvas, or a prompt here" aria-label="Paste here"></textarea>
+{% endmacro %}
+
+{% macro entry_card(e) %}
+  <div class="entry">
+    <div class="entry-head">
+      <div><span class="chip">{{ e.kind_label }}</span>{% if e.status == "open" %} <span class="chip">to do</span>{% endif %}{% if e.from_calendar %} <span class="chip">from calendar</span>{% endif %} {{ e.text }}</div>
+      <form method="post" action="/journal/{{ e.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove</button></form>
+    </div>
+    {% for a in e.attachments %}
+    <div class="att">
+      <details {{ 'open' if a.url }}><summary><span class="chip">{{ a.label }}</span> {{ a.title or ('Link' if a.url else 'Show') }}</summary>
+        {% if a.url %}<a href="{{ a.url }}" rel="noreferrer noopener" target="_blank">{{ a.url }}</a>
+        {% else %}<pre class="paper">{{ a.body }}</pre>{% endif %}
+        <form method="post" action="/journal/attachment/{{ a.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove this</button></form>
+      </details>
+    </div>
+    {% endfor %}
+    <details><summary>Add more to this</summary>
+      <form method="post" action="/journal/{{ e.id }}/attach" class="stack">
+        <input type="hidden" name="csrf" value="{{ csrf }}">{{ attach_fields() }}<div><button>Add</button></div></form>
+    </details>
+  </div>
+{% endmacro %}

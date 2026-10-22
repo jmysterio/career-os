@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block body %}
+{% from "_entry.html" import entry_card with context %}
+<section class="card">
+  <h2>{{ title }}</h2>
+  <p class="muted">{{ intro }}</p>
+  <p class="tally">{{ count }} saved{{ ' (showing the newest ' ~ shown ~ ')' if shown < count }}.</p>
+</section>
+{% if open_entries %}
+<section class="card">
+  <h2>Still to do</h2>
+  {% for e in open_entries %}{{ entry_card(e) }}{% endfor %}
+</section>
+{% endif %}
+{% for d in days %}
+<section class="card">
+  <h2>{{ d.label }}</h2>
+  {% for e in d.entries %}{{ entry_card(e) }}{% endfor %}
+</section>
+{% else %}{% if not open_entries %}<section class="card"><p class="muted">Nothing here yet.</p></section>{% endif %}{% endfor %}
+{% endblock %}

@@ -34,7 +34,10 @@ Open **http://127.0.0.1:8765** in a browser. Leave the terminal running. Press *
 
 ## What you should see
 
-The app has two pages, switched by the tabs at the top:
+The app has these pages, switched by the tabs at the top (Today, Meetings, Conversations, Documents, Tasks, Other, and Releases in the practice folder):
+
+- **Meetings / Conversations / Documents / Tasks / Other**: one tab per kind of entry, newest first, with everything saved under it. On **Tasks**, anything still open is listed at the top, and finished tasks are grouped by the day you completed them.
+
 
 - **Today & this week** (the home page): your daily notebook. Pick what kind of thing it was (a meeting, a conversation, a document, or something else), type a few words, and click **Add to notebook**. Entries are grouped by day for the last 7 days, with a small tally at the bottom. Under the line there is an optional **Paste notes, a link, or a transcript** box for long text (meeting notes, a Gemini transcript, a Slack canvas, a prompt you wrote, or a URL). Every entry can hold several of these, and **Add more to this** attaches another later. Use the date box to log something from an earlier day, and **Remove** to delete an entry. These are your own notes, so nothing needs approval and nothing is checked.
 - **Releases**: the release cards described below.
@@ -86,7 +89,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `76 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `77 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -151,3 +154,6 @@ This uses your calendar's private address, so no Google Cloud setup or admin sig
 Meetings show on the Today page as "Had a meeting" with a "from calendar" tag. Only the **title and time** are kept; attendees, descriptions, locations, and video links are dropped before anything is saved. All-day items and cancelled meetings are skipped. Running sync again never duplicates; a renamed or moved meeting is updated, and a meeting that disappeared is removed unless you've attached notes to it. Anything you typed yourself is never touched. The address is stored in `calendar.url` in your notebook folder, readable only by you. If you ever reset the secret address in Google, run `connect` again.
 
 Before using it on a work calendar, check that titles of meetings (which can name other people or IRS-related topics) are okay to keep on this laptop. Syncing is manual for now; it does not run by itself.
+
+**How were my calendar and tasks pulled in?**
+Through the Google Workspace connector in a Claude Code session, not by a script on its own. Meeting titles/times, the files attached to each meeting (Gemini notes, recordings, chat), and task titles and notes pass through the AI tool on the way in. Asking Claude to refresh pulls new ones without duplicating. Meetings you declined are dropped, and so are ones that vanished from the calendar, unless you attached your own notes. Open tasks stay off the Today page and live on the Tasks tab. Links to Google files are only links: the app never opens or reads the file. You need to be signed in to Google to open them.

@@ -12,7 +12,7 @@ from urllib.parse import quote, urlparse
 from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..claims import service as svc
@@ -56,17 +56,25 @@ SECTIONS = [
 
 
 KINDS = [("meeting", "Had a meeting"), ("conversation", "Had a conversation"),
-         ("document", "Worked on a document"), ("note", "Something else")]
+         ("document", "Worked on a document"), ("task", "Finished a task"), ("note", "Something else")]
 KIND_LABEL = dict(KINDS)
 KIND_PLURAL = {"meeting": ("meeting", "meetings"), "conversation": ("conversation", "conversations"),
-               "document": ("document", "documents"), "note": ("other note", "other notes")}
+               "document": ("document", "documents"), "task": ("task", "tasks"), "note": ("other note", "other notes")}
 ATTACH_KINDS = [("notes", "Meeting notes"), ("transcript", "Transcript"), ("link", "Link"),
                 ("canvas", "Slack canvas"), ("prompt", "A prompt I wrote"), ("other", "Other text")]
 ATTACH_LABEL = dict(ATTACH_KINDS)
 MAX_BODY = 200_000
 TAGLINES = ["Fresh cup, fresh page.", "Pull up a chair. Nothing here is a test.",
             "Take your time. Jot down what you did."]
-PAGES = {"/", "/releases", "/search"}
+TABS = {  # path -> (kind, tab name, heading, what's on it)
+    "/meetings": ("meeting", "Meetings", "Meetings", "Every meeting you've logged or pulled from your calendar, newest first. Notes and documents linked to a meeting show underneath it."),
+    "/conversations": ("conversation", "Conversations", "Conversations", "Chats and calls you've noted, newest first."),
+    "/documents": ("document", "Documents", "Documents", "Documents you've worked on, newest first."),
+    "/tasks": ("task", "Tasks", "Tasks", "Your Google Tasks and any you've noted yourself. What's still open is at the top, finished ones are grouped by the day you completed them."),
+    "/other": ("note", "Other", "Something else", "Anything that didn't fit the other tabs."),
+}
+PAGES = {"/", "/releases", "/search", *TABS}
+LIST_LIMIT = 300
 
 
 def day_label(d: date, today: date) -> str:
@@ -104,6 +112,7 @@ def create_app(dd: DataDir) -> FastAPI:
     Session_ = make_session_factory(engine)
     csrf_token = hmac.new(dd.secret(), b"csrf", hashlib.sha256).hexdigest()
     env = Environment(loader=FileSystemLoader(Path(__file__).parent / "templates"), autoescape=True)
+    env.globals["tabs"] = TABS
     app = FastAPI(debug=False, docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.middleware("http")
@@ -149,24 +158,29 @@ def create_app(dd: DataDir) -> FastAPI:
     def theme_of(request: Request) -> str:
         return "light" if request.cookies.get("theme") == "light" else "dark"
 
-    @app.get("/", response_class=HTMLResponse)
-    def today_page(request: Request, msg: str | None = None, s: Session = Depends(db)):
-        today = date.today()
-        week = [today - timedelta(days=i) for i in range(7)]
+    def entry_dicts(s: Session, rows: list) -> list[dict]:
         atts: dict[int, list] = {}
-        rows = list(s.scalars(select(JournalEntry).where(
-            JournalEntry.day.in_([d.isoformat() for d in week])).order_by(JournalEntry.id.desc())))
         for a in s.scalars(select(JournalAttachment).where(
                 JournalAttachment.entry_id.in_([e.id for e in rows])).order_by(JournalAttachment.id)):
             link = a.kind == "link" and urlparse(a.body.strip()).scheme in ("http", "https")
             atts.setdefault(a.entry_id, []).append(dict(
                 id=a.id, label=ATTACH_LABEL.get(a.kind, "Text"), title=a.title, body=a.body,
                 url=a.body.strip() if link else None))
+        return [dict(id=e.id, day=e.day, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"),
+                     from_calendar=e.source == "calendar", status=e.status, attachments=atts.get(e.id, []))
+                for e in rows]
+
+    @app.get("/", response_class=HTMLResponse)
+    def today_page(request: Request, msg: str | None = None, s: Session = Depends(db)):
+        today = date.today()
+        week = [today - timedelta(days=i) for i in range(7)]
+        rows = list(s.scalars(select(JournalEntry).where(
+            JournalEntry.day.in_([d.isoformat() for d in week]), JournalEntry.status != "open")
+            .order_by(JournalEntry.id.desc())))
+        ents = entry_dicts(s, rows)
         days = []
         for d in week:
-            es = [dict(id=e.id, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"), from_calendar=e.source == "calendar",
-                       attachments=atts.get(e.id, []))
-                  for e in rows if e.day == d.isoformat()]
+            es = [e for e in ents if e["day"] == d.isoformat()]
             if es or d == today:
                 days.append(dict(label=day_label(d, today), entries=es, is_today=d == today))
         parts = []
@@ -180,6 +194,32 @@ def create_app(dd: DataDir) -> FastAPI:
             tagline=TAGLINES[today.toordinal() % len(TAGLINES)], csrf=csrf_token, msg=msg,
             sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), page="/", personal=personal, q="")
         return HTMLResponse(html)
+
+    def tab_page(path: str):
+        kind, _name, title, intro = TABS[path]
+
+        def view(request: Request, msg: str | None = None, s: Session = Depends(db)):
+            q = select(JournalEntry).where(JournalEntry.kind == kind)
+            count = s.scalar(select(func.count()).select_from(q.subquery()))
+            open_rows = list(s.scalars(q.where(JournalEntry.status == "open").order_by(JournalEntry.day.desc(), JournalEntry.id)))
+            rows = list(s.scalars(q.where(JournalEntry.status != "open")
+                                  .order_by(JournalEntry.day.desc(), JournalEntry.id.desc()).limit(LIST_LIMIT)))
+            today = date.today()
+            ents = entry_dicts(s, open_rows + rows)
+            days: list[dict] = []
+            for e in ents[len(open_rows):]:
+                if not days or days[-1]["day"] != e["day"]:
+                    days.append(dict(day=e["day"], label=day_label(date.fromisoformat(e["day"]), today), entries=[]))
+                days[-1]["entries"].append(e)
+            html = env.get_template("list.html").render(
+                title=title, intro=intro, count=count, shown=len(rows), days=days, open_entries=ents[:len(open_rows)],
+                kinds=KINDS, attach_kinds=ATTACH_KINDS, csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(),
+                theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0], page=path, personal=personal, q="")
+            return HTMLResponse(html)
+        return view
+
+    for _path in TABS:
+        app.add_api_route(_path, tab_page(_path), methods=["GET"], response_class=HTMLResponse)
 
     @app.get("/search", response_class=HTMLResponse)
     def search(request: Request, q: str = "", s: Session = Depends(db)):

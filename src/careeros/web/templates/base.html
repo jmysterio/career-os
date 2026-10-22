@@ -67,6 +67,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
     <button>{{ 'Switch to light' if theme == 'dark' else 'Switch to dark' }}</button></form>
 </div>
 <nav><a href="/" class="{{ 'on' if page == '/' }}">Today &amp; this week</a>
+  {% for path, tab in tabs.items() %}<a href="{{ path }}" class="{{ 'on' if page == path }}">{{ tab[1] }}</a>{% endfor %}
   {% if not personal %}<a href="/releases" class="{{ 'on' if page == '/releases' }}">Releases</a>{% endif %}
   <form method="get" action="/search" style="margin-left:auto"><input type="search" name="q" value="{{ q }}" placeholder="Search your notebook" aria-label="Search your notebook" maxlength="200"><button>Search</button></form></nav>
 {% if not personal %}<div class="note">This is a practice notebook. Everything in it is made-up demo data.</div>{% endif %}

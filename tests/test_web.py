@@ -5,8 +5,10 @@ from typer.testing import CliRunner
 
 from careeros.cli import app as cli
 from careeros.config import DataDir, NotDemoData, resolve
-from careeros.storage.db import make_engine, make_session_factory
-from careeros.storage.models import Claim
+from datetime import date
+
+from careeros.storage.db import init_db, make_engine, make_session_factory
+from careeros.storage.models import Claim, JournalAttachment, JournalEntry
 from careeros.web.app import create_app
 
 BASE = "http://127.0.0.1"
@@ -253,3 +255,32 @@ def test_personal_notebook_is_journal_only(tmp_path):
 def test_personal_init_refuses_synced_folders(tmp_path):
     r = CliRunner().invoke(cli, ["notebook", "init", "--data-dir", str(tmp_path / "Dropbox" / "n")])
     assert r.exit_code == 1 and "synced" in r.output
+
+
+def test_tabs_list_by_kind_and_tasks_open_first(tmp_path):
+    from careeros.google.tasks import Task, sync as sync_tasks
+    from datetime import datetime
+    dd = DataDir(tmp_path / "nb")
+    dd.init_personal()
+    engine = make_engine(dd.db)
+    init_db(engine)
+    with make_session_factory(engine)() as s:
+        s.add(JournalEntry(day=date.today().isoformat(), kind="meeting", text="Rollout sync", created_at=datetime.now()))
+        s.flush()
+        s.add(JournalAttachment(entry_id=s.scalar(select(JournalEntry.id)), kind="link", title="Notes by Gemini",
+                                body="https://docs.google.com/document/d/abc/edit", created_at=datetime.now()))
+        when = datetime.now()
+        batch = [Task("ship it", True, when), Task("write plan", False, when, notes="draft first")]
+        assert sync_tasks(s, batch) == dict(added=2, removed=0)
+        assert sync_tasks(s, batch) == dict(added=0, removed=0)
+        assert sync_tasks(s, batch[:1]) == dict(added=0, removed=1)
+        sync_tasks(s, batch)
+    c = TestClient(create_app(dd), base_url=BASE)
+    m = c.get("/meetings").text
+    assert "Rollout sync" in m and "https://docs.google.com/document/d/abc/edit" in m and "ship it" not in m
+    t = c.get("/tasks").text
+    assert t.index("Still to do") < t.index("ship it") and "write plan" in t
+    assert "write plan" not in c.get("/").text  # open tasks stay off Today
+    for path in ("/conversations", "/documents", "/other"):
+        assert c.get(path).status_code == 200
+    assert 'href="/tasks"' in c.get("/").text
