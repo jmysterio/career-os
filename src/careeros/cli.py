@@ -152,6 +152,55 @@ def notebook_init(data_dir: Optional[str] = typer.Option(None, "--data-dir", hel
     typer.echo("Start it with:  uv run careeros serve" + (f" --data-dir {dd.root}" if data_dir else ""))
 
 
+calendar_app = typer.Typer(no_args_is_help=True, help="Pull Google Calendar meetings into your notebook (read-only)")
+app.add_typer(calendar_app, name="calendar")
+
+
+def _open_personal(data_dir: Optional[str]):
+    from .google import calendar as gcal  # noqa: F401
+    os.umask(0o077)
+    dd = resolve(data_dir)
+    if not dd.is_personal:
+        typer.echo("Calendar sync only works with your personal notebook (run `careeros notebook init`).")
+        raise typer.Exit(1)
+    engine = make_engine(dd.db)
+    init_db(engine)
+    return dd, make_session_factory(engine)()
+
+
+@calendar_app.command("connect")
+def calendar_connect(data_dir: Optional[str] = DataOpt) -> None:
+    """Save your calendar's secret iCal address (typed hidden, stored owner-only, never shown again)."""
+    from .google import calendar as gcal
+    dd, _ = _open_personal(data_dir)
+    url = typer.prompt("Paste the 'Secret address in iCal format'", hide_input=True)
+    try:
+        gcal.save_url(dd, url)
+    except gcal.CalendarError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    typer.echo("Saved. Now run: uv run careeros calendar sync")
+
+
+@calendar_app.command("sync")
+def calendar_sync(days: int = typer.Option(14, help="How many past days to pull (max 60)"),
+                  data_dir: Optional[str] = DataOpt) -> None:
+    """Pull meetings (title and time only) for the last few days into the Today page."""
+    from datetime import date
+    from .google import calendar as gcal
+    dd, s = _open_personal(data_dir)
+    last = date.today()
+    first = last - timedelta(days=max(1, min(days, 60)))
+    try:
+        events = gcal.parse_events(gcal.fetch_ics(gcal.load_url(dd)), first, last)
+    except gcal.CalendarError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    r = gcal.sync(s, events, first, last)
+    typer.echo(f"Calendar: {r['added']} added, {r['updated']} changed, {r['removed']} removed "
+               f"({len(events)} meetings between {first} and {last}).")
+
+
 @app.command("serve")
 def serve(port: int = 8765, data_dir: Optional[str] = DataOpt) -> None:
     """Serve the review UI on loopback only (host is not configurable)."""

@@ -197,6 +197,8 @@ class JournalEntry(Base):
     kind: Mapped[str] = mapped_column(String)  # meeting | conversation | document | note
     text: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime)
+    source: Mapped[str] = mapped_column(String, default="")  # "" = typed by the user | calendar
+    external_id: Mapped[str | None] = mapped_column(String, index=True, default=None)
 
 
 class JournalAttachment(Base):

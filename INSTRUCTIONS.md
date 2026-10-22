@@ -86,7 +86,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `68 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `76 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -140,3 +140,14 @@ Use the search box at the top of any page. It looks through your entry headlines
 
 **Is my real notebook backed up?**
 Not yet. Time Machine has no destination configured on this Mac, so if the laptop's disk is lost, so is the notebook. A backup or "save a copy as a Markdown file" command is the next thing worth adding.
+
+**How do I pull in my Google Calendar meetings?**
+This uses your calendar's private address, so no Google Cloud setup or admin sign-off is needed, and the data never passes through an AI tool. One-time setup:
+1. In Google Calendar on the web, open Settings, pick your calendar under "Settings for my calendars", and scroll to **Integrate calendar**.
+2. Copy the **Secret address in iCal format**. Treat it like a password: anyone with it can read that calendar.
+3. In Terminal (in `~/Documents/career-os`): `uv run careeros calendar connect`, paste it (nothing shows as you paste), and press Enter.
+4. `uv run careeros calendar sync` pulls the last 14 days (`--days 30` for more, max 60).
+
+Meetings show on the Today page as "Had a meeting" with a "from calendar" tag. Only the **title and time** are kept; attendees, descriptions, locations, and video links are dropped before anything is saved. All-day items and cancelled meetings are skipped. Running sync again never duplicates; a renamed or moved meeting is updated, and a meeting that disappeared is removed unless you've attached notes to it. Anything you typed yourself is never touched. The address is stored in `calendar.url` in your notebook folder, readable only by you. If you ever reset the secret address in Google, run `connect` again.
+
+Before using it on a work calendar, check that titles of meetings (which can name other people or IRS-related topics) are okay to keep on this laptop. Syncing is manual for now; it does not run by itself.

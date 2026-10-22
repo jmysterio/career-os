@@ -9,9 +9,11 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",
     "fastapi>=0.158.2",
+    "icalendar>=7.3.0",
     "jinja2>=3.1.6",
     "pydantic>=2.14.1",
     "python-multipart>=0.0.32",
+    "recurring-ical-events>=3.8.2",
     "sqlalchemy>=2",
     "typer>=0.27.3",
     "uvicorn>=0.54.0",

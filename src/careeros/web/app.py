@@ -164,7 +164,7 @@ def create_app(dd: DataDir) -> FastAPI:
                 url=a.body.strip() if link else None))
         days = []
         for d in week:
-            es = [dict(id=e.id, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"),
+            es = [dict(id=e.id, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"), from_calendar=e.source == "calendar",
                        attachments=atts.get(e.id, []))
                   for e in rows if e.day == d.isoformat()]
             if es or d == today:

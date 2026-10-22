@@ -25,6 +25,13 @@ def make_engine(db_path: Path | str) -> Engine:
 
 def init_db(engine: Engine) -> None:
     Base.metadata.create_all(engine)
+    # create_all never alters an existing table, so add columns introduced after a notebook was made.
+    with engine.begin() as c:
+        have = {r[1] for r in c.exec_driver_sql("PRAGMA table_info(journal_entry)")}
+        if "source" not in have:
+            c.exec_driver_sql("ALTER TABLE journal_entry ADD COLUMN source VARCHAR NOT NULL DEFAULT ''")
+        if "external_id" not in have:
+            c.exec_driver_sql("ALTER TABLE journal_entry ADD COLUMN external_id VARCHAR")
 
 
 def make_session_factory(engine: Engine) -> sessionmaker[Session]:

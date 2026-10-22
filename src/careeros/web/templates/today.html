@@ -37,7 +37,7 @@
   {% for e in d.entries %}
   <div class="entry">
     <div class="entry-head">
-      <div><span class="chip">{{ e.kind_label }}</span> {{ e.text }}</div>
+      <div><span class="chip">{{ e.kind_label }}</span>{% if e.from_calendar %} <span class="chip">from calendar</span>{% endif %} {{ e.text }}</div>
       <form method="post" action="/journal/{{ e.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove</button></form>
     </div>
     {% for a in e.attachments %}
