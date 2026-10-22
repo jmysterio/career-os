@@ -190,3 +190,25 @@ def test_theme_toggle_returns_to_same_page(seeded):
     dd, c, token = seeded
     assert form(c, "/theme", token, theme="light", next="/releases").headers["location"] == "/releases"
     assert form(c, "/theme", token, theme="light", next="//evil.example").headers["location"] == "/"
+
+
+def test_journal_attachments_multiple_escaped_and_removed_with_entry(seeded):
+    dd, c, token = seeded
+    big = "Transcript line <script>alert(1)</script>\n" * 3000
+    form(c, "/journal/add", token, kind="meeting", text="Rollout sync", a_kind="transcript",
+         a_title="Gemini notes", a_body=big)
+    from careeros.storage.models import JournalAttachment, JournalEntry
+    with make_session_factory(make_engine(dd.db))() as s:
+        eid = s.scalar(select(JournalEntry.id))
+    form(c, f"/journal/{eid}/attach", token, a_kind="link", a_body="https://docs.example.com/x")
+    form(c, f"/journal/{eid}/attach", token, a_kind="link", a_body="javascript:alert(1)")
+    form(c, f"/journal/{eid}/attach", token, a_kind="prompt", a_title="My prompt", a_body="Summarize my week")
+    html = c.get("/").text
+    assert "Gemini notes" in html and "<script>alert" not in html and "&lt;script&gt;alert(1)" in html
+    assert 'href="https://docs.example.com/x"' in html and 'href="javascript' not in html
+    assert "Summarize my week" in html
+    with make_session_factory(make_engine(dd.db))() as s:
+        assert len(list(s.scalars(select(JournalAttachment)))) == 4
+    form(c, f"/journal/{eid}/delete", token)
+    with make_session_factory(make_engine(dd.db))() as s:
+        assert not list(s.scalars(select(JournalAttachment)))

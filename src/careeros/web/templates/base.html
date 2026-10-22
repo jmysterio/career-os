@@ -3,14 +3,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My work notebook</title>
 <style>
-:root[data-theme=dark]{--bg:#1c1917;--card:#26221f;--text:#efe8dd;--muted:#a89f93;--line:#3b352f;
-  --accent:#e3a857;--accent-text:#1c1917;--good:#9ccc9c;--note-bg:#33291d;--note-line:#6b5530;
-  --btn:#332e29;--c-happened:#7fb0e0;--c-did:#e3a857;--c-why:#b79af0}
-:root[data-theme=light]{--bg:#faf6ef;--card:#fffdf8;--text:#2b2620;--muted:#7a6f62;--line:#e4dccd;
-  --accent:#b7701f;--accent-text:#fffdf8;--good:#3d7a3d;--note-bg:#fff3d6;--note-line:#e0c36a;
-  --btn:#f1e9da;--c-happened:#2b6cb0;--c-did:#b7701f;--c-why:#6b46c1}
+:root[data-theme=dark]{--bg:#1a1411;--glow:#3a2718;--card:#261d18;--text:#f0e6d8;--muted:#b0a08e;--line:#42342b;
+  --accent:#e0a458;--accent-text:#1a1411;--good:#a9cf9a;--note-bg:#33261a;--note-line:#6e5330;
+  --btn:#34281f;--shadow:0 6px 18px rgba(0,0,0,.28);--c-happened:#8ab4dc;--c-did:#e0a458;--c-why:#c0a0e8}
+:root[data-theme=light]{--bg:#f6ecdc;--glow:#fff6e6;--card:#fffaf0;--text:#3a2a1e;--muted:#80705f;--line:#e6d7bd;
+  --accent:#a9611c;--accent-text:#fffaf0;--good:#3d7a3d;--note-bg:#fbebc4;--note-line:#dcc07a;
+  --btn:#f3e5cc;--shadow:0 6px 16px rgba(90,60,30,.10);--c-happened:#2b6cb0;--c-did:#a9611c;--c-why:#6b46c1}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font:16px/1.5 -apple-system,system-ui,sans-serif;
+body{background:radial-gradient(ellipse at 50% -10%,var(--glow),var(--bg) 62%) fixed;color:var(--text);font:16px/1.5 -apple-system,system-ui,sans-serif;
   margin:0 auto;max-width:860px;padding:1.5rem 1.25rem 4rem}
 h1,h2,h3{font-family:Georgia,'Iowan Old Style',serif;font-weight:600;margin:0}
 h1{font-size:1.9rem}h2{font-size:1.35rem}
@@ -18,7 +18,7 @@ h3{font-size:1.02rem;color:var(--muted);margin:1.4rem 0 .3rem;letter-spacing:.01
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
 .sub{color:var(--muted);margin:.2rem 0 0}
 .note{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.55rem .9rem;margin:1rem 0;font-size:.92rem}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.2rem 1.4rem;margin:1.4rem 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.2rem 1.4rem;margin:1.4rem 0}
 .item{border-left:4px solid var(--line);padding:.3rem 0 .3rem .9rem;margin:.7rem 0}
 .item.happened{border-color:var(--c-happened)}.item.did{border-color:var(--c-did)}.item.why{border-color:var(--c-why)}
 .chip{display:inline-block;font-size:.76rem;border-radius:99px;padding:.05rem .6rem;margin-left:.4rem;
@@ -46,9 +46,20 @@ select,input[type=date]{font:inherit;font-size:.92rem;background:var(--bg);color
 .entry{display:flex;justify-content:space-between;gap:.8rem;align-items:baseline;padding:.35rem 0;border-bottom:1px dashed var(--line)}
 .entry:last-child{border-bottom:0}
 .tally{color:var(--muted);font-size:.92rem;margin:.3rem 0 0}
+textarea{font:inherit;font-size:.95rem;line-height:1.5;background:var(--bg);color:var(--text);border:1px solid var(--line);
+  border-radius:10px;padding:.6rem .8rem;width:100%;min-height:9rem;resize:vertical}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.stack{display:grid;gap:.6rem;margin-top:.7rem}
+.paper{white-space:pre-wrap;word-wrap:break-word;font:.93rem/1.55 Georgia,'Iowan Old Style',serif;margin:.3rem 0 0;
+  padding:.7rem .9rem;background:var(--bg);border:1px solid var(--line);border-radius:10px;max-height:22rem;overflow:auto}
+.att{width:100%;margin:.5rem 0 .2rem .4rem;padding-left:.8rem;border-left:2px solid var(--line)}
+.att a{color:var(--accent);word-break:break-all}
+.entry{flex-direction:column;align-items:stretch}.entry details{width:100%}
+.entry-head{display:flex;justify-content:space-between;gap:.8rem;align-items:baseline;width:100%}
+.mug{font-size:1.1rem}
 </style></head><body>
 <div class="top">
-  <div><h1>{{ greeting }}</h1><p class="sub">Your work notebook</p></div>
+  <div><h1><span class="mug" aria-hidden="true">&#9749;</span> {{ greeting }}</h1><p class="sub">{{ tagline }}</p></div>
   <form method="post" action="/theme"><input type="hidden" name="csrf" value="{{ csrf }}">
     <input type="hidden" name="next" value="{{ page }}">
     <input type="hidden" name="theme" value="{{ 'light' if theme == 'dark' else 'dark' }}">

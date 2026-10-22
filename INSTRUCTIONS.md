@@ -36,7 +36,7 @@ Open **http://127.0.0.1:8765** in a browser. Leave the terminal running. Press *
 
 The app has two pages, switched by the tabs at the top:
 
-- **Today & this week** (the home page): your daily notebook. Pick what kind of thing it was (a meeting, a conversation, a document, or something else), type a few words, and click **Add to notebook**. Entries are grouped by day for the last 7 days, with a small tally at the bottom. Use the date box to log something from an earlier day, and **Remove** to delete an entry. These are your own notes, so nothing needs approval and nothing is checked.
+- **Today & this week** (the home page): your daily notebook. Pick what kind of thing it was (a meeting, a conversation, a document, or something else), type a few words, and click **Add to notebook**. Entries are grouped by day for the last 7 days, with a small tally at the bottom. Under the line there is an optional **Paste notes, a link, or a transcript** box for long text (meeting notes, a Gemini transcript, a Slack canvas, a prompt you wrote, or a URL). Every entry can hold several of these, and **Add more to this** attaches another later. Use the date box to log something from an earlier day, and **Remove** to delete an entry. These are your own notes, so nothing needs approval and nothing is checked.
 - **Releases**: the release cards described below.
 
 On the Releases page:
@@ -86,7 +86,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `63 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `64 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -120,3 +120,9 @@ Type them into the **Today & this week** page. That is built now. Automatic pull
 
 **Does the Today page need approvals?**
 No. It is only what you type, stored on your laptop. The approval step (Gate 0) is for data pulled in from work systems. Note that the app still only runs on a folder marked as demo for now, so the notes you enter in the practice notebook live in `/tmp/cos-demo`. Say the word when you want a real notebook folder for the daily page.
+
+**Can one entry hold several pieces, like a link plus notes plus a transcript?**
+Yes. An entry is the thing you did ("Rollout sync with Sam"). Under it you can attach any number of pieces, each with a type (meeting notes, transcript, link, Slack canvas, prompt, other text) and an optional name. Removing the entry removes its pieces. Pasted text is shown as plain text only, and links are never opened or fetched by the app. Each piece is limited to about 200,000 characters.
+
+**Is it okay to paste real meeting notes or transcripts?**
+Not into the practice folder for anything real, since that folder is for made-up data and lives in `/tmp`. Before real pasting, we need a permanent notebook folder with the right protections, and you should decide whether that content is allowed to sit on this laptop (some work content, like IRS-related material, has handling rules).

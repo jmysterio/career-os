@@ -197,3 +197,14 @@ class JournalEntry(Base):
     kind: Mapped[str] = mapped_column(String)  # meeting | conversation | document | note
     text: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class JournalAttachment(Base):
+    """Something pasted under a journal entry: a link, meeting notes, a transcript, a canvas, a prompt."""
+    __tablename__ = "journal_attachment"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entry_id: Mapped[int] = mapped_column(ForeignKey("journal_entry.id"), index=True)
+    kind: Mapped[str] = mapped_column(String)  # link | notes | transcript | canvas | prompt | other
+    title: Mapped[str] = mapped_column(String, default="")
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime)

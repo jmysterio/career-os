@@ -20,7 +20,7 @@ from ..config import DataDir
 from ..correlate.engine import link, rebuild_episodes, unlink
 from ..storage.db import init_db, make_engine, make_session_factory
 from ..storage.models import (
-    AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, JournalEntry, SourceObservation,
+    AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, JournalAttachment, JournalEntry, SourceObservation,
 )
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
@@ -60,6 +60,12 @@ KINDS = [("meeting", "Had a meeting"), ("conversation", "Had a conversation"),
 KIND_LABEL = dict(KINDS)
 KIND_PLURAL = {"meeting": ("meeting", "meetings"), "conversation": ("conversation", "conversations"),
                "document": ("document", "documents"), "note": ("other note", "other notes")}
+ATTACH_KINDS = [("notes", "Meeting notes"), ("transcript", "Transcript"), ("link", "Link"),
+                ("canvas", "Slack canvas"), ("prompt", "A prompt I wrote"), ("other", "Other text")]
+ATTACH_LABEL = dict(ATTACH_KINDS)
+MAX_BODY = 200_000
+TAGLINES = ["Fresh cup, fresh page.", "Pull up a chair. Nothing here is a test.",
+            "Take your time. Jot down what you did."]
 PAGES = {"/", "/releases"}
 
 
@@ -146,11 +152,19 @@ def create_app(dd: DataDir) -> FastAPI:
     def today_page(request: Request, msg: str | None = None, s: Session = Depends(db)):
         today = date.today()
         week = [today - timedelta(days=i) for i in range(7)]
+        atts: dict[int, list] = {}
         rows = list(s.scalars(select(JournalEntry).where(
             JournalEntry.day.in_([d.isoformat() for d in week])).order_by(JournalEntry.id.desc())))
+        for a in s.scalars(select(JournalAttachment).where(
+                JournalAttachment.entry_id.in_([e.id for e in rows])).order_by(JournalAttachment.id)):
+            link = a.kind == "link" and urlparse(a.body.strip()).scheme in ("http", "https")
+            atts.setdefault(a.entry_id, []).append(dict(
+                id=a.id, label=ATTACH_LABEL.get(a.kind, "Text"), title=a.title, body=a.body,
+                url=a.body.strip() if link else None))
         days = []
         for d in week:
-            es = [dict(id=e.id, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"))
+            es = [dict(id=e.id, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"),
+                       attachments=atts.get(e.id, []))
                   for e in rows if e.day == d.isoformat()]
             if es or d == today:
                 days.append(dict(label=day_label(d, today), entries=es, is_today=d == today))
@@ -161,13 +175,15 @@ def create_app(dd: DataDir) -> FastAPI:
                 parts.append(f"{n} {one if n == 1 else many}")
         tally = ("In the last 7 days you noted " + ", ".join(parts) + ".") if parts else ""
         html = env.get_template("today.html").render(
-            days=days, tally=tally, kinds=KINDS, today=today.isoformat(), csrf=csrf_token, msg=msg,
+            days=days, tally=tally, kinds=KINDS, attach_kinds=ATTACH_KINDS, today=today.isoformat(),
+            tagline=TAGLINES[today.toordinal() % len(TAGLINES)], csrf=csrf_token, msg=msg,
             sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), page="/")
         return HTMLResponse(html)
 
     @app.post("/journal/add", dependencies=[Depends(check_csrf)])
     def journal_add(kind: str = Form(...), text: str = Form(..., max_length=500),
-                    day: str = Form(""), s: Session = Depends(db)):
+                    day: str = Form(""), a_kind: str = Form("notes"), a_title: str = Form("", max_length=200),
+                    a_body: str = Form("", max_length=MAX_BODY), s: Session = Depends(db)):
         text = text.strip()
         try:
             d = date.fromisoformat(day) if day else date.today()
@@ -177,9 +193,33 @@ def create_app(dd: DataDir) -> FastAPI:
         if not text:
             return back("Write a few words first.", "/")
         with _write_lock:
-            s.add(JournalEntry(day=d.isoformat(), kind=kind if kind in KIND_LABEL else "note",
-                               text=text, created_at=datetime.now()))
+            entry = JournalEntry(day=d.isoformat(), kind=kind if kind in KIND_LABEL else "note",
+                                 text=text, created_at=datetime.now())
+            s.add(entry)
+            s.flush()
+            if a_body.strip():
+                s.add(JournalAttachment(entry_id=entry.id, kind=a_kind if a_kind in ATTACH_LABEL else "other",
+                                        title=a_title.strip(), body=a_body.strip(), created_at=datetime.now()))
             s.commit()
+        return back(to="/")
+
+    @app.post("/journal/{eid}/attach", dependencies=[Depends(check_csrf)])
+    def journal_attach(eid: int, a_kind: str = Form("notes"), a_title: str = Form("", max_length=200),
+                       a_body: str = Form(..., max_length=MAX_BODY), s: Session = Depends(db)):
+        with _write_lock:
+            if s.get(JournalEntry, eid) and a_body.strip():
+                s.add(JournalAttachment(entry_id=eid, kind=a_kind if a_kind in ATTACH_LABEL else "other",
+                                        title=a_title.strip(), body=a_body.strip(), created_at=datetime.now()))
+                s.commit()
+        return back(to="/")
+
+    @app.post("/journal/attachment/{aid}/delete", dependencies=[Depends(check_csrf)])
+    def journal_attachment_delete(aid: int, s: Session = Depends(db)):
+        with _write_lock:
+            a = s.get(JournalAttachment, aid)
+            if a:
+                s.delete(a)
+                s.commit()
         return back(to="/")
 
     @app.post("/journal/{eid}/delete", dependencies=[Depends(check_csrf)])
@@ -187,6 +227,8 @@ def create_app(dd: DataDir) -> FastAPI:
         with _write_lock:
             e = s.get(JournalEntry, eid)
             if e:
+                for a in s.scalars(select(JournalAttachment).where(JournalAttachment.entry_id == eid)):
+                    s.delete(a)
                 s.delete(e)
                 s.commit()
         return back(to="/")
@@ -219,7 +261,7 @@ def create_app(dd: DataDir) -> FastAPI:
                                  stale=any(v.id in stale for v in versions)))
         html = env.get_template("review.html").render(
             episodes=episodes, csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(),
-            theme=theme_of(request), greeting=greeting(), sections=SECTIONS, page="/releases")
+            theme=theme_of(request), greeting=greeting(), sections=SECTIONS, page="/releases", tagline=TAGLINES[0])
         return HTMLResponse(html)
 
     @app.post("/theme", dependencies=[Depends(check_csrf)])
