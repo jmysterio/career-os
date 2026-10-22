@@ -41,25 +41,25 @@ def test_refuses_non_demo_dir(tmp_path):
 def test_host_origin_and_csrf_checks(seeded):
     dd, c, tok = seeded
     assert TestClient(create_app(dd), base_url="http://evil.example.com").get("/").status_code == 400
-    assert c.get("/").status_code == 200
+    assert c.get("/").status_code == 200 and c.get("/releases").status_code == 200
     assert c.post("/claims/1/approve", data={}).status_code == 403                     # no token
     assert c.post("/claims/1/approve", data={"csrf": "x"}).status_code == 403          # wrong token
     r = c.post("/claims/1/approve", data={"csrf": tok}, headers={"Origin": "http://evil.example.com"})
     assert r.status_code == 403                                                        # cross origin
-    assert "default-src 'none'" in c.get("/").headers["content-security-policy"]
+    assert "default-src 'none'" in c.get("/releases").headers["content-security-policy"]
 
 
 def test_imported_text_is_escaped(seeded):
     dd, c, tok = seeded
     aid = anchor_id(dd)
     form(c, f"/episodes/{aid}/impact", tok, text="<script>alert(1)</script>")
-    html = c.get("/").text
+    html = c.get("/releases").text
     assert "<script>alert(1)</script>" not in html and "&lt;script&gt;" in html
 
 
 def test_page_shows_layers_provenance_and_traps(seeded):
     _, c, _ = seeded
-    html = c.get("/").text
+    html = c.get("/releases").text
     assert "made-up demo data" in html and "cos://obs/" in html
     assert "What happened" in html and "What I did" in html and "Why it mattered" in html
     assert "maybe related" in html and "Why did this matter?" in html
@@ -92,7 +92,7 @@ def test_review_flow_approve_publish_export(seeded):
 def test_unlink_via_ui_persists_constraint(seeded):
     dd, c, tok = seeded
     aid = anchor_id(dd)
-    html = c.get("/").text
+    html = c.get("/releases").text
     assert "This isn't part of it" in html
     with make_session_factory(make_engine(dd.db))() as s:
         from careeros.storage.models import Activity
@@ -100,7 +100,7 @@ def test_unlink_via_ui_persists_constraint(seeded):
     form(c, f"/episodes/{aid}/unlink", tok, activity_id=m1)
     r = CliRunner().invoke(cli, ["import", "--data-dir", str(dd.root)])  # full rebuild
     assert r.exit_code == 0
-    assert "DEMO-101-fix-validation" not in c.get("/").text.split("What I did")[0]
+    assert "DEMO-101-fix-validation" not in c.get("/releases").text.split("What I did")[0]
 
 
 def test_cli_edit_flags_and_purge_flow(seeded):
@@ -117,7 +117,7 @@ def test_cli_edit_flags_and_purge_flow(seeded):
 def test_data_files_are_owner_only(seeded):
     import stat
     dd, c, _ = seeded
-    c.get("/")
+    c.get("/releases")
     for p in [dd.db, dd.secret_file, *dd.root.glob("careeros.db-*"), *dd.approvals.glob("*.toml"),
               *(dd.inbox / "processed").glob("*.json")]:
         assert stat.S_IMODE(p.stat().st_mode) == 0o600, p
@@ -138,24 +138,55 @@ def test_real_browser_origin_is_accepted_but_null_origin_is_not(seeded):
     assert ok.status_code == 303
     assert c.post("/theme", data={"csrf": tok, "theme": "light"}, headers={"Origin": "null"},
                   follow_redirects=False).status_code == 403
-    assert c.get("/").headers["referrer-policy"] == "same-origin"
+    assert c.get("/releases").headers["referrer-policy"] == "same-origin"
 
 
 def test_dark_by_default_and_theme_toggle_persists(seeded):
     _, c, tok = seeded
-    assert 'data-theme="dark"' in c.get("/").text
+    assert 'data-theme="dark"' in c.get("/releases").text
     r = c.post("/theme", data={"csrf": tok, "theme": "light"}, follow_redirects=False)
     assert "theme=light" in r.headers["set-cookie"] and "HttpOnly" in r.headers["set-cookie"]
-    assert 'data-theme="light"' in c.get("/").text
+    assert 'data-theme="light"' in c.get("/releases").text
     c.post("/theme", data={"csrf": tok, "theme": "dark"})
-    assert 'data-theme="dark"' in c.get("/").text
+    assert 'data-theme="dark"' in c.get("/releases").text
 
 
 def test_page_avoids_internal_jargon(seeded):
     _, c, _ = seeded
-    html = c.get("/").text
+    html = c.get("/releases").text
     import re
     visible = re.sub(r"<[^>]+>", " ", html.split("</style>", 1)[1])  # text a person can see
     for word in ("rule_checked", "human_approved", "by template", "claims", "Attribution", "Interpretation",
                  "Observation", "unverified", "suggested/ambiguous"):
         assert word not in visible, word
+
+
+def test_journal_add_show_and_remove(seeded):
+    dd, c, token = seeded
+    r = form(c, "/journal/add", token, kind="meeting", text="Met with Sam about the rollout")
+    assert r.status_code == 303 and r.headers["location"] == "/"
+    form(c, "/journal/add", token, kind="document", text="Wrote the <b>runbook</b>")
+    html = c.get("/").text
+    assert "Met with Sam about the rollout" in html and "Had a meeting" in html
+    assert "&lt;b&gt;runbook" in html and "<b>runbook" not in html
+    assert "1 meeting, 1 document" in html
+    from careeros.storage.models import JournalEntry
+    with make_session_factory(make_engine(dd.db))() as s:
+        eid = s.scalar(select(JournalEntry.id).where(JournalEntry.kind == "meeting"))
+    form(c, f"/journal/{eid}/delete", token)
+    assert "Met with Sam" not in c.get("/").text
+
+
+def test_journal_needs_csrf_and_ignores_future_or_bad_dates(seeded):
+    dd, c, token = seeded
+    assert c.post("/journal/add", data={"kind": "note", "text": "x"}).status_code == 403
+    form(c, "/journal/add", token, kind="bogus", text="Back-dated", day="2999-01-01")
+    form(c, "/journal/add", token, kind="note", text="Garbled date", day="nope")
+    html = c.get("/").text
+    assert "Back-dated" in html and "Garbled date" in html and "Something else" in html
+
+
+def test_theme_toggle_returns_to_same_page(seeded):
+    dd, c, token = seeded
+    assert form(c, "/theme", token, theme="light", next="/releases").headers["location"] == "/releases"
+    assert form(c, "/theme", token, theme="light", next="//evil.example").headers["location"] == "/"

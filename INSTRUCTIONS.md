@@ -34,6 +34,13 @@ Open **http://127.0.0.1:8765** in a browser. Leave the terminal running. Press *
 
 ## What you should see
 
+The app has two pages, switched by the tabs at the top:
+
+- **Today & this week** (the home page): your daily notebook. Pick what kind of thing it was (a meeting, a conversation, a document, or something else), type a few words, and click **Add to notebook**. Entries are grouped by day for the last 7 days, with a small tally at the bottom. Use the date box to log something from an earlier day, and **Remove** to delete an entry. These are your own notes, so nothing needs approval and nothing is checked.
+- **Releases**: the release cards described below.
+
+On the Releases page:
+
 - A greeting ("Good morning") and a note saying this is a practice notebook with made-up data.
 - The page opens in **dark mode**. The **Switch to light** button (top right) changes it, and the app remembers your choice.
 - Two release cards: "October B release" and "October C release".
@@ -79,7 +86,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `60 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `63 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -109,4 +116,7 @@ The first layer includes things the records say about the team, such as "Team de
 Yes, it is the default. Use the button at the top right to switch. The choice is stored in a cookie in your browser.
 
 **Where do meetings, Slack conversations, and documents I created show up?**
-Not yet. Today the app only knows the demo release sheet and git. Calendar and Docs come with the Google connector, and Slack after that. Quick manual entries ("had a meeting with X", "wrote 3 docs") and a Today / This week view are planned and can be moved earlier, since they need no approvals.
+Type them into the **Today & this week** page. That is built now. Automatic pulling from Google Calendar, Docs, and Slack comes later with their connectors, and those do need approvals. Your own typed notes do not.
+
+**Does the Today page need approvals?**
+No. It is only what you type, stored on your laptop. The approval step (Gate 0) is for data pulled in from work systems. Note that the app still only runs on a folder marked as demo for now, so the notes you enter in the practice notebook live in `/tmp/cos-demo`. Say the word when you want a real notebook folder for the daily page.

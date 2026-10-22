@@ -5,7 +5,7 @@ import hashlib
 import os
 import hmac
 import threading
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
@@ -20,7 +20,7 @@ from ..config import DataDir
 from ..correlate.engine import link, rebuild_episodes, unlink
 from ..storage.db import init_db, make_engine, make_session_factory
 from ..storage.models import (
-    AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, SourceObservation,
+    AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, JournalEntry, SourceObservation,
 )
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
@@ -53,6 +53,22 @@ SECTIONS = [
     dict(layer="attribution", title="What I did", hint="your part in it", css="did"),
     dict(layer="interpretation", title="Why it mattered", hint="in your words", css="why"),
 ]
+
+
+KINDS = [("meeting", "Had a meeting"), ("conversation", "Had a conversation"),
+         ("document", "Worked on a document"), ("note", "Something else")]
+KIND_LABEL = dict(KINDS)
+KIND_PLURAL = {"meeting": ("meeting", "meetings"), "conversation": ("conversation", "conversations"),
+               "document": ("document", "documents"), "note": ("other note", "other notes")}
+PAGES = {"/", "/releases"}
+
+
+def day_label(d: date, today: date) -> str:
+    if d == today:
+        return "Today"
+    if d == today - timedelta(days=1):
+        return "Yesterday"
+    return d.strftime("%A, %B ") + str(d.day)
 
 
 def friendly(violation: str) -> str:
@@ -112,8 +128,8 @@ def create_app(dd: DataDir) -> FastAPI:
     async def _forbidden(_r, _e):
         return JSONResponse({"error": "bad csrf token"}, status_code=403)
 
-    def back(msg: str | None = None) -> RedirectResponse:
-        return RedirectResponse("/" + (f"?msg={quote(msg[:300])}" if msg else ""), status_code=303)
+    def back(msg: str | None = None, to: str = "/releases") -> RedirectResponse:
+        return RedirectResponse(to + (f"?msg={quote(msg[:300])}" if msg else ""), status_code=303)
 
     def guarded(fn):
         try:
@@ -123,7 +139,59 @@ def create_app(dd: DataDir) -> FastAPI:
             return back("Not saved yet: " + " ".join(friendly(v) for v in exc.violations))
         return back()
 
+    def theme_of(request: Request) -> str:
+        return "light" if request.cookies.get("theme") == "light" else "dark"
+
     @app.get("/", response_class=HTMLResponse)
+    def today_page(request: Request, msg: str | None = None, s: Session = Depends(db)):
+        today = date.today()
+        week = [today - timedelta(days=i) for i in range(7)]
+        rows = list(s.scalars(select(JournalEntry).where(
+            JournalEntry.day.in_([d.isoformat() for d in week])).order_by(JournalEntry.id.desc())))
+        days = []
+        for d in week:
+            es = [dict(id=e.id, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"))
+                  for e in rows if e.day == d.isoformat()]
+            if es or d == today:
+                days.append(dict(label=day_label(d, today), entries=es, is_today=d == today))
+        parts = []
+        for k, (one, many) in KIND_PLURAL.items():
+            n = sum(1 for e in rows if e.kind == k)
+            if n:
+                parts.append(f"{n} {one if n == 1 else many}")
+        tally = ("In the last 7 days you noted " + ", ".join(parts) + ".") if parts else ""
+        html = env.get_template("today.html").render(
+            days=days, tally=tally, kinds=KINDS, today=today.isoformat(), csrf=csrf_token, msg=msg,
+            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), page="/")
+        return HTMLResponse(html)
+
+    @app.post("/journal/add", dependencies=[Depends(check_csrf)])
+    def journal_add(kind: str = Form(...), text: str = Form(..., max_length=500),
+                    day: str = Form(""), s: Session = Depends(db)):
+        text = text.strip()
+        try:
+            d = date.fromisoformat(day) if day else date.today()
+        except ValueError:
+            d = date.today()
+        d = min(d, date.today())
+        if not text:
+            return back("Write a few words first.", "/")
+        with _write_lock:
+            s.add(JournalEntry(day=d.isoformat(), kind=kind if kind in KIND_LABEL else "note",
+                               text=text, created_at=datetime.now()))
+            s.commit()
+        return back(to="/")
+
+    @app.post("/journal/{eid}/delete", dependencies=[Depends(check_csrf)])
+    def journal_delete(eid: int, s: Session = Depends(db)):
+        with _write_lock:
+            e = s.get(JournalEntry, eid)
+            if e:
+                s.delete(e)
+                s.commit()
+        return back(to="/")
+
+    @app.get("/releases", response_class=HTMLResponse)
     def index(request: Request, msg: str | None = None, s: Session = Depends(db)):
         stale = svc.stale_versions(s)
         episodes = []
@@ -151,13 +219,12 @@ def create_app(dd: DataDir) -> FastAPI:
                                  stale=any(v.id in stale for v in versions)))
         html = env.get_template("review.html").render(
             episodes=episodes, csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(),
-            theme="light" if request.cookies.get("theme") == "light" else "dark",
-            greeting=greeting(), sections=SECTIONS)
+            theme=theme_of(request), greeting=greeting(), sections=SECTIONS, page="/releases")
         return HTMLResponse(html)
 
     @app.post("/theme", dependencies=[Depends(check_csrf)])
-    def set_theme(theme: str = Form(...)):
-        resp = back()
+    def set_theme(theme: str = Form(...), next: str = Form("/")):
+        resp = back(to=next if next in PAGES else "/")
         resp.set_cookie("theme", "light" if theme == "light" else "dark", max_age=31_536_000,
                         httponly=True, samesite="strict")
         return resp

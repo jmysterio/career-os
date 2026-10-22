@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="card">
+  <h2>What did you get up to?</h2>
+  <p class="muted">Jot it down in a few words. It's just for you.</p>
+  <form method="post" action="/journal/add">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="row">
+      <select name="kind" aria-label="What kind of thing">
+        {% for k, label in kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
+      </select>
+      <input name="text" required maxlength="500" placeholder="Who or what? e.g. Sam, about the rollout" aria-label="Details">
+      <input type="date" name="day" value="{{ today }}" max="{{ today }}" aria-label="Day">
+      <button class="primary">Add to notebook</button>
+    </div>
+  </form>
+</section>
+
+{% for d in days %}
+<section class="card">
+  <h2>{{ d.label }}</h2>
+  {% for e in d.entries %}
+  <div class="entry">
+    <div><span class="chip">{{ e.kind_label }}</span> {{ e.text }}</div>
+    <form method="post" action="/journal/{{ e.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove</button></form>
+  </div>
+  {% else %}<p class="muted">Nothing noted yet. {{ 'A quiet day is fine too.' if d.is_today else '' }}</p>{% endfor %}
+</section>
+{% endfor %}
+
+<p class="tally">{{ tally or 'Nothing noted in the last 7 days yet.' }}</p>
+{% endblock %}

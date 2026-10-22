@@ -187,3 +187,13 @@ class PurgeMarker(Base):
     entity_ref: Mapped[str] = mapped_column(String)
     reason: Mapped[str] = mapped_column(String)
     purged_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class JournalEntry(Base):
+    """The user's own day-to-day notes (meetings, conversations, documents). Not evidence, no approvals."""
+    __tablename__ = "journal_entry"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[str] = mapped_column(String, index=True)  # YYYY-MM-DD
+    kind: Mapped[str] = mapped_column(String)  # meeting | conversation | document | note
+    text: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
