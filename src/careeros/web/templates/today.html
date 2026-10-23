@@ -4,7 +4,7 @@
 
 <section class="card">
   <h2>What did you get up to?</h2>
-  <p class="muted">Jot it down in a few words. You can paste the longer stuff underneath. It's just for you, it stays on this computer, and nothing is sent anywhere.</p>
+  <p class="muted">Jot it down in a few words. You can paste the longer stuff underneath. It's just for you and it stays on this computer. The only thing that leaves it is the Sync calendar button below, which is explained next to it.</p>
   <form method="post" action="/journal/add" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="row">
@@ -20,6 +20,16 @@
     <div><button class="primary">Add to notebook</button></div>
   </form>
 </section>
+
+{% if personal %}
+<section class="card">
+  <form method="post" action="/calendar/sync" class="row" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Syncing… this can take a minute'">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="primary">Sync calendar</button>
+    <span class="help">Asks Claude Code to fetch yesterday's and today's meetings from Google Calendar. Meeting titles, times, and attendee details pass through the AI tool on the way; only titles, times, and file links are saved here.</span>
+  </form>
+</section>
+{% endif %}
 
 {% for d in days %}
 <section class="card">

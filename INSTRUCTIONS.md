@@ -155,5 +155,8 @@ Meetings show on the Today page as "Had a meeting" with a "from calendar" tag. O
 
 Before using it on a work calendar, check that titles of meetings (which can name other people or IRS-related topics) are okay to keep on this laptop. Syncing is manual for now; it does not run by itself.
 
+**Can I sync my calendar without the secret iCal address?**
+Yes. On the Today page, press **Sync calendar** (or run `uv run careeros calendar pull`). It starts Claude Code in the background with permission to use only the calendar tool, fetches yesterday's and today's meetings through the Google Workspace connector, and saves title, time, and Google file links (Gemini notes, recordings). Declined meetings and all-day items are skipped. It takes up to a minute and never duplicates. Meeting titles, times, and attendee details pass through the AI tool on the way, so it only runs when you press it. It needs Claude Code installed and the Google Workspace connector signed in. `careeros calendar pull --days 7` reaches further back (max 14).
+
 **How were my calendar and tasks pulled in?**
 Through the Google Workspace connector in a Claude Code session, not by a script on its own. Meeting titles/times, the files attached to each meeting (Gemini notes, recordings, chat), and task titles and notes pass through the AI tool on the way in. Asking Claude to refresh pulls new ones without duplicating. Meetings you declined are dropped, and so are ones that vanished from the calendar, unless you attached your own notes. Open tasks stay off the Today page and live on the Tasks tab. Links to Google files are only links: the app never opens or reads the file. You need to be signed in to Google to open them.

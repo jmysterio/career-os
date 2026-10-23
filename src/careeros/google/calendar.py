@@ -131,3 +131,46 @@ def sync(s: Session, events: list[Event], first: date, last: date) -> dict[str, 
             removed += 1
     s.commit()
     return dict(added=added, updated=updated, removed=removed)
+
+
+def events_from_items(items: list[dict], local=None) -> tuple[list[Event], dict[str, list[tuple[str, str]]]]:
+    """Plain event data (id, title, start, end, links) handed over by a connector run, not read from iCal.
+
+    Only the title, the times, and Google file links are kept; anything else in an item is ignored.
+    """
+    local = local or datetime.now().astimezone().tzinfo
+    events: dict[str, Event] = {}
+    links: dict[str, list[tuple[str, str]]] = {}
+    for it in items:
+        try:
+            uid, start = str(it["id"]), datetime.fromisoformat(str(it["start"])).astimezone(local)
+            end = datetime.fromisoformat(str(it["end"])).astimezone(local) if it.get("end") else None
+        except (KeyError, ValueError):
+            raise CalendarError(f"Couldn't read this calendar item: {str(it)[:120]}") from None
+        title = " ".join(str(it.get("title", "")).split())[:200] or "(no title)"
+        events[uid] = Event(uid, start.date().isoformat(), start, end, title)
+        links[uid] = [(" ".join(str(link.get("title", "")).split())[:200], str(link["url"]))
+                      for link in it.get("links", []) if str(link.get("url", "")).startswith("https://")]
+    return sorted(events.values(), key=lambda e: e.start), links
+
+
+def import_events(s: Session, items: list[dict], first: date, last: date) -> dict[str, int]:
+    """Like sync(), for connector data; also attaches each meeting's file links (notes, recordings) once."""
+    events, links = events_from_items(items)
+    counts = sync(s, events, first, last)
+    rows = {e.external_id: e for e in s.scalars(select(JournalEntry).where(
+        JournalEntry.source == SOURCE, JournalEntry.external_id.in_(list(links))))}
+    linked = 0
+    for uid, pairs in links.items():
+        row = rows.get(uid)
+        if row is None:
+            continue
+        have = set(s.scalars(select(JournalAttachment.body).where(
+            JournalAttachment.entry_id == row.id, JournalAttachment.kind == "link")))
+        for title, url in pairs:
+            if url not in have:
+                s.add(JournalAttachment(entry_id=row.id, kind="link", title=title, body=url, created_at=datetime.now()))
+                have.add(url)
+                linked += 1
+    s.commit()
+    return dict(counts, links=linked)

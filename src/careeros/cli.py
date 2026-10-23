@@ -201,6 +201,45 @@ def calendar_sync(days: int = typer.Option(14, help="How many past days to pull 
                f"({len(events)} meetings between {first} and {last}).")
 
 
+@calendar_app.command("import")
+def calendar_import(file: str = typer.Argument("-", help="JSON file of meetings, or - for stdin"),
+                    first: str = typer.Option(..., help="First day covered, YYYY-MM-DD"),
+                    last: str = typer.Option(..., help="Last day covered, YYYY-MM-DD"),
+                    data_dir: Optional[str] = DataOpt) -> None:
+    """Load meetings fetched through the Google Workspace connector (what the Sync button runs)."""
+    import json
+    import sys
+    from datetime import date
+    from .google import calendar as gcal
+    dd, s = _open_personal(data_dir)
+    try:
+        items = json.loads(sys.stdin.read() if file == "-" else open(file).read())
+        r = gcal.import_events(s, items, date.fromisoformat(first), date.fromisoformat(last))
+    except (ValueError, gcal.CalendarError) as exc:
+        typer.echo(f"Couldn't import: {exc}")
+        raise typer.Exit(1)
+    typer.echo(f"Calendar: {r['added']} added, {r['updated']} changed, {r['removed']} removed, "
+               f"{r['links']} file links ({len(items)} meetings between {first} and {last}).")
+
+
+@calendar_app.command("pull")
+def calendar_pull(days: int = typer.Option(1, help="How many past days to include besides today (max 14)"),
+                  data_dir: Optional[str] = DataOpt) -> None:
+    """Ask Claude Code to fetch your meetings through the Google Workspace connector (what the Sync button runs)."""
+    from datetime import date
+    from .google import calendar as gcal, connector
+    dd, s = _open_personal(data_dir)
+    last = date.today()
+    first = last - timedelta(days=max(0, min(days, connector.MAX_DAYS)))
+    try:
+        r = gcal.import_events(s, connector.fetch(first, last), first, last)
+    except gcal.CalendarError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    typer.echo(f"Calendar: {r['added']} added, {r['updated']} changed, {r['removed']} removed, "
+               f"{r['links']} file links ({first} to {last}).")
+
+
 @app.command("serve")
 def serve(port: int = 8765, data_dir: Optional[str] = DataOpt) -> None:
     """Serve the review UI on loopback only (host is not configurable)."""

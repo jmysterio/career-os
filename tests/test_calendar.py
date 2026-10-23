@@ -92,3 +92,43 @@ def test_old_notebook_gets_new_columns(tmp_path):
     init_db(engine)
     with make_session_factory(engine)() as session:
         assert session.scalars(select(JournalEntry)).one().source == ""
+
+
+CONNECTOR_TEXT = """Successfully retrieved 3 events from calendar 'primary' for me@x.com:
+- "Planning" (Starts: 2026-10-23T10:30:00-04:00, Ends: 2026-10-23T11:00:00-04:00)
+  Description: secret agenda
+  Attendees: me@x.com, you@x.com
+  Attendee Details: me@x.com: accepted
+    you@x.com: accepted
+  Attachments: Notes by Gemini
+    File URL: https://docs.google.com/document/d/abc/edit
+    File ID: abc
+    MIME Type: application/vnd.google-apps.document
+  ID: ev1_20261023T143000Z | Link: https://www.google.com/calendar/event?eid=zzz
+- "Skipped" (Starts: 2026-10-23T12:00:00-04:00, Ends: 2026-10-23T12:30:00-04:00)
+  Attendee Details: me@x.com: declined
+  Attachments: None
+  ID: ev2 | Link: x
+- "Holiday" (Starts: 2026-10-23, Ends: 2026-10-24)
+  Attachments: None
+  ID: ev3 | Link: x
+"""
+
+
+def test_connector_text_keeps_title_times_links_only_and_drops_declined_and_all_day():
+    from careeros.google import connector
+    items = connector.parse_events_text(CONNECTOR_TEXT)
+    assert items == [dict(id="ev1_20261023T143000Z", title="Planning", start="2026-10-23T10:30:00-04:00",
+                          end="2026-10-23T11:00:00-04:00",
+                          links=[dict(title="Notes by Gemini", url="https://docs.google.com/document/d/abc/edit")])]
+
+
+def test_import_events_dedupes_links_and_removes_vanished(s):
+    from careeros.google import connector
+    items = connector.parse_events_text(CONNECTOR_TEXT)
+    first, last = date(2026, 10, 22), date(2026, 10, 23)
+    r = gcal.import_events(s, items, first, last)
+    assert (r["added"], r["links"]) == (1, 1)
+    assert gcal.import_events(s, items, first, last) == dict(added=0, updated=0, removed=0, links=0)
+    assert [a.body for a in s.scalars(select(JournalAttachment))] == ["https://docs.google.com/document/d/abc/edit"]
+    assert gcal.import_events(s, [], first, last)["removed"] == 0  # has a link attached, so it is kept

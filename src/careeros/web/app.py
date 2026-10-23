@@ -282,6 +282,22 @@ def create_app(dd: DataDir) -> FastAPI:
             s.commit()
         return back(to="/")
 
+    @app.post("/calendar/sync", dependencies=[Depends(check_csrf)])
+    def calendar_sync(s: Session = Depends(db)):
+        """Ask Claude Code to fetch yesterday's and today's meetings through the Google Workspace connector."""
+        if not personal:
+            return back("Calendar sync only works with your personal notebook.", "/")
+        from ..google import calendar as gcal, connector
+        last = date.today()
+        first = last - timedelta(days=1)
+        try:
+            items = connector.fetch(first, last)
+            with _write_lock:
+                r = gcal.import_events(s, items, first, last)
+        except gcal.CalendarError as exc:
+            return back(str(exc), "/")
+        return back(f"Calendar synced: {r['added']} new, {r['updated']} changed, {r['removed']} removed.", "/")
+
     @app.post("/journal/{eid}/attach", dependencies=[Depends(check_csrf)])
     def journal_attach(eid: int, a_kind: str = Form("notes"), a_title: str = Form("", max_length=200),
                        a_body: str = Form(..., max_length=MAX_BODY), s: Session = Depends(db)):
