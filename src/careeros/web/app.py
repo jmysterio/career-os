@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from ..claims import service as svc
 from ..config import DataDir
 from ..correlate.engine import link, rebuild_episodes, unlink
+from ..google import summaries
 from ..storage.db import init_db, make_engine, make_session_factory
 from ..storage.models import (
     AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, JournalAttachment, JournalEntry, SourceObservation,
@@ -165,10 +166,18 @@ def create_app(dd: DataDir) -> FastAPI:
             link = a.kind == "link" and urlparse(a.body.strip()).scheme in ("http", "https")
             atts.setdefault(a.entry_id, []).append(dict(
                 id=a.id, label=ATTACH_LABEL.get(a.kind, "Text"), title=a.title, body=a.body,
-                url=a.body.strip() if link else None))
-        return [dict(id=e.id, day=e.day, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"),
-                     from_calendar=e.source == "calendar", status=e.status, attachments=atts.get(e.id, []))
-                for e in rows]
+                url=a.body.strip() if link else None,
+                ai=a.kind == "notes" and a.title == summaries.AI_TITLE))
+        out = []
+        for e in rows:
+            mine = atts.get(e.id, [])
+            has_notes = any(summaries.doc_ids([a["url"]]) for a in mine if a["url"])
+            from_cal = e.source == "calendar"
+            out.append(dict(id=e.id, day=e.day, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"),
+                            from_calendar=from_cal, status=e.status, attachments=mine,
+                            notes_state=("" if not from_cal else "summarized" if any(a["ai"] for a in mine)
+                                         else "pending" if has_notes else "none")))
+        return out
 
     @app.get("/", response_class=HTMLResponse)
     def today_page(request: Request, msg: str | None = None, s: Session = Depends(db)):
@@ -294,9 +303,14 @@ def create_app(dd: DataDir) -> FastAPI:
             items = connector.fetch(first, last)
             with _write_lock:
                 r = gcal.import_events(s, items, first, last)
+                n = summaries.summarize_pending(s, first, last)
         except gcal.CalendarError as exc:
             return back(str(exc), "/")
-        return back(f"Calendar synced: {r['added']} new, {r['updated']} changed, {r['removed']} removed.", "/")
+        msg = (f"Calendar synced: {r['added']} new, {r['updated']} changed, {r['removed']} removed. "
+               f"{n['summarized']} meeting summaries written.")
+        if n["failed"]:
+            msg += f" {n['failed']} couldn't be summarized; press Sync calendar to try again."
+        return back(msg, "/")
 
     @app.post("/journal/{eid}/attach", dependencies=[Depends(check_csrf)])
     def journal_attach(eid: int, a_kind: str = Form("notes"), a_title: str = Form("", max_length=200),

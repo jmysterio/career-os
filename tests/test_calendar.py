@@ -132,3 +132,18 @@ def test_import_events_dedupes_links_and_removes_vanished(s):
     assert gcal.import_events(s, items, first, last) == dict(added=0, updated=0, removed=0, links=0)
     assert [a.body for a in s.scalars(select(JournalAttachment))] == ["https://docs.google.com/document/d/abc/edit"]
     assert gcal.import_events(s, [], first, last)["removed"] == 0  # has a link attached, so it is kept
+
+
+def test_summaries_only_pending_for_meetings_with_a_notes_doc(s):
+    from careeros.google import connector, summaries
+    items = connector.parse_events_text(CONNECTOR_TEXT) + [
+        dict(id="nonotes", title="Chat", start="2026-10-23T09:00:00-04:00", end="2026-10-23T09:15:00-04:00",
+             links=[dict(title="Deployment plan", url="https://docs.google.com/spreadsheets/d/xyz/edit")])]
+    first, last = date(2026, 10, 22), date(2026, 10, 23)
+    gcal.import_events(s, items, first, last)
+    todo = summaries.pending(s, first, last)
+    assert list(todo.values()) == [["abc"]]  # spreadsheet and no-link meetings get no summary
+    eid = next(iter(todo))
+    s.add(JournalAttachment(entry_id=eid, kind="notes", title=summaries.AI_TITLE, body="x", created_at=datetime.now()))
+    s.commit()
+    assert summaries.pending(s, first, last) == {}

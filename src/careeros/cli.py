@@ -227,17 +227,19 @@ def calendar_pull(days: int = typer.Option(1, help="How many past days to includ
                   data_dir: Optional[str] = DataOpt) -> None:
     """Ask Claude Code to fetch your meetings through the Google Workspace connector (what the Sync button runs)."""
     from datetime import date
-    from .google import calendar as gcal, connector
+    from .google import calendar as gcal, connector, summaries
     dd, s = _open_personal(data_dir)
     last = date.today()
     first = last - timedelta(days=max(0, min(days, connector.MAX_DAYS)))
     try:
         r = gcal.import_events(s, connector.fetch(first, last), first, last)
+        n = summaries.summarize_pending(s, first, last)
     except gcal.CalendarError as exc:
         typer.echo(str(exc))
         raise typer.Exit(1)
     typer.echo(f"Calendar: {r['added']} added, {r['updated']} changed, {r['removed']} removed, "
-               f"{r['links']} file links ({first} to {last}).")
+               f"{r['links']} file links ({first} to {last}). "
+               f"Summaries: {n['summarized']} written, {n['failed']} failed.")
 
 
 @app.command("serve")

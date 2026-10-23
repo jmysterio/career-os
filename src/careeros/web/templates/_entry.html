@@ -6,7 +6,7 @@
     <input name="a_title" maxlength="200" placeholder="A name for it (optional)" aria-label="Name">
   </div>
   <p class="help"><b>What it is</b> labels the pasted text. <b>Name</b> is optional, like &ldquo;Gemini notes, Oct 22&rdquo;. A link only needs the web address. The long text is kept exactly as pasted and shown as plain text.</p>
-  <p class="warn"><b>Before you paste:</b> only keep what you're allowed to keep on this laptop. Meeting notes and transcripts can hold names, decisions, or sensitive details, and some work (for example anything IRS-related) has handling rules. If you're unsure, write a short summary in your own words instead. This app never sends your notes anywhere, and Remove deletes them for good.</p>
+  <p class="warn"><b>Before you paste:</b> only keep what you're allowed to keep on this laptop. Meeting notes and transcripts can hold names, decisions, or sensitive details, and some work (for example anything IRS-related) has handling rules. If you're unsure, write a short summary in your own words instead. Notes you paste here stay on this laptop (only the Sync calendar button sends anything out, and only meeting notes it finds on your calendar), and Remove deletes them for good.</p>
   <textarea name="a_body" maxlength="200000" placeholder="Paste a link, meeting notes, a transcript, a Slack canvas, or a prompt here" aria-label="Paste here"></textarea>
 {% endmacro %}
 
@@ -18,13 +18,16 @@
     </div>
     {% for a in e.attachments %}
     <div class="att">
-      <details {{ 'open' if a.url }}><summary><span class="chip">{{ a.label }}</span> {{ a.title or ('Link' if a.url else 'Show') }}</summary>
+      <details {{ 'open' if a.url or a.ai }}><summary><span class="chip">{{ 'AI summary' if a.ai else a.label }}</span> {{ a.title or ('Link' if a.url else 'Show') }}</summary>
+        {% if a.ai %}<p class="help">Written by Claude from the linked meeting notes. Check it against the notes before relying on it.</p>{% endif %}
         {% if a.url %}<a href="{{ a.url }}" rel="noreferrer noopener" target="_blank">{{ a.url }}</a>
         {% else %}<pre class="paper">{{ a.body }}</pre>{% endif %}
         <form method="post" action="/journal/attachment/{{ a.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove this</button></form>
       </details>
     </div>
     {% endfor %}
+    {% if e.notes_state == "none" %}<p class="muted">No meeting notes or transcript attached.</p>
+    {% elif e.notes_state == "pending" %}<p class="muted">Notes found, but no summary yet. Press Sync calendar to write one.</p>{% endif %}
     <details><summary>Add more to this</summary>
       <form method="post" action="/journal/{{ e.id }}/attach" class="stack">
         <input type="hidden" name="csrf" value="{{ csrf }}">{{ attach_fields() }}<div><button>Add</button></div></form>

@@ -26,7 +26,7 @@
   <form method="post" action="/calendar/sync" class="row" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Syncing… this can take a minute'">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <button class="primary">Sync calendar</button>
-    <span class="help">Asks Claude Code to fetch yesterday's and today's meetings from Google Calendar. Meeting titles, times, and attendee details pass through the AI tool on the way; only titles, times, and file links are saved here.</span>
+    <span class="help">Asks Claude Code to fetch yesterday's and today's meetings from Google Calendar and to summarize any meeting notes attached to them. This can take a few minutes. Meeting titles, times, attendee details, and the text of the notes pass through the AI tool; only titles, times, file links, and the summaries are saved here.</span>
   </form>
 </section>
 {% endif %}
