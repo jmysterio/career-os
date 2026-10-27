@@ -42,9 +42,10 @@ def sync(s: Session, tasks: list[Task]) -> dict[str, int]:
             s.add(JournalAttachment(entry_id=e.id, kind="notes", title="Task notes", body=t.notes.strip(),
                                     created_at=datetime.now()))
         added += 1
+    from ..guide.service import keeps_entry
     for gone in existing.values():
-        if not s.scalar(select(JournalAttachment.id).where(JournalAttachment.entry_id == gone.id,
-                                                           JournalAttachment.title != "Task notes").limit(1)):
+        if not keeps_entry(s, gone) and not s.scalar(select(JournalAttachment.id).where(
+                JournalAttachment.entry_id == gone.id, JournalAttachment.title != "Task notes").limit(1)):
             for a in s.scalars(select(JournalAttachment).where(JournalAttachment.entry_id == gone.id)):
                 s.delete(a)
             s.delete(gone)

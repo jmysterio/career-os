@@ -71,8 +71,11 @@ def ask(prompt: str, data: str, timeout: int = 240) -> str:
         run = subprocess.run([_claude(), "-p", prompt, "--output-format", "json", "--max-turns", "1"],
                              input=data, capture_output=True, text=True, timeout=timeout, cwd=Path.home())
         out = json.loads(run.stdout)
-    except (subprocess.TimeoutExpired, ValueError):
-        raise ClaudeError("Claude didn't finish.") from None
+    except subprocess.TimeoutExpired:
+        raise ClaudeError("Claude took too long to answer.") from None
+    except ValueError:
+        raise ClaudeError("Claude didn't finish." + (f" ({run.stderr.strip()[:150]})" if run.stderr.strip() else "")) \
+            from None
     if out.get("is_error") or not out.get("result"):
-        raise ClaudeError("Claude couldn't answer.")
+        raise ClaudeError(f"Claude couldn't answer ({str(out.get('result') or out.get('subtype') or '')[:150]}).")
     return str(out["result"])

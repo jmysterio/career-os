@@ -69,8 +69,17 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .entry{flex-direction:column;align-items:stretch}.entry details{width:100%}
 .entry-head{display:flex;justify-content:space-between;gap:.8rem;align-items:baseline;width:100%}
 .mug{font-size:1.1rem}
+body.wide{max-width:1400px}
+table.sheet{width:100%;border-collapse:collapse;font-size:.86rem}
+.sheet th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:.35rem .4rem;position:sticky;top:0;background:var(--card)}
+.sheet td{border-bottom:1px dashed var(--line);padding:.35rem .4rem;vertical-align:top}
+.sheet tr.ok td{opacity:.62}.sheet tr:target td{background:var(--note-bg)}
+.sheet button{font-size:.76rem;padding:.1rem .45rem;margin:.1rem .1rem .1rem 0;border-radius:6px}
+.sheet button.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600}
+.sheet .chip{margin:.1rem .2rem .1rem 0}.sheet .chip button{border:0;background:none;padding:0 0 0 .3rem;margin:0;color:var(--muted)}
+.chip.ai{background:transparent;border:1px solid var(--c-why);color:var(--c-why)}
 .help{color:var(--muted);font-size:.84rem;margin:.15rem 0 0}.warn{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.5rem .8rem;font-size:.86rem;margin:.2rem 0}mark{background:var(--accent);color:var(--accent-text);border-radius:3px;padding:0 .15rem}
-</style></head><body>
+</style></head><body{% if wide %} class="wide"{% endif %}>
 <div class="top">
   <div><h1><span class="mug" aria-hidden="true">&#9749;</span> {{ greeting }}</h1><p class="sub">{{ tagline }}</p></div>
   <form method="post" action="/theme"><input type="hidden" name="csrf" value="{{ csrf }}">
@@ -81,6 +90,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 <nav><a href="/" class="{{ 'on' if page == '/' }}">Today &amp; this week</a>
   <a href="/wins" class="{{ 'on' if page == '/wins' }}">Wins</a>
   <a href="/promo" class="{{ 'on' if page == '/promo' }}">Promo map</a>
+  <a href="/sheet" class="{{ 'on' if page == '/sheet' }}">Sheet</a>
   {% for path, tab in tabs.items() %}<a href="{{ path }}" class="{{ 'on' if page == path }}">{{ tab[1] }}</a>{% endfor %}
   {% if not personal %}<a href="/releases" class="{{ 'on' if page == '/releases' }}">Releases</a>{% endif %}
   <form method="get" action="/search" style="margin-left:auto"><input type="search" name="q" value="{{ q }}" placeholder="Search your notebook" aria-label="Search your notebook" maxlength="200"><button>Search</button></form></nav>

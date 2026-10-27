@@ -124,9 +124,10 @@ def sync(s: Session, events: list[Event], first: date, last: date) -> dict[str, 
         elif row.text != headline(ev) or row.day != ev.day:
             row.text, row.day = headline(ev), ev.day
             updated += 1
+    from ..guide.service import keeps_entry
     for gone in existing.values():
         has_notes = s.scalar(select(JournalAttachment.id).where(JournalAttachment.entry_id == gone.id).limit(1))
-        if not has_notes:
+        if not has_notes and not keeps_entry(s, gone):
             s.delete(gone)
             removed += 1
     s.commit()

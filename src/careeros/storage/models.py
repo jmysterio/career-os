@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
-    JSON, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint,
+    JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -200,6 +200,9 @@ class JournalEntry(Base):
     source: Mapped[str] = mapped_column(String, default="")  # "" = typed by the user | calendar
     external_id: Mapped[str | None] = mapped_column(String, index=True, default=None)
     status: Mapped[str] = mapped_column(String, default="")  # tasks only: open | done
+    kind_was: Mapped[str] = mapped_column(String, default="")  # the kind before Claude changed it, else ""
+    ai_read: Mapped[bool] = mapped_column(Boolean, default=False)  # Claude has read it against the guide
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False)  # the user checked it on the Sheet
 
 
 class JournalAttachment(Base):
@@ -224,6 +227,7 @@ class Win(Base):
     theme: Mapped[str] = mapped_column(String, default="")
     entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entry.id"), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime)
+    by_ai: Mapped[bool] = mapped_column(Boolean, default=False)  # drafted by Claude, not yet edited or confirmed
 
 
 class GuideItem(Base):
@@ -250,3 +254,4 @@ class GuideLink(Base):
     win_id: Mapped[int | None] = mapped_column(ForeignKey("win.id"), nullable=True, index=True)
     entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entry.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime)
+    by_ai: Mapped[bool] = mapped_column(Boolean, default=False)  # picked by Claude, not yet confirmed

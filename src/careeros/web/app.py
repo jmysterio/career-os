@@ -7,12 +7,12 @@ import hmac
 import threading
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from urllib.parse import quote, urlparse
+from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from jinja2 import Environment, FileSystemLoader
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..claims import service as svc
@@ -81,7 +81,12 @@ TABS = {  # path -> (kind, tab name, heading, what's on it)
     "/tasks": ("task", "Tasks", "Tasks", "Your Google Tasks and any you've noted yourself. What's still open is at the top, finished ones are grouped by the day you completed them."),
     "/other": ("note", "Other", "Something else", "Anything that didn't fit the other tabs."),
 }
-PAGES = {"/", "/releases", "/search", "/wins", "/promo", *TABS}
+PAGES = {"/", "/releases", "/search", "/wins", "/promo", "/sheet", *TABS}
+SOURCE_LABEL = {"calendar": "Calendar", "tasks": "Google Tasks", "slack": "Slack", "": "Typed"}
+SHEET_KIND = [("meeting", "Meeting"), ("conversation", "Convo"), ("document", "Doc"), ("task", "Task"), ("note", "Other")]
+SHEET_SHOW = {"all": "Everything", "todo": "Not checked yet", "ai": "Changed by Claude", "linked": "Linked to the guide",
+              "unlinked": "Not linked", "wins": "Wins", "checked": "Checked"}
+SHEET_PAGE = 100
 LIST_LIMIT = 300
 SIZES = [("small", "Small"), ("medium", "Medium"), ("large", "Large")]
 SIZE_LABEL = dict(SIZES)
@@ -203,7 +208,7 @@ def create_app(dd: DataDir) -> FastAPI:
         out = []
         for e in rows:
             linked = chips.get(("entry", e.id), [])
-            hint = [t.name for t in suggest(e.text)[0]] if guided and not linked else []
+            hint = [t.name for t in suggest(e.text)[0]] if guided and not linked and not e.ai_read else []
             mine = atts.get(e.id, [])
             impact = next((slack_imp.impact_of(a["body"]) for a in mine if a["slack_ai"]), "")
             has_notes = any(summaries.doc_ids([a["url"]]) for a in mine if a["url"])
@@ -473,6 +478,7 @@ def create_app(dd: DataDir) -> FastAPI:
             if w and f["title"]:
                 for k, v in f.items():
                     setattr(w, k, v)
+                w.by_ai = False
                 s.commit()
         return back(to=f"/wins?year={f['day'][:4]}")
 
@@ -523,16 +529,166 @@ def create_app(dd: DataDir) -> FastAPI:
         n = len(item)
         return back(f"Linked to {n} leveling guide item{'' if n == 1 else 's'}." if n else "Saved, with no guide items.", to)
 
+    def sheet_filters(show: str = "todo", source: str = "any", kind: str = "any", page: int = 1) -> dict:
+        return dict(show=show if show in SHEET_SHOW else "todo",
+                    source=source if source in SOURCE_LABEL or source == "any" else "any",
+                    kind=kind if kind in KIND_LABEL or kind == "any" else "any", page=max(1, min(page, 1000)))
+
+    def sheet_back(ret: str, eid: int | None = None, msg: str | None = None) -> RedirectResponse:
+        q = {k: v[0] for k, v in parse_qs(ret).items() if k in ("show", "source", "kind", "page")}
+        try:
+            f = sheet_filters(**{**q, "page": int(q.get("page", 1))})
+        except ValueError:
+            f = sheet_filters()
+        if msg:
+            f["msg"] = msg[:300]
+        return RedirectResponse(f"/sheet?{urlencode(f)}" + (f"#r{eid}" if eid else ""), status_code=303)
+
+    @app.get("/sheet", response_class=HTMLResponse)
+    def sheet_page(request: Request, show: str = "todo", source: str = "any", kind: str = "any", page: int = 1,
+                   msg: str | None = None, s: Session = Depends(db)):
+        f = sheet_filters(show, source, kind, page)
+        linked = select(GuideLink.entry_id).where(GuideLink.entry_id.is_not(None))
+        q = select(JournalEntry)
+        if f["source"] != "any":
+            q = q.where(JournalEntry.source == f["source"])
+        if f["kind"] != "any":
+            q = q.where(JournalEntry.kind == f["kind"])
+        q = {"todo": q.where(JournalEntry.reviewed.is_(False)), "checked": q.where(JournalEntry.reviewed.is_(True)),
+             "ai": q.where(JournalEntry.reviewed.is_(False), (JournalEntry.kind_was != "") | JournalEntry.id.in_(
+                 select(GuideLink.entry_id).where(GuideLink.by_ai)) | JournalEntry.id.in_(
+                 select(Win.entry_id).where(Win.by_ai))),
+             "linked": q.where(JournalEntry.id.in_(linked)), "unlinked": q.where(JournalEntry.id.not_in(linked)),
+             "wins": q.where(JournalEntry.id.in_(select(Win.entry_id).where(Win.entry_id.is_not(None)))),
+             "all": q}[f["show"]]
+        total = s.scalar(select(func.count()).select_from(q.subquery())) or 0
+        pages = max(1, -(-total // SHEET_PAGE))
+        f["page"] = min(f["page"], pages)
+        rows = list(s.scalars(q.order_by(JournalEntry.day.desc(), JournalEntry.id.desc())
+                              .offset((f["page"] - 1) * SHEET_PAGE).limit(SHEET_PAGE)))
+        ids = [e.id for e in rows]
+        links: dict[int, list] = {}
+        for l, g in s.execute(select(GuideLink, GuideItem).join(GuideItem, GuideItem.id == GuideLink.item_id)
+                              .where(GuideLink.entry_id.in_(ids)).order_by(GuideItem.position)):
+            links.setdefault(l.entry_id, []).append(dict(id=l.id, label=guide_label(g), ai=l.by_ai, name=g.name))
+        wins = {w.entry_id: w for w in s.scalars(select(Win).where(Win.entry_id.in_(ids)).order_by(Win.id))}
+        notes: dict[int, str] = {}
+        for a in s.scalars(select(JournalAttachment).where(JournalAttachment.entry_id.in_(ids),
+                                                           JournalAttachment.kind == "notes")):
+            notes.setdefault(a.entry_id, a.body[:1200])
+        out = [dict(id=e.id, day=e.day, source=SOURCE_LABEL.get(e.source, e.source), kind=e.kind,
+                    kind_was=dict(SHEET_KIND).get(e.kind_was, ""),
+                    text=e.text, reviewed=e.reviewed, ai_read=e.ai_read, links=links.get(e.id, []),
+                    win=wins.get(e.id), notes=notes.get(e.id, "")) for e in rows]
+        counts = dict(
+            total=s.scalar(select(func.count()).select_from(JournalEntry)) or 0,
+            read=s.scalar(select(func.count()).select_from(JournalEntry).where(JournalEntry.ai_read)) or 0,
+            checked=s.scalar(select(func.count()).select_from(JournalEntry).where(JournalEntry.reviewed)) or 0,
+            unread=s.scalar(select(func.count()).select_from(JournalEntry).where(
+                JournalEntry.ai_read.is_(False), JournalEntry.reviewed.is_(False))) or 0,
+            **gsvc.ai_counts(s))
+        html = env.get_template("sheet.html").render(
+            rows=out, f=f, total=total, pages=pages, ret=urlencode(f), counts=counts, show_opts=SHEET_SHOW,
+            source_opts=SOURCE_LABEL, kind_opts=SHEET_KIND, guided=gsvc.has_guide(s), size_label=SIZE_LABEL,
+            csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(),
+            tagline=TAGLINES[0], page="/sheet", personal=personal, q="", wide=True)
+        return HTMLResponse(html)
+
+    @app.post("/sheet/{eid}/kind", dependencies=[Depends(check_csrf)])
+    def sheet_kind(eid: int, kind: str = Form(...), ret: str = Form(""), s: Session = Depends(db)):
+        with _write_lock:
+            e = s.get(JournalEntry, eid)
+            if e and kind in KIND_LABEL:
+                if e.kind != kind:
+                    e.status = "done" if kind == "task" else ""
+                e.kind, e.kind_was = kind, ""
+                s.commit()
+        return sheet_back(ret, eid)
+
+    @app.post("/sheet/{eid}/win", dependencies=[Depends(check_csrf)])
+    def sheet_win(eid: int, size: str = Form("small"), ret: str = Form(""), s: Session = Depends(db)):
+        with _write_lock:
+            e = s.get(JournalEntry, eid)
+            if e is None or size not in SIZE_LABEL:
+                return sheet_back(ret, eid)
+            w = s.scalar(select(Win).where(Win.entry_id == eid).order_by(Win.id).limit(1))
+            if w:
+                w.size, w.by_ai = size, False
+            else:
+                impact = next((slack_imp.impact_of(a.body) for a in s.scalars(select(JournalAttachment).where(
+                    JournalAttachment.entry_id == eid, JournalAttachment.title.startswith(slack_imp.NOTES_TITLE)))), "")
+                w = Win(day=e.day, title=e.text[:500], impact=impact, size=size, entry_id=eid, created_at=datetime.now())
+                s.add(w)
+                s.flush()
+                for l in s.scalars(select(GuideLink).where(GuideLink.entry_id == eid)):
+                    s.add(GuideLink(item_id=l.item_id, win_id=w.id, created_at=datetime.now(), by_ai=l.by_ai))
+            s.commit()
+        return sheet_back(ret, eid)
+
+    @app.post("/sheet/{eid}/unwin", dependencies=[Depends(check_csrf)])
+    def sheet_unwin(eid: int, ret: str = Form(""), s: Session = Depends(db)):
+        with _write_lock:
+            for w in s.scalars(select(Win).where(Win.entry_id == eid)):
+                gsvc.drop_links(s, win_id=w.id)
+                s.delete(w)
+            s.commit()
+        return sheet_back(ret, eid)
+
+    @app.post("/sheet/link/{lid}/delete", dependencies=[Depends(check_csrf)])
+    def sheet_unlink(lid: int, ret: str = Form(""), s: Session = Depends(db)):
+        eid = None
+        with _write_lock:
+            l = s.get(GuideLink, lid)
+            if l and l.entry_id:
+                eid = l.entry_id
+                win_ids = select(Win.id).where(Win.entry_id == eid)
+                s.execute(delete(GuideLink).where(GuideLink.item_id == l.item_id, GuideLink.win_id.in_(win_ids)))
+                s.delete(l)
+                s.commit()
+        return sheet_back(ret, eid)
+
+    @app.post("/sheet/{eid}/ok", dependencies=[Depends(check_csrf)])
+    def sheet_ok(eid: int, ret: str = Form(""), after: str = Form(""), s: Session = Depends(db)):
+        with _write_lock:
+            gsvc.confirm(s, eid)
+        return sheet_back(ret, int(after) if after.isdigit() else eid)
+
+    @app.post("/sheet/{eid}/undo", dependencies=[Depends(check_csrf)])
+    def sheet_undo(eid: int, ret: str = Form(""), s: Session = Depends(db)):
+        with _write_lock:
+            e = s.get(JournalEntry, eid)
+            if e:
+                e.reviewed = False
+                s.commit()
+        return sheet_back(ret, eid)
+
+    @app.post("/sheet/ai", dependencies=[Depends(check_csrf)])
+    def sheet_ai(ret: str = Form(""), s: Session = Depends(db)):
+        """Have Claude read every record it hasn't read yet against the guide."""
+        if not personal:
+            return sheet_back(ret, msg="The Claude review only works with your personal notebook.")
+        from ..claude_cli import ClaudeError
+        from ..guide.ai_review import review
+        try:
+            with _write_lock:
+                r = review(s)
+        except ClaudeError as exc:
+            return sheet_back(ret, msg=f"Claude review didn't finish: {exc}")
+        return sheet_back(ret, msg=f"Claude read {r['read']} records: {r['links']} guide links, {r['wins']} drafted "
+                                   f"wins, {r['kinds']} type changes, all marked AI."
+                                   + (f" {r['failed']} couldn't be read; press the button again to retry them."
+                                      if r["failed"] else ""))
+
     @app.get("/promo", response_class=HTMLResponse)
     def promo_page(request: Request, msg: str | None = None, s: Session = Depends(db)):
         guided = gsvc.has_guide(s)
         hints = 0
         if guided:
             linked = set(s.scalars(select(GuideLink.entry_id).where(GuideLink.entry_id.is_not(None))))
-            hints = sum(1 for eid, text in s.execute(select(JournalEntry.id, JournalEntry.text))
-                        if eid not in linked and suggest(text)[0])
+            hints = sum(1 for eid, text in s.execute(select(JournalEntry.id, JournalEntry.text).where(
+                JournalEntry.ai_read.is_(False))) if eid not in linked and suggest(text)[0])
         html = env.get_template("promo.html").render(
-            pm=gsvc.promo_map(s) if guided else None, hints=hints, csrf=csrf_token, msg=msg,
+            pm=gsvc.promo_map(s) if guided else None, hints=hints, ai=gsvc.ai_counts(s), csrf=csrf_token, msg=msg,
             sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
             page="/promo", personal=personal, q="")
         return HTMLResponse(html)

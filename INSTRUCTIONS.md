@@ -81,6 +81,26 @@ Colors come from points. A linked entry is worth 1, and a small, medium, or larg
 
 **Download promo case** writes a Markdown draft grouped by grade and topic. Each guide item lists the wins and entries behind it, with dates and why they mattered, and a **Not shown yet** list at the end shows what to aim for before you submit.
 
+## The Sheet: every record, checked in one place
+
+The **Sheet** tab lists every record (calendar meetings, Google Tasks, Slack items, and what you typed) as rows, newest first, 100 to a page. Each row has one-click buttons:
+
+- **Type**: Meeting, Convo, Doc, Task, or Other. The lit one is the current type.
+- **Leveling guide**: the guide items the record shows. Click &times; to remove one, or **edit**/**link** to pick items yourself.
+- **Win**: **S**, **M**, or **L** makes the record a small, medium, or large win (or resizes it), and &times; removes the win. Click the win's title to see why it mattered, then **Edit on Wins** to reword it.
+- **Looks right** marks the row checked. Whatever Claude picked for it becomes yours, and the row leaves the **Not checked yet** list, so you can work down the list until it's empty.
+
+Purple **AI** marks are Claude's picks: guide links, drafted wins, and type changes ("AI, was Other"). They count on the Promo map straight away, and the Promo map says how many are still unchecked. Use the **Show** menu for **Changed by Claude**, **Not linked**, **Wins**, or **Checked**.
+
+**Claude's read-through.** Claude has read every record against the Grade 6 and 7 key experiences and skills. It linked each one to the guide items it shows (none for routine standups and status pings), drafted wins for the stand-out ones, and fixed obvious type mix-ups (only for Slack and typed records; calendar items stay meetings and Google Tasks stay tasks). When new records come in, the Sheet shows a **Have Claude read the N records it hasn't read** button. You can also run it in Terminal:
+
+```
+cd ~/Documents/career-os
+uv run careeros guide review
+```
+
+It never touches rows you've marked checked or guide links you picked yourself. Record text, attached notes, and the leveling guide pass through the AI tool. Calendar and Tasks syncs never delete a record that has a win, guide links, or your check on it.
+
 ## Slack: your Work Activity Tracker canvas
 
 Your Slack Work Activity Tracker canvas (the one Slackbot fills in every day) comes into the notebook as entries. Claude reads each work item and decides whether it was a meeting, a conversation, a document, or a task. Anything it can't place goes to **Other**. Every entry from Slack has a **from Slack** label, the tracker's notes underneath (marked as written by Slack's AI), and a link back to the Slack thread. Items that are already in the notebook are skipped, so syncing again is safe. Tasks from Slack come in as done. When the tracker says why something mattered, the entry gets a dashed **suggested win** label and the **Count this as a win** form is pre-filled with that reason, so you can edit it into your own words and save.
@@ -155,7 +175,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `99 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `105 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

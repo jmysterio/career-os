@@ -2,7 +2,7 @@
 {% macro evidence(x) %}
   {% set n = x.wins|length + x.entries|length %}
   {% if n %}<details><summary>{{ x.wins|length }} win{{ '' if x.wins|length == 1 else 's' }}{% if x.entries %}, {{ x.entries|length }} entr{{ 'y' if x.entries|length == 1 else 'ies' }}{% endif %}</summary>
-    <ul>{% for w in x.wins %}<li><span class="muted">{{ w.day }}</span> <b>{{ w.title }}</b> <span class="chip">{{ w.size }}</span>{% if w.impact %}<br><span class="muted">{{ w.impact }}</span>{% endif %}</li>{% endfor %}
+    <ul>{% for w in x.wins %}<li><span class="muted">{{ w.day }}</span> <b>{{ w.title }}</b> <span class="chip">{{ w.size }}</span>{% if w.by_ai %} <span class="chip ai">AI</span>{% endif %}{% if w.impact %}<br><span class="muted">{{ w.impact }}</span>{% endif %}</li>{% endfor %}
     {% for e in x.entries %}<li><span class="muted">{{ e.day }}</span> {{ e.text }}</li>{% endfor %}</ul></details>
   {% endif %}
 {% endmacro %}
@@ -21,6 +21,7 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
     <form method="get" action="/promo/export"><button class="primary">Download promo case</button></form>
   </div>
   <p class="muted">Each key experience from the leveling guide, colored by how much of your own logged work backs it up. Link wins and entries to the guide to fill it in. Wins count more than plain entries, and bigger wins count more.</p>
+  {% if ai.links or ai.wins %}<p class="note">{{ ai.links }} guide link{{ '' if ai.links == 1 else 's' }} and {{ ai.wins }} win{{ '' if ai.wins == 1 else 's' }} on this map were picked by Claude and not checked yet. They count already. <a href="/sheet?show=ai">Check them on the Sheet</a>.</p>{% endif %}
   {% for gr in pm.grades %}{% set p = pm.progress[gr] %}
   <p style="margin:.9rem 0 0"><b>Grade {{ gr }}</b>: {{ p.shown + p.strong }} of {{ p.total }} key experiences shown{% if p.strong %} ({{ p.strong }} strong){% endif %}, {{ p.started }} started, {{ p.gap }} not yet.</p>
   <div class="bar" role="img" aria-label="Grade {{ gr }}: {{ p.strong }} strong, {{ p.shown }} shown, {{ p.started }} started, {{ p.gap }} not yet">

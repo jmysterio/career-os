@@ -149,6 +149,34 @@ def set_links(s: Session, ids: set[int], *, win_id: int | None = None, entry_id:
     s.commit()
 
 
+def keeps_entry(s: Session, e: JournalEntry) -> bool:
+    """True when the user (or Claude) built on this entry, so a sync must not delete it."""
+    return e.reviewed or s.scalar(select(Win.id).where(Win.entry_id == e.id).limit(1)) is not None or \
+        s.scalar(select(GuideLink.id).where(GuideLink.entry_id == e.id).limit(1)) is not None
+
+
+def confirm(s: Session, entry_id: int) -> None:
+    """The user checked this row: Claude's picks for it (links, type, drafted win) become the user's own."""
+    e = s.get(JournalEntry, entry_id)
+    if e is None:
+        return
+    e.reviewed = True
+    wins = list(s.scalars(select(Win).where(Win.entry_id == entry_id)))
+    for w in wins:
+        w.by_ai = False
+    for l in s.scalars(select(GuideLink).where(
+            (GuideLink.entry_id == entry_id) | GuideLink.win_id.in_([w.id for w in wins]))):
+        l.by_ai = False
+    s.commit()
+
+
+def ai_counts(s: Session) -> dict[str, int]:
+    from sqlalchemy import func
+    return dict(links=s.scalar(select(func.count()).select_from(GuideLink).where(
+        GuideLink.by_ai, GuideLink.entry_id.is_not(None))) or 0,
+                wins=s.scalar(select(func.count()).select_from(Win).where(Win.by_ai)) or 0)
+
+
 def drop_links(s: Session, *, win_id: int | None = None, entry_id: int | None = None) -> None:
     q = delete(GuideLink)
     s.execute(q.where(GuideLink.win_id == win_id) if win_id is not None else q.where(GuideLink.entry_id == entry_id))

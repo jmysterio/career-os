@@ -33,7 +33,7 @@
   {% for x in m.wins %}{% set w = x.w %}
   <div class="entry">
     <div class="entry-head">
-      <div><span class="muted">{{ w.day }}</span> <span class="chip">{{ x.size_label }}</span>{% if w.theme %} <span class="chip">{{ w.theme }}</span>{% endif %} <b>{{ w.title }}</b></div>
+      <div><span class="muted">{{ w.day }}</span> <span class="chip">{{ x.size_label }}</span>{% if w.theme %} <span class="chip">{{ w.theme }}</span>{% endif %}{% if w.by_ai %} <span class="chip ai">AI-drafted</span>{% endif %} <b>{{ w.title }}</b></div>
       <form method="post" action="/wins/{{ w.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove</button></form>
     </div>
     {% if w.impact %}<p class="att">{{ w.impact }}</p>{% else %}<p class="attn">Why did this matter? Add it while you still remember.</p>{% endif %}

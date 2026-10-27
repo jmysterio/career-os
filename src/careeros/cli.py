@@ -181,6 +181,30 @@ def guide_import(file: str = typer.Argument(..., help="Leveling guide CSV export
                f"{r['retired']} no longer in the guide.")
 
 
+@guide_app.command("review")
+def guide_review(redo: bool = typer.Option(False, "--redo", help="Also re-read records Claude already read "
+                                                                   "(rows you marked reviewed are never touched)"),
+                 limit: Optional[int] = typer.Option(None, help="Only read this many records (newest first)"),
+                 data_dir: Optional[str] = DataOpt) -> None:
+    """Have Claude read every record against the leveling guide: guide links, type fixes, and drafted wins (marked AI)."""
+    from .claude_cli import ClaudeError
+    from .guide.ai_review import pending, review
+    dd, s = _open_personal(data_dir, "The Claude review")
+    n = len(pending(s, redo)[:limit])
+    if not n:
+        typer.echo("Nothing to read: Claude has already read every record.")
+        return
+    typer.echo(f"Claude is reading {n} records against the leveling guide. This takes a few minutes.")
+    try:
+        r = review(s, redo=redo, limit=limit, progress=lambda i, t: typer.echo(f"  batch {i} of {t} done"))
+    except ClaudeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    typer.echo(f"Read {r['read']} records: {r['links']} guide links, {r['wins']} drafted wins, "
+               f"{r['kinds']} type changes, all marked AI."
+               + (f" {r['failed']} couldn't be read; run this again to retry them." if r["failed"] else ""))
+
+
 slack_app = typer.Typer(no_args_is_help=True, help="Bring Slack canvases into your notebook (read-only)")
 app.add_typer(slack_app, name="slack")
 
