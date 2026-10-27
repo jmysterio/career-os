@@ -24,6 +24,7 @@ from ..export.wins import wins_markdown
 from ..google import summaries
 from ..guide import service as gsvc
 from ..guide.topics import suggest, topic_of
+from ..slack import importer as slack_imp
 from ..storage.db import init_db, make_engine, make_session_factory
 from ..storage.models import (
     AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, GuideItem, GuideLink, JournalAttachment,
@@ -194,19 +195,23 @@ def create_app(dd: DataDir) -> FastAPI:
             atts.setdefault(a.entry_id, []).append(dict(
                 id=a.id, label=ATTACH_LABEL.get(a.kind, "Text"), title=a.title, body=a.body,
                 url=a.body.strip() if link else None,
-                ai=a.kind == "notes" and a.title == summaries.AI_TITLE))
+                ai=a.kind == "notes" and a.title == summaries.AI_TITLE,
+                slack_ai=a.kind == "notes" and a.title.startswith(slack_imp.NOTES_TITLE)))
         guided = gsvc.has_guide(s)
         chips = guide_chips(s, entry_ids=[e.id for e in rows]) if guided else {}
+        has_win = set(s.scalars(select(Win.entry_id).where(Win.entry_id.in_([e.id for e in rows]))))
         out = []
         for e in rows:
             linked = chips.get(("entry", e.id), [])
             hint = [t.name for t in suggest(e.text)[0]] if guided and not linked else []
             mine = atts.get(e.id, [])
+            impact = next((slack_imp.impact_of(a["body"]) for a in mine if a["slack_ai"]), "")
             has_notes = any(summaries.doc_ids([a["url"]]) for a in mine if a["url"])
             from_cal = e.source == "calendar"
             out.append(dict(id=e.id, day=e.day, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"),
                             from_calendar=from_cal, status=e.status, attachments=mine, guided=guided,
-                            guide=linked, hint=hint,
+                            guide=linked, hint=hint, from_slack=e.source == slack_imp.SOURCE, win_impact=impact,
+                            suggested_win=bool(impact) and e.id not in has_win,
                             notes_state=("" if not from_cal else "summarized" if any(a["ai"] for a in mine)
                                          else "pending" if has_notes else "none")))
         return out
@@ -233,7 +238,8 @@ def create_app(dd: DataDir) -> FastAPI:
         html = env.get_template("today.html").render(
             days=days, tally=tally, kinds=KINDS, attach_kinds=ATTACH_KINDS, today=today.isoformat(),
             tagline=TAGLINES[today.toordinal() % len(TAGLINES)], csrf=csrf_token, msg=msg,
-            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), page="/", personal=personal, q="")
+            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), page="/", personal=personal, q="",
+            slack_canvas=slack_imp.load_canvas_id(dd) if personal else None)
         return HTMLResponse(html)
 
     def tab_page(path: str):
@@ -347,6 +353,27 @@ def create_app(dd: DataDir) -> FastAPI:
         if n["failed"]:
             msg += f" {n['failed']} couldn't be summarized; press Sync calendar to try again."
         return back(msg, "/")
+
+    @app.post("/slack/sync", dependencies=[Depends(check_csrf)])
+    def slack_sync(s: Session = Depends(db)):
+        """Ask Claude Code to read the connected Slack tracker canvas, then sort and import its new items."""
+        if not personal:
+            return back("Slack sync only works with your personal notebook.", "/")
+        from ..claude_cli import ClaudeError
+        from ..slack.classify import classify
+        from ..slack.connector import fetch_canvas
+        from ..slack.parse import CanvasFormatError, parse_canvas
+        cid = slack_imp.load_canvas_id(dd)
+        if not cid:
+            return back("No Slack canvas connected yet. In Terminal run: uv run careeros slack connect <canvas link>", "/")
+        try:
+            items = parse_canvas(fetch_canvas(cid))
+            with _write_lock:
+                r = slack_imp.import_items(s, items, classify)
+        except (ClaudeError, CanvasFormatError) as exc:
+            return back(f"Slack sync didn't finish: {exc}", "/")
+        return back(f"Slack synced: {r['added']} new ({r['meeting']} meetings, {r['conversation']} conversations, "
+                    f"{r['document']} documents, {r['task']} tasks, {r['note']} other), {r['skipped']} already here.", "/")
 
     @app.post("/journal/{eid}/attach", dependencies=[Depends(check_csrf)])
     def journal_attach(eid: int, a_kind: str = Form("notes"), a_title: str = Form("", max_length=200),

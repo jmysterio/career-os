@@ -181,16 +181,77 @@ def guide_import(file: str = typer.Argument(..., help="Leveling guide CSV export
                f"{r['retired']} no longer in the guide.")
 
 
+slack_app = typer.Typer(no_args_is_help=True, help="Bring Slack canvases into your notebook (read-only)")
+app.add_typer(slack_app, name="slack")
+
+
+def _slack_import(dd: DataDir, s, raw: str, fallback_day: Optional[str] = None) -> None:
+    from .claude_cli import ClaudeError
+    from .slack.classify import classify
+    from .slack.importer import import_items
+    from .slack.parse import CanvasFormatError, parse_canvas
+    try:
+        r = import_items(s, parse_canvas(raw, fallback_day), classify)
+    except (CanvasFormatError, ClaudeError) as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    typer.echo(f"Slack: {r['added']} added ({r['meeting']} meetings, {r['conversation']} conversations, "
+               f"{r['document']} documents, {r['task']} tasks, {r['note']} other), {r['skipped']} already here.")
+
+
+@slack_app.command("import")
+def slack_import(file: str = typer.Argument(..., help="Canvas markdown or canvas JSON, or - for stdin"),
+                 day: Optional[str] = typer.Option(None, help="Date for items the canvas doesn't date, YYYY-MM-DD"),
+                 data_dir: Optional[str] = DataOpt) -> None:
+    """Import a Slack Work Activity Tracker or contributions canvas. Claude sorts each item into a kind."""
+    import sys
+    dd, s = _open_personal(data_dir, "Slack import")
+    raw = sys.stdin.read() if file == "-" else open(file, encoding="utf-8").read()
+    _slack_import(dd, s, raw, day)
+
+
+@slack_app.command("connect")
+def slack_connect(canvas: str = typer.Argument(..., help="Link to, or ID of, your Slack Work Activity Tracker canvas"),
+                  data_dir: Optional[str] = DataOpt) -> None:
+    """Remember which canvas the Sync Slack button reads."""
+    from .slack.importer import save_canvas_id
+    dd, _ = _open_personal(data_dir, "Slack sync")
+    try:
+        typer.echo(f"Saved canvas {save_canvas_id(dd, canvas)}. Now run: uv run careeros slack pull")
+    except ValueError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+
+
+@slack_app.command("pull")
+def slack_pull(data_dir: Optional[str] = DataOpt) -> None:
+    """Read the connected canvas through Claude Code's Slack connector and import new items (the Sync Slack button)."""
+    from .claude_cli import ClaudeError
+    from .slack.connector import fetch_canvas
+    from .slack.importer import load_canvas_id
+    dd, s = _open_personal(data_dir, "Slack sync")
+    cid = load_canvas_id(dd)
+    if not cid:
+        typer.echo("No canvas connected yet. Run: uv run careeros slack connect <canvas link>")
+        raise typer.Exit(1)
+    try:
+        raw = fetch_canvas(cid)
+    except ClaudeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    _slack_import(dd, s, raw)
+
+
 calendar_app = typer.Typer(no_args_is_help=True, help="Pull Google Calendar meetings into your notebook (read-only)")
 app.add_typer(calendar_app, name="calendar")
 
 
-def _open_personal(data_dir: Optional[str]):
+def _open_personal(data_dir: Optional[str], what: str = "Calendar sync"):
     from .google import calendar as gcal  # noqa: F401
     os.umask(0o077)
     dd = resolve(data_dir)
     if not dd.is_personal:
-        typer.echo("Calendar sync only works with your personal notebook (run `careeros notebook init`).")
+        typer.echo(f"{what} only works with your personal notebook (run `careeros notebook init`).")
         raise typer.Exit(1)
     engine = make_engine(dd.db)
     init_db(engine)

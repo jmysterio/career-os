@@ -81,6 +81,19 @@ Colors come from points. A linked entry is worth 1, and a small, medium, or larg
 
 **Download promo case** writes a Markdown draft grouped by grade and topic. Each guide item lists the wins and entries behind it, with dates and why they mattered, and a **Not shown yet** list at the end shows what to aim for before you submit.
 
+## Slack: your Work Activity Tracker canvas
+
+Your Slack Work Activity Tracker canvas (the one Slackbot fills in every day) comes into the notebook as entries. Claude reads each work item and decides whether it was a meeting, a conversation, a document, or a task. Anything it can't place goes to **Other**. Every entry from Slack has a **from Slack** label, the tracker's notes underneath (marked as written by Slack's AI), and a link back to the Slack thread. Items that are already in the notebook are skipped, so syncing again is safe. Tasks from Slack come in as done. When the tracker says why something mattered, the entry gets a dashed **suggested win** label and the **Count this as a win** form is pre-filled with that reason, so you can edit it into your own words and save.
+
+**The Sync Slack tracker button** on the Today page reads the canvas through Claude Code's Slack connector. It only works once Slack is signed in for Claude Code. If it says it couldn't reach the connector, sign Slack in again from the AI Expert Suite and retry. The canvas is already connected. To connect a different one, run:
+
+```
+cd ~/Documents/career-os
+uv run careeros slack connect <canvas link>
+```
+
+**Importing a saved canvas** (for example one of your old Weekly Contributions canvases): save its text to a file, then run `uv run careeros slack import <file>`. The 2025 Weekly Contributions canvases are already imported.
+
 ## Year-end exports
 
 At year end, pick the year on the Wins tab and click **Download as Markdown**. The file opens with your large wins as highlights, then lists everything by theme with its date and why it mattered. Paste it into a promotion doc or use it to pick resume bullets. Removing a notebook entry never removes a win made from it.
@@ -142,7 +155,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `90 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `99 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

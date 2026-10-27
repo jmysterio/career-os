@@ -6,7 +6,7 @@
     <input name="a_title" maxlength="200" placeholder="A name for it (optional)" aria-label="Name">
   </div>
   <p class="help"><b>What it is</b> labels the pasted text. <b>Name</b> is optional, like &ldquo;Gemini notes, Oct 22&rdquo;. A link only needs the web address. The long text is kept exactly as pasted and shown as plain text.</p>
-  <p class="warn"><b>Before you paste:</b> only keep what you're allowed to keep on this laptop. Meeting notes and transcripts can hold names, decisions, or sensitive details, and some work (for example anything IRS-related) has handling rules. If you're unsure, write a short summary in your own words instead. Notes you paste here stay on this laptop (only the Sync calendar button sends anything out, and only meeting notes it finds on your calendar), and Remove deletes them for good.</p>
+  <p class="warn"><b>Before you paste:</b> only keep what you're allowed to keep on this laptop. Meeting notes and transcripts can hold names, decisions, or sensitive details, and some work (for example anything IRS-related) has handling rules. If you're unsure, write a short summary in your own words instead. Notes you paste here stay on this laptop (only the Sync buttons send anything out, and only what they read from your calendar or Slack canvas), and Remove deletes them for good.</p>
   <textarea name="a_body" maxlength="200000" placeholder="Paste a link, meeting notes, a transcript, a Slack canvas, or a prompt here" aria-label="Paste here"></textarea>
 {% endmacro %}
 
@@ -28,13 +28,14 @@
 {% macro entry_card(e) %}
   <div class="entry">
     <div class="entry-head">
-      <div><span class="chip">{{ e.kind_label }}</span>{% if e.status == "open" %} <span class="chip">to do</span>{% endif %}{% if e.from_calendar %} <span class="chip">from calendar</span>{% endif %} {{ e.text }}</div>
+      <div><span class="chip">{{ e.kind_label }}</span>{% if e.status == "open" %} <span class="chip">to do</span>{% endif %}{% if e.from_calendar %} <span class="chip">from calendar</span>{% endif %}{% if e.from_slack %} <span class="chip">from Slack</span>{% endif %}{% if e.suggested_win %} <span class="chip hint">suggested win</span>{% endif %} {{ e.text }}</div>
       <form method="post" action="/journal/{{ e.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove</button></form>
     </div>
     {% for a in e.attachments %}
     <div class="att">
       <details {{ 'open' if a.url or a.ai }}><summary><span class="chip">{{ 'AI summary' if a.ai else a.label }}</span> {{ a.title or ('Link' if a.url else 'Show') }}</summary>
         {% if a.ai %}<p class="help">Written by Claude from the linked meeting notes. Check it against the notes before relying on it.</p>{% endif %}
+        {% if a.slack_ai %}<p class="help">Written by Slack's AI from your Slack activity, then sorted into a kind by Claude. Check it against the Slack thread before relying on it.</p>{% endif %}
         {% if a.url %}<a href="{{ a.url }}" rel="noreferrer noopener" target="_blank">{{ a.url }}</a>
         {% else %}<pre class="paper">{{ a.body }}</pre>{% endif %}
         <form method="post" action="/journal/attachment/{{ a.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove this</button></form>
@@ -56,7 +57,8 @@
       <form method="post" action="/wins/add" class="stack">
         <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="entry_id" value="{{ e.id }}">
         <input type="hidden" name="day" value="{{ e.day }}"><input type="hidden" name="next" value="{{ page }}">
-        {{ win_fields(dict(title=e.text, impact='', size='', theme='', day=e.day)) }}
+        {% if e.suggested_win %}<p class="help">The Slack log says why this mattered, so it's filled in below. Edit it into your own words.</p>{% endif %}
+        {{ win_fields(dict(title=e.text, impact=e.win_impact, size='', theme='', day=e.day)) }}
         <div><button class="primary">Save to my wins</button></div></form>
     </details>
   </div>
