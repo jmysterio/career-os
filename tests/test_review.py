@@ -134,6 +134,27 @@ def test_sheet_one_click_actions(nb):
     assert c.post(f"/sheet/{a}/kind", data={"csrf": "nope", "kind": "task"}).status_code == 403
 
 
+def test_sheet_script_updates_rows_in_place(nb):
+    dd, c, token, _ = nb
+    with session(dd) as s:
+        a = add(s, "Wrote the refresh runbook")
+    js = c.get("/static/sheet.js")
+    assert js.status_code == 200 and "javascript" in js.headers["content-type"]
+    assert "script-src 'self'" in c.get("/sheet").headers["content-security-policy"]
+    assert 'src="/static/sheet.js"' in c.get("/sheet").text
+    hdr = {"X-Sheet": "1"}
+    ret = "show=todo&source=any&kind=any&page=1"
+    r = c.post(f"/sheet/{a}/kind", data={"csrf": token, "kind": "document", "ret": ret}, headers=hdr)
+    assert r.status_code == 200 and r.text.lstrip().startswith(f'<tr id="r{a}"') and 'value="document" class="on"' in r.text
+    r = c.post(f"/sheet/{a}/win", data={"csrf": token, "size": "medium", "ret": ret}, headers=hdr)
+    assert "Wrote the refresh runbook" in r.text and 'value="medium" class="on"' in r.text
+    r = c.post(f"/sheet/{a}/ok", data={"csrf": token, "ret": ret}, headers=hdr)
+    assert r.status_code == 200 and r.headers["x-row"] == "gone" and r.text == ""
+    r = c.post(f"/sheet/{a}/undo", data={"csrf": token, "ret": "show=checked"}, headers=hdr)
+    assert r.headers["x-row"] == "gone"
+    assert c.post(f"/sheet/{a}/ok", data={"csrf": "nope", "ret": ret}, headers=hdr).status_code == 403
+
+
 def test_sync_never_deletes_entries_you_built_on(nb):
     dd, *_ = nb
     with session(dd) as s:

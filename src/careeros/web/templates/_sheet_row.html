@@ -1,0 +1,18 @@
+{% macro hidden() %}<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="ret" value="{{ ret }}">{% endmacro %}
+<tr id="r{{ r.id }}" class="{{ 'ok' if r.reviewed }}">
+    <td style="white-space:nowrap">{% if r.reviewed %}<form method="post" action="/sheet/{{ r.id }}/undo">{{ hidden() }}<button aria-label="Mark not checked">Checked &check;</button></form>
+      {% else %}<form method="post" action="/sheet/{{ r.id }}/ok">{{ hidden() }}<input type="hidden" name="after" value="{{ nxt }}"><button class="primary">Looks right</button></form>{% endif %}</td>
+    <td style="white-space:nowrap">{{ r.day }}</td>
+    <td>{{ r.source }}</td>
+    <td>{{ r.text }}{% if r.notes %}<details><summary>Notes</summary><pre class="paper" style="max-height:12rem">{{ r.notes }}</pre></details>{% endif %}</td>
+    <td style="white-space:nowrap"><form method="post" action="/sheet/{{ r.id }}/kind">{{ hidden() }}
+      {% for k, label in kind_opts %}<button name="kind" value="{{ k }}" class="{{ 'on' if r.kind == k }}" aria-pressed="{{ 'true' if r.kind == k else 'false' }}">{{ label }}</button>{% endfor %}</form>
+      {% if r.kind_was %}<br><span class="chip ai">AI, was {{ r.kind_was }}</span>{% endif %}</td>
+    <td>{% for l in r.links %}<span class="chip {{ 'ai' if l.ai else 'guide' }}" title="{{ l.name }}">{% if l.ai %}AI: {% endif %}{{ l.label }}<form method="post" action="/sheet/link/{{ l.id }}/delete">{{ hidden() }}<button aria-label="Remove {{ l.label }}">&times;</button></form></span>{% endfor %}
+      {% if guided %}<a href="/guide/link?entry={{ r.id }}&next=/sheet" class="muted">{{ 'edit' if r.links else 'link' }}</a>{% endif %}</td>
+    <td style="white-space:nowrap"><form method="post" action="/sheet/{{ r.id }}/win">{{ hidden() }}
+      {% for k, label in size_label.items() %}<button name="size" value="{{ k }}" class="{{ 'on' if r.win and r.win.size == k }}" aria-label="{{ label }} win">{{ label[0] }}</button>{% endfor %}</form>
+      {% if r.win %}<form method="post" action="/sheet/{{ r.id }}/unwin">{{ hidden() }}<button aria-label="Not a win">&times;</button></form>
+      {% if r.win.by_ai %}<br><span class="chip ai">AI win</span>{% endif %}
+      <details><summary>{{ r.win.title[:40] }}{{ '…' if r.win.title|length > 40 }}</summary><p class="help">{{ r.win.impact or 'No "why it mattered" yet.' }} <a href="/wins?year={{ r.win.day[:4] }}">Edit on Wins</a></p></details>{% endif %}</td>
+</tr>

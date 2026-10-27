@@ -32,8 +32,9 @@ from ..storage.models import (
 )
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
-CSP = ("default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; "
+CSP = ("default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; "
        "base-uri 'none'; frame-ancestors 'none'")
+SHEET_JS = (Path(__file__).parent / "static" / "sheet.js").read_text()
 _write_lock = threading.Lock()
 
 # Plain-language versions of the rule codes in claims/rules.py.
@@ -534,38 +535,77 @@ def create_app(dd: DataDir) -> FastAPI:
                     source=source if source in SOURCE_LABEL or source == "any" else "any",
                     kind=kind if kind in KIND_LABEL or kind == "any" else "any", page=max(1, min(page, 1000)))
 
-    def sheet_back(ret: str, eid: int | None = None, msg: str | None = None) -> RedirectResponse:
+    def parse_ret(ret: str) -> dict:
         q = {k: v[0] for k, v in parse_qs(ret).items() if k in ("show", "source", "kind", "page")}
         try:
-            f = sheet_filters(**{**q, "page": int(q.get("page", 1))})
+            return sheet_filters(**{**q, "page": int(q.get("page", 1))})
         except ValueError:
-            f = sheet_filters()
-        if msg:
-            f["msg"] = msg[:300]
-        return RedirectResponse(f"/sheet?{urlencode(f)}" + (f"#r{eid}" if eid else ""), status_code=303)
+            return sheet_filters()
 
-    @app.get("/sheet", response_class=HTMLResponse)
-    def sheet_page(request: Request, show: str = "todo", source: str = "any", kind: str = "any", page: int = 1,
-                   msg: str | None = None, s: Session = Depends(db)):
-        f = sheet_filters(show, source, kind, page)
+    def sheet_query(f: dict):
         linked = select(GuideLink.entry_id).where(GuideLink.entry_id.is_not(None))
         q = select(JournalEntry)
         if f["source"] != "any":
             q = q.where(JournalEntry.source == f["source"])
         if f["kind"] != "any":
             q = q.where(JournalEntry.kind == f["kind"])
-        q = {"todo": q.where(JournalEntry.reviewed.is_(False)), "checked": q.where(JournalEntry.reviewed.is_(True)),
-             "ai": q.where(JournalEntry.reviewed.is_(False), (JournalEntry.kind_was != "") | JournalEntry.id.in_(
-                 select(GuideLink.entry_id).where(GuideLink.by_ai)) | JournalEntry.id.in_(
-                 select(Win.entry_id).where(Win.by_ai))),
-             "linked": q.where(JournalEntry.id.in_(linked)), "unlinked": q.where(JournalEntry.id.not_in(linked)),
-             "wins": q.where(JournalEntry.id.in_(select(Win.entry_id).where(Win.entry_id.is_not(None)))),
-             "all": q}[f["show"]]
+        return {"todo": q.where(JournalEntry.reviewed.is_(False)), "checked": q.where(JournalEntry.reviewed.is_(True)),
+                "ai": q.where(JournalEntry.reviewed.is_(False), (JournalEntry.kind_was != "") | JournalEntry.id.in_(
+                    select(GuideLink.entry_id).where(GuideLink.by_ai)) | JournalEntry.id.in_(
+                    select(Win.entry_id).where(Win.by_ai))),
+                "linked": q.where(JournalEntry.id.in_(linked)), "unlinked": q.where(JournalEntry.id.not_in(linked)),
+                "wins": q.where(JournalEntry.id.in_(select(Win.entry_id).where(Win.entry_id.is_not(None)))),
+                "all": q}[f["show"]]
+
+    def sheet_ctx(s: Session, f: dict) -> dict:
+        return dict(ret=urlencode(f), csrf=csrf_token, kind_opts=SHEET_KIND, size_label=SIZE_LABEL,
+                    guided=gsvc.has_guide(s))
+
+    def sheet_back(request: Request, s: Session, ret: str, eid: int | None = None, msg: str | None = None,
+                   after: int | None = None) -> Response:
+        """A full redirect for plain form posts; for the Sheet's script, just the redrawn row, or "gone"."""
+        f = parse_ret(ret)
+        if request.headers.get("x-sheet") == "1" and eid:
+            s.expire_all()
+            e = s.scalar(sheet_query(f).where(JournalEntry.id == eid))
+            if e is None:
+                return Response("", headers={"X-Row": "gone"})
+            html = env.get_template("_sheet_row.html").render(r=sheet_rows(s, [e])[0], nxt="", **sheet_ctx(s, f))
+            return HTMLResponse(html)
+        if msg:
+            f["msg"] = msg[:300]
+        anchor = after or eid
+        return RedirectResponse(f"/sheet?{urlencode(f)}" + (f"#r{anchor}" if anchor else ""), status_code=303)
+
+    @app.get("/static/sheet.js")
+    def sheet_js():
+        return Response(SHEET_JS, media_type="text/javascript; charset=utf-8")
+
+    @app.get("/sheet", response_class=HTMLResponse)
+    def sheet_page(request: Request, show: str = "todo", source: str = "any", kind: str = "any", page: int = 1,
+                   msg: str | None = None, s: Session = Depends(db)):
+        f = sheet_filters(show, source, kind, page)
+        q = sheet_query(f)
         total = s.scalar(select(func.count()).select_from(q.subquery())) or 0
         pages = max(1, -(-total // SHEET_PAGE))
         f["page"] = min(f["page"], pages)
         rows = list(s.scalars(q.order_by(JournalEntry.day.desc(), JournalEntry.id.desc())
                               .offset((f["page"] - 1) * SHEET_PAGE).limit(SHEET_PAGE)))
+        out = sheet_rows(s, rows)
+        counts = dict(
+            total=s.scalar(select(func.count()).select_from(JournalEntry)) or 0,
+            read=s.scalar(select(func.count()).select_from(JournalEntry).where(JournalEntry.ai_read)) or 0,
+            checked=s.scalar(select(func.count()).select_from(JournalEntry).where(JournalEntry.reviewed)) or 0,
+            unread=s.scalar(select(func.count()).select_from(JournalEntry).where(
+                JournalEntry.ai_read.is_(False), JournalEntry.reviewed.is_(False))) or 0,
+            **gsvc.ai_counts(s))
+        html = env.get_template("sheet.html").render(
+            rows=out, f=f, total=total, pages=pages, counts=counts, show_opts=SHEET_SHOW, source_opts=SOURCE_LABEL,
+            msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(),
+            tagline=TAGLINES[0], page="/sheet", personal=personal, q="", wide=True, **sheet_ctx(s, f))
+        return HTMLResponse(html)
+
+    def sheet_rows(s: Session, rows: list) -> list[dict]:
         ids = [e.id for e in rows]
         links: dict[int, list] = {}
         for l, g in s.execute(select(GuideLink, GuideItem).join(GuideItem, GuideItem.id == GuideLink.item_id)
@@ -576,26 +616,13 @@ def create_app(dd: DataDir) -> FastAPI:
         for a in s.scalars(select(JournalAttachment).where(JournalAttachment.entry_id.in_(ids),
                                                            JournalAttachment.kind == "notes")):
             notes.setdefault(a.entry_id, a.body[:1200])
-        out = [dict(id=e.id, day=e.day, source=SOURCE_LABEL.get(e.source, e.source), kind=e.kind,
-                    kind_was=dict(SHEET_KIND).get(e.kind_was, ""),
-                    text=e.text, reviewed=e.reviewed, ai_read=e.ai_read, links=links.get(e.id, []),
-                    win=wins.get(e.id), notes=notes.get(e.id, "")) for e in rows]
-        counts = dict(
-            total=s.scalar(select(func.count()).select_from(JournalEntry)) or 0,
-            read=s.scalar(select(func.count()).select_from(JournalEntry).where(JournalEntry.ai_read)) or 0,
-            checked=s.scalar(select(func.count()).select_from(JournalEntry).where(JournalEntry.reviewed)) or 0,
-            unread=s.scalar(select(func.count()).select_from(JournalEntry).where(
-                JournalEntry.ai_read.is_(False), JournalEntry.reviewed.is_(False))) or 0,
-            **gsvc.ai_counts(s))
-        html = env.get_template("sheet.html").render(
-            rows=out, f=f, total=total, pages=pages, ret=urlencode(f), counts=counts, show_opts=SHEET_SHOW,
-            source_opts=SOURCE_LABEL, kind_opts=SHEET_KIND, guided=gsvc.has_guide(s), size_label=SIZE_LABEL,
-            csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(),
-            tagline=TAGLINES[0], page="/sheet", personal=personal, q="", wide=True)
-        return HTMLResponse(html)
+        return [dict(id=e.id, day=e.day, source=SOURCE_LABEL.get(e.source, e.source), kind=e.kind,
+                     kind_was=dict(SHEET_KIND).get(e.kind_was, ""),
+                     text=e.text, reviewed=e.reviewed, ai_read=e.ai_read, links=links.get(e.id, []),
+                     win=wins.get(e.id), notes=notes.get(e.id, "")) for e in rows]
 
     @app.post("/sheet/{eid}/kind", dependencies=[Depends(check_csrf)])
-    def sheet_kind(eid: int, kind: str = Form(...), ret: str = Form(""), s: Session = Depends(db)):
+    def sheet_kind(request: Request, eid: int, kind: str = Form(...), ret: str = Form(""), s: Session = Depends(db)):
         with _write_lock:
             e = s.get(JournalEntry, eid)
             if e and kind in KIND_LABEL:
@@ -603,14 +630,14 @@ def create_app(dd: DataDir) -> FastAPI:
                     e.status = "done" if kind == "task" else ""
                 e.kind, e.kind_was = kind, ""
                 s.commit()
-        return sheet_back(ret, eid)
+        return sheet_back(request, s, ret, eid)
 
     @app.post("/sheet/{eid}/win", dependencies=[Depends(check_csrf)])
-    def sheet_win(eid: int, size: str = Form("small"), ret: str = Form(""), s: Session = Depends(db)):
+    def sheet_win(request: Request, eid: int, size: str = Form("small"), ret: str = Form(""), s: Session = Depends(db)):
         with _write_lock:
             e = s.get(JournalEntry, eid)
             if e is None or size not in SIZE_LABEL:
-                return sheet_back(ret, eid)
+                return sheet_back(request, s, ret, eid)
             w = s.scalar(select(Win).where(Win.entry_id == eid).order_by(Win.id).limit(1))
             if w:
                 w.size, w.by_ai = size, False
@@ -623,19 +650,19 @@ def create_app(dd: DataDir) -> FastAPI:
                 for l in s.scalars(select(GuideLink).where(GuideLink.entry_id == eid)):
                     s.add(GuideLink(item_id=l.item_id, win_id=w.id, created_at=datetime.now(), by_ai=l.by_ai))
             s.commit()
-        return sheet_back(ret, eid)
+        return sheet_back(request, s, ret, eid)
 
     @app.post("/sheet/{eid}/unwin", dependencies=[Depends(check_csrf)])
-    def sheet_unwin(eid: int, ret: str = Form(""), s: Session = Depends(db)):
+    def sheet_unwin(request: Request, eid: int, ret: str = Form(""), s: Session = Depends(db)):
         with _write_lock:
             for w in s.scalars(select(Win).where(Win.entry_id == eid)):
                 gsvc.drop_links(s, win_id=w.id)
                 s.delete(w)
             s.commit()
-        return sheet_back(ret, eid)
+        return sheet_back(request, s, ret, eid)
 
     @app.post("/sheet/link/{lid}/delete", dependencies=[Depends(check_csrf)])
-    def sheet_unlink(lid: int, ret: str = Form(""), s: Session = Depends(db)):
+    def sheet_unlink(request: Request, lid: int, ret: str = Form(""), s: Session = Depends(db)):
         eid = None
         with _write_lock:
             l = s.get(GuideLink, lid)
@@ -645,36 +672,36 @@ def create_app(dd: DataDir) -> FastAPI:
                 s.execute(delete(GuideLink).where(GuideLink.item_id == l.item_id, GuideLink.win_id.in_(win_ids)))
                 s.delete(l)
                 s.commit()
-        return sheet_back(ret, eid)
+        return sheet_back(request, s, ret, eid)
 
     @app.post("/sheet/{eid}/ok", dependencies=[Depends(check_csrf)])
-    def sheet_ok(eid: int, ret: str = Form(""), after: str = Form(""), s: Session = Depends(db)):
+    def sheet_ok(request: Request, eid: int, ret: str = Form(""), after: str = Form(""), s: Session = Depends(db)):
         with _write_lock:
             gsvc.confirm(s, eid)
-        return sheet_back(ret, int(after) if after.isdigit() else eid)
+        return sheet_back(request, s, ret, eid, after=int(after) if after.isdigit() else None)
 
     @app.post("/sheet/{eid}/undo", dependencies=[Depends(check_csrf)])
-    def sheet_undo(eid: int, ret: str = Form(""), s: Session = Depends(db)):
+    def sheet_undo(request: Request, eid: int, ret: str = Form(""), s: Session = Depends(db)):
         with _write_lock:
             e = s.get(JournalEntry, eid)
             if e:
                 e.reviewed = False
                 s.commit()
-        return sheet_back(ret, eid)
+        return sheet_back(request, s, ret, eid)
 
     @app.post("/sheet/ai", dependencies=[Depends(check_csrf)])
-    def sheet_ai(ret: str = Form(""), s: Session = Depends(db)):
+    def sheet_ai(request: Request, ret: str = Form(""), s: Session = Depends(db)):
         """Have Claude read every record it hasn't read yet against the guide."""
         if not personal:
-            return sheet_back(ret, msg="The Claude review only works with your personal notebook.")
+            return sheet_back(request, s, ret, msg="The Claude review only works with your personal notebook.")
         from ..claude_cli import ClaudeError
         from ..guide.ai_review import review
         try:
             with _write_lock:
                 r = review(s)
         except ClaudeError as exc:
-            return sheet_back(ret, msg=f"Claude review didn't finish: {exc}")
-        return sheet_back(ret, msg=f"Claude read {r['read']} records: {r['links']} guide links, {r['wins']} drafted "
+            return sheet_back(request, s, ret, msg=f"Claude review didn't finish: {exc}")
+        return sheet_back(request, s, ret, msg=f"Claude read {r['read']} records: {r['links']} guide links, {r['wins']} drafted "
                                    f"wins, {r['kinds']} type changes, all marked AI."
                                    + (f" {r['failed']} couldn't be read; press the button again to retry them."
                                       if r["failed"] else ""))
