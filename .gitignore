@@ -5,3 +5,6 @@ __pycache__/
 *.db
 *.db-wal
 *.db-shm
+career-notebook-*.zip
+my-wins-*.md
+*.csv
