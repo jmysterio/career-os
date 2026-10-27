@@ -19,7 +19,8 @@ IMPACT_LINE = re.compile(r"^Why it mattered: (.+)$", re.M)
 
 
 def new_items(s: Session, items: list[SlackItem]) -> list[SlackItem]:
-    have = set(s.scalars(select(JournalEntry.external_id).where(JournalEntry.source == SOURCE)))
+    from ..storage.removal import removed_ids
+    have = set(s.scalars(select(JournalEntry.external_id).where(JournalEntry.source == SOURCE))) | removed_ids(s, SOURCE)
     return [i for i in items if i.key not in have]
 
 

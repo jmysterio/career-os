@@ -89,6 +89,9 @@ The **Sheet** tab lists every record (calendar meetings, Google Tasks, Slack ite
 - **Leveling guide**: the guide items the record shows. Click &times; to remove one, or **edit**/**link** to pick items yourself.
 - **Win**: **S**, **M**, or **L** makes the record a small, medium, or large win (or resizes it), and &times; removes the win. Click the win's title to see why it mattered, then **Edit on Wins** to reword it.
 - **Looks right** marks the row checked. Whatever Claude picked for it becomes yours, and the row leaves the **Not checked yet** list, so you can work down the list until it's empty.
+- **Remove** (under Looks right) takes a record out for good, for example a meeting you didn't attend. Its pasted notes, guide links, and any win Claude drafted from it go too; wins you made or edited stay. Calendar, Tasks, and Slack syncs skip removed records so they don't come back. Choose **Removed** in the Show menu to see them and **Restore** one if you change your mind.
+
+Buttons on the Sheet save without reloading the page: a row you check or remove fades out, and a row you change redraws in place.
 
 Purple **AI** marks are Claude's picks: guide links, drafted wins, and type changes ("AI, was Other"). They count on the Promo map straight away, and the Promo map says how many are still unchecked. Use the **Show** menu for **Changed by Claude**, **Not linked**, **Wins**, or **Checked**.
 
@@ -175,7 +178,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `105 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `107 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

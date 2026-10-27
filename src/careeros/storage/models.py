@@ -205,6 +205,19 @@ class JournalEntry(Base):
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False)  # the user checked it on the Sheet
 
 
+class RemovedEntry(Base):
+    """A journal entry the user removed. Syncs skip its external id so it doesn't come back; Restore re-adds it."""
+    __tablename__ = "removed_entry"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[str] = mapped_column(String)
+    kind: Mapped[str] = mapped_column(String)
+    text: Mapped[str] = mapped_column(String)
+    source: Mapped[str] = mapped_column(String, default="")
+    external_id: Mapped[str | None] = mapped_column(String, index=True, default=None)
+    status: Mapped[str] = mapped_column(String, default="")
+    removed_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 class JournalAttachment(Base):
     """Something pasted under a journal entry: a link, meeting notes, a transcript, a canvas, a prompt."""
     __tablename__ = "journal_attachment"

@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, quote, urlencode, urlparse
 from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from jinja2 import Environment, FileSystemLoader
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, false, func, select
 from sqlalchemy.orm import Session
 
 from ..claims import service as svc
@@ -25,10 +25,11 @@ from ..google import summaries
 from ..guide import service as gsvc
 from ..guide.topics import suggest, topic_of
 from ..slack import importer as slack_imp
+from ..storage.removal import remove_entry, restore_entry
 from ..storage.db import init_db, make_engine, make_session_factory
 from ..storage.models import (
     AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, GuideItem, GuideLink, JournalAttachment,
-    JournalEntry, SourceObservation, Win,
+    JournalEntry, RemovedEntry, SourceObservation, Win,
 )
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
@@ -86,7 +87,7 @@ PAGES = {"/", "/releases", "/search", "/wins", "/promo", "/sheet", *TABS}
 SOURCE_LABEL = {"calendar": "Calendar", "tasks": "Google Tasks", "slack": "Slack", "": "Typed"}
 SHEET_KIND = [("meeting", "Meeting"), ("conversation", "Convo"), ("document", "Doc"), ("task", "Task"), ("note", "Other")]
 SHEET_SHOW = {"all": "Everything", "todo": "Not checked yet", "ai": "Changed by Claude", "linked": "Linked to the guide",
-              "unlinked": "Not linked", "wins": "Wins", "checked": "Checked"}
+              "unlinked": "Not linked", "wins": "Wins", "checked": "Checked", "removed": "Removed"}
 SHEET_PAGE = 100
 LIST_LIMIT = 300
 SIZES = [("small", "Small"), ("medium", "Medium"), ("large", "Large")]
@@ -403,15 +404,7 @@ def create_app(dd: DataDir) -> FastAPI:
     @app.post("/journal/{eid}/delete", dependencies=[Depends(check_csrf)])
     def journal_delete(eid: int, s: Session = Depends(db)):
         with _write_lock:
-            e = s.get(JournalEntry, eid)
-            if e:
-                for a in s.scalars(select(JournalAttachment).where(JournalAttachment.entry_id == eid)):
-                    s.delete(a)
-                for w in s.scalars(select(Win).where(Win.entry_id == eid)):
-                    w.entry_id = None  # the win is the user's own record and outlives the entry
-                gsvc.drop_links(s, entry_id=eid)
-                s.delete(e)
-                s.commit()
+            remove_entry(s, eid)
         return back(to="/")
 
     def win_years(s: Session) -> list[int]:
@@ -555,7 +548,7 @@ def create_app(dd: DataDir) -> FastAPI:
                     select(Win.entry_id).where(Win.by_ai))),
                 "linked": q.where(JournalEntry.id.in_(linked)), "unlinked": q.where(JournalEntry.id.not_in(linked)),
                 "wins": q.where(JournalEntry.id.in_(select(Win.entry_id).where(Win.entry_id.is_not(None)))),
-                "all": q}[f["show"]]
+                "removed": q.where(false()), "all": q}[f["show"]]
 
     def sheet_ctx(s: Session, f: dict) -> dict:
         return dict(ret=urlencode(f), csrf=csrf_token, kind_opts=SHEET_KIND, size_label=SIZE_LABEL,
@@ -585,13 +578,22 @@ def create_app(dd: DataDir) -> FastAPI:
     def sheet_page(request: Request, show: str = "todo", source: str = "any", kind: str = "any", page: int = 1,
                    msg: str | None = None, s: Session = Depends(db)):
         f = sheet_filters(show, source, kind, page)
-        q = sheet_query(f)
+        if f["show"] == "removed":
+            q = select(RemovedEntry)
+            if f["source"] != "any":
+                q = q.where(RemovedEntry.source == f["source"])
+            if f["kind"] != "any":
+                q = q.where(RemovedEntry.kind == f["kind"])
+            order = (RemovedEntry.removed_at.desc(), RemovedEntry.id.desc())
+        else:
+            q, order = sheet_query(f), (JournalEntry.day.desc(), JournalEntry.id.desc())
         total = s.scalar(select(func.count()).select_from(q.subquery())) or 0
         pages = max(1, -(-total // SHEET_PAGE))
         f["page"] = min(f["page"], pages)
-        rows = list(s.scalars(q.order_by(JournalEntry.day.desc(), JournalEntry.id.desc())
-                              .offset((f["page"] - 1) * SHEET_PAGE).limit(SHEET_PAGE)))
-        out = sheet_rows(s, rows)
+        rows = list(s.scalars(q.order_by(*order).offset((f["page"] - 1) * SHEET_PAGE).limit(SHEET_PAGE)))
+        out = ([dict(id=r.id, day=r.day, source=SOURCE_LABEL.get(r.source, r.source), text=r.text,
+                     kind=dict(SHEET_KIND).get(r.kind, "Other")) for r in rows]
+               if f["show"] == "removed" else sheet_rows(s, rows))
         counts = dict(
             total=s.scalar(select(func.count()).select_from(JournalEntry)) or 0,
             read=s.scalar(select(func.count()).select_from(JournalEntry).where(JournalEntry.ai_read)) or 0,
@@ -679,6 +681,20 @@ def create_app(dd: DataDir) -> FastAPI:
         with _write_lock:
             gsvc.confirm(s, eid)
         return sheet_back(request, s, ret, eid, after=int(after) if after.isdigit() else None)
+
+    @app.post("/sheet/{eid}/remove", dependencies=[Depends(check_csrf)])
+    def sheet_remove(request: Request, eid: int, ret: str = Form(""), after: str = Form(""), s: Session = Depends(db)):
+        with _write_lock:
+            remove_entry(s, eid)
+        return sheet_back(request, s, ret, eid, after=int(after) if after.isdigit() else None)
+
+    @app.post("/sheet/removed/{rid}/restore", dependencies=[Depends(check_csrf)])
+    def sheet_restore(request: Request, rid: int, ret: str = Form(""), s: Session = Depends(db)):
+        with _write_lock:
+            restore_entry(s, rid)
+        if request.headers.get("x-sheet") == "1":
+            return Response("", headers={"X-Row": "gone"})
+        return sheet_back(request, s, ret)
 
     @app.post("/sheet/{eid}/undo", dependencies=[Depends(check_csrf)])
     def sheet_undo(request: Request, eid: int, ret: str = Form(""), s: Session = Depends(db)):

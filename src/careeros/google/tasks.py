@@ -28,10 +28,12 @@ class Task:
 def sync(s: Session, tasks: list[Task]) -> dict[str, int]:
     """Replace-all for the fetched lists: add new, drop ones that vanished (kept if you attached anything)."""
     existing = {e.external_id: e for e in s.scalars(select(JournalEntry).where(JournalEntry.source == SOURCE))}
+    from ..storage.removal import removed_ids
+    gone_by_user = removed_ids(s, SOURCE)
     added = removed = 0
     today = date.today().isoformat()
     for t in tasks:
-        if existing.pop(t.key, None) is not None:
+        if existing.pop(t.key, None) is not None or t.key in gone_by_user:
             continue
         day = min(t.when.date().isoformat(), today)
         e = JournalEntry(day=day, kind="task", text=t.title[:500], created_at=datetime.now(), source=SOURCE,

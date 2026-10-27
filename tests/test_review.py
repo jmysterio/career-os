@@ -155,6 +155,42 @@ def test_sheet_script_updates_rows_in_place(nb):
     assert c.post(f"/sheet/{a}/ok", data={"csrf": "nope", "ret": ret}, headers=hdr).status_code == 403
 
 
+def test_remove_keeps_it_out_of_syncs_and_can_restore(nb):
+    from careeros.slack.importer import new_items
+    from careeros.slack.parse import SlackItem
+    from careeros.storage.models import RemovedEntry
+    dd, c, token, _ = nb
+    with session(dd) as s:
+        e = JournalEntry(day="2026-10-20", kind="meeting", text="9:00 AM Not my meeting", created_at=datetime.now(),
+                         source="calendar", external_id="cal@1")
+        sl = JournalEntry(day="2026-10-20", kind="conversation", text="Slack thing", created_at=datetime.now(),
+                          source="slack", external_id="slack:C1/p1")
+        s.add_all([e, sl])
+        s.commit()
+        mine = Win(day=e.day, title="My own win", entry_id=e.id, created_at=datetime.now())
+        drafted = Win(day=e.day, title="Claude's draft", entry_id=e.id, created_at=datetime.now(), by_ai=True)
+        s.add_all([mine, drafted])
+        s.commit()
+        eid, sid = e.id, sl.id
+    r = c.post(f"/sheet/{eid}/remove", data={"csrf": token, "ret": "show=all"}, headers={"X-Sheet": "1"})
+    assert r.headers["x-row"] == "gone"
+    form(c, f"/sheet/{sid}/remove", token, ret="show=all")
+    with session(dd) as s:
+        assert s.get(JournalEntry, eid) is None
+        assert [(w.title, w.entry_id) for w in s.scalars(select(Win))] == [("My own win", None)]
+        ev = gcal.Event("cal@1", "2026-10-20", datetime(2026, 10, 20, 9), None, "Not my meeting")
+        assert gcal.sync(s, [ev], date(2026, 10, 19), date(2026, 10, 21))["added"] == 0
+        assert not new_items(s, [SlackItem("slack:C1/p1", "2026-10-20", "Slack thing", "", "", None, "Slack tracker")])
+        rid = s.scalar(select(RemovedEntry.id).where(RemovedEntry.external_id == "cal@1"))
+    page = c.get("/sheet?show=removed").text
+    assert "Not my meeting" in page and "Restore" in page
+    assert "Not my meeting" not in c.get("/sheet?show=all").text
+    form(c, f"/sheet/removed/{rid}/restore", token, ret="show=removed")
+    with session(dd) as s:
+        back = s.scalar(select(JournalEntry).where(JournalEntry.external_id == "cal@1"))
+        assert back and back.kind == "meeting" and s.get(RemovedEntry, rid) is None
+
+
 def test_sync_never_deletes_entries_you_built_on(nb):
     dd, *_ = nb
     with session(dd) as s:
