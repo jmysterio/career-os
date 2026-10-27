@@ -328,6 +328,28 @@ def test_wins_add_from_entry_edit_filter_search_and_export(seeded):
     assert "Fixed the deploy script" not in c.get("/wins", params={"year": 2026}).text
 
 
+def test_download_everything_is_a_zip_of_csvs_with_formulas_defused(seeded):
+    import csv, io, zipfile
+    dd, c, token = seeded
+    form(c, "/journal/add", token, kind="meeting", text="=HYPERLINK(\"http://evil\")", a_kind="notes",
+         a_title="Notes", a_body="Line one,\nline \"two\" with café")
+    form(c, "/journal/add", token, kind="task", text="Fixed the deploy script")
+    with make_session_factory(make_engine(dd.db))() as s:
+        eid = s.scalar(select(JournalEntry.id).where(JournalEntry.kind == "task"))
+    form(c, "/wins/add", token, title="Fixed the deploy script", impact="Fewer failed deploys", size="medium",
+         entry_id=eid)
+    assert "Download everything (CSV)" in c.get("/").text
+    r = c.get("/export/everything")
+    assert r.headers["content-type"] == "application/zip" and ".zip" in r.headers["content-disposition"]
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    assert sorted(z.namelist()) == ["entries.csv", "pasted_notes.csv", "wins.csv"]
+    read = lambda n: list(csv.DictReader(io.StringIO(z.read(n).decode("utf-8-sig"))))
+    entries, notes, wins = read("entries.csv"), read("pasted_notes.csv"), read("wins.csv")
+    assert {e["text"] for e in entries} == {"'=HYPERLINK(\"http://evil\")", "Fixed the deploy script"}
+    assert notes[0]["body"] == "Line one,\nline \"two\" with café" and notes[0]["entry_text"].startswith("'=")
+    assert wins[0]["why_it_mattered"] == "Fewer failed deploys" and wins[0]["entry_text"] == "Fixed the deploy script"
+
+
 def test_wins_page_works_on_an_existing_notebook(tmp_path):
     import sqlite3
     dd = DataDir(tmp_path / "nb")

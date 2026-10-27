@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from ..claims import service as svc
 from ..config import DataDir
 from ..correlate.engine import link, rebuild_episodes, unlink
+from ..export.csv_all import notebook_zip
 from ..export.wins import wins_markdown
 from ..google import summaries
 from ..storage.db import init_db, make_engine, make_session_factory
@@ -432,6 +433,12 @@ def create_app(dd: DataDir) -> FastAPI:
         year = year or date.today().year
         return Response(wins_markdown(year_wins(s, year), year), media_type="text/markdown; charset=utf-8",
                         headers={"Content-Disposition": f'attachment; filename="my-wins-{year}.md"'})
+
+    @app.get("/export/everything")
+    def export_everything(s: Session = Depends(db)):
+        name = f"career-notebook-{date.today().isoformat()}.zip"
+        return Response(notebook_zip(s), media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @app.get("/releases", response_class=HTMLResponse)
     def index(request: Request, msg: str | None = None, s: Session = Depends(db)):

@@ -114,7 +114,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `82 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `83 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -188,6 +188,9 @@ Through the Google Workspace connector in a Claude Code session, not by a script
 
 **Where is my information stored, and is it backed up?**
 Everything (entries, pasted notes, wins) is in one file: `~/Library/Application Support/CareerOS/careeros.db`, on this laptop only. It is not in iCloud or any synced folder, and the app refuses to keep a real notebook in one. Time Machine backs it up if Time Machine is on. To make a manual copy, stop the app and copy that file somewhere safe; a copy taken on Oct 27, 2026 is already there as `careeros-backup-2026-10-27.db`.
+
+**Can I export everything, not just wins?**
+Yes. Click **Download everything (CSV)** at the bottom of any page. You get one zip with three spreadsheets: `entries.csv` (every meeting, task, and note), `pasted_notes.csv` (everything pasted under them, with the entry it belongs to), and `wins.csv`. They open in Excel, Numbers, or Google Sheets, so the data stays readable even without this app. It's a snapshot of that moment; download a fresh one whenever you like, for example at year end. The zip holds everything you pasted, so keep it somewhere as safe as this laptop, and remember that removing something in the app doesn't remove it from zips you already downloaded. Text that starts with `=`, `+`, `-`, or `@` gets a leading `'` so a spreadsheet shows it instead of running it as a formula.
 
 **After a restart the app opened with demo data and my entries were missing. Were they lost?**
 No. The app had been started with `--data-dir /tmp/cos-demo`, which opens the practice folder instead of your notebook. Run `uv run careeros serve` with no `--data-dir` and your notebook comes back.

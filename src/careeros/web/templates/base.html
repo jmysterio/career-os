@@ -75,4 +75,8 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 {% if sync_warning %}<div class="note">{{ sync_warning }}</div>{% endif %}
 {% if msg %}<div class="note">{{ msg }}</div>{% endif %}
 {% block body %}{% endblock %}
+<footer class="row muted" style="margin-top:2.5rem">
+  <form method="get" action="/export/everything"><button>Download everything (CSV)</button></form>
+  <span class="help">Every entry, pasted note, and win as spreadsheets in one zip, to keep or open without this app. The copy includes everything you pasted, so store it somewhere as safe as this laptop.</span>
+</footer>
 </body></html>
