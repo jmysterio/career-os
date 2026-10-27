@@ -91,6 +91,14 @@ The **Sheet** tab lists every record (calendar meetings, Google Tasks, Slack ite
 - **Looks right** marks the row checked. Whatever Claude picked for it becomes yours, and the row leaves the **Not checked yet** list, so you can work down the list until it's empty.
 - **Remove** (under Looks right) takes a record out for good, for example a meeting you didn't attend. Its pasted notes, guide links, and any win Claude drafted from it go too; wins you made or edited stay. Calendar, Tasks, and Slack syncs skip removed records so they don't come back. Choose **Removed** in the Show menu to see them and **Restore** one if you change your mind.
 
+**Skipping a recurring meeting for good.** To keep a meeting you don't attend out of the notebook, including future ones, add a skip rule. It removes the ones already here and Calendar sync skips any meeting whose title contains the text (any capitalization):
+
+```
+uv run careeros calendar skip "IRS Sustainment DSU"
+uv run careeros calendar skip                          # list the rules
+uv run careeros calendar unskip "IRS Sustainment DSU"  # stop skipping
+```
+
 Buttons on the Sheet save without reloading the page: a row you check or remove fades out, and a row you change redraws in place.
 
 Purple **AI** marks are Claude's picks: guide links, drafted wins, and type changes ("AI, was Other"). They count on the Promo map straight away, and the Promo map says how many are still unchecked. Use the **Show** menu for **Changed by Claude**, **Not linked**, **Wins**, or **Checked**.
@@ -178,7 +186,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `107 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `108 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

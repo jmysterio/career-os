@@ -6,7 +6,32 @@ from datetime import datetime
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .models import GuideLink, JournalAttachment, JournalEntry, RemovedEntry, Win
+from .models import GuideLink, JournalAttachment, JournalEntry, RemovedEntry, SkipRule, Win
+
+
+def skip_patterns(s: Session, source: str = "calendar") -> list[str]:
+    return [p.lower() for p in s.scalars(select(SkipRule.pattern).where(SkipRule.source == source))]
+
+
+def add_skip_rule(s: Session, pattern: str, source: str = "calendar") -> int:
+    """Saves the rule and removes existing entries from that source whose text contains it. Returns how many."""
+    pattern = " ".join(pattern.split())
+    if not pattern:
+        raise ValueError("Give some title text to match.")
+    if pattern.lower() not in skip_patterns(s, source):
+        s.add(SkipRule(source=source, pattern=pattern, created_at=datetime.now()))
+        s.commit()
+    ids = [e.id for e in s.scalars(select(JournalEntry).where(JournalEntry.source == source))
+           if pattern.lower() in e.text.lower()]
+    for eid in ids:
+        remove_entry(s, eid)
+    return len(ids)
+
+
+def drop_skip_rule(s: Session, pattern: str, source: str = "calendar") -> bool:
+    n = s.execute(delete(SkipRule).where(SkipRule.source == source, SkipRule.pattern == pattern)).rowcount
+    s.commit()
+    return bool(n)
 
 
 def removed_ids(s: Session, source: str) -> set[str]:

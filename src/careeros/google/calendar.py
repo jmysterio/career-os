@@ -114,12 +114,13 @@ def sync(s: Session, events: list[Event], first: date, last: date) -> dict[str, 
     """Add new events, refresh changed ones, drop ones that vanished (unless you attached notes)."""
     existing = {e.external_id: e for e in s.scalars(select(JournalEntry).where(
         JournalEntry.source == SOURCE, JournalEntry.day >= first.isoformat(), JournalEntry.day <= last.isoformat()))}
-    from ..storage.removal import removed_ids
+    from ..storage.removal import removed_ids, skip_patterns
     gone_by_user = removed_ids(s, SOURCE)
+    skip = skip_patterns(s, SOURCE)
     added = updated = removed = 0
     for ev in events:
         row = existing.pop(ev.uid, None)
-        if row is None and ev.uid in gone_by_user:
+        if row is None and (ev.uid in gone_by_user or any(p in ev.title.lower() for p in skip)):
             continue
         if row is None:
             s.add(JournalEntry(day=ev.day, kind="meeting", text=headline(ev), created_at=datetime.now(),

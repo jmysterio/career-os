@@ -282,6 +282,32 @@ def _open_personal(data_dir: Optional[str], what: str = "Calendar sync"):
     return dd, make_session_factory(engine)()
 
 
+@calendar_app.command("skip")
+def calendar_skip(text: Optional[str] = typer.Argument(None, help="Title text to skip, e.g. \"IRS Sustainment DSU\""),
+                  data_dir: Optional[str] = DataOpt) -> None:
+    """Never bring in meetings whose title contains TEXT, and remove the ones already here. No TEXT lists the rules."""
+    from .storage.removal import add_skip_rule, skip_patterns
+    from .storage.models import SkipRule
+    from sqlalchemy import select
+    dd, s = _open_personal(data_dir, "Calendar rules")
+    if not text:
+        rules = list(s.scalars(select(SkipRule.pattern).where(SkipRule.source == "calendar")))
+        typer.echo("\n".join(f"Skipping meetings titled with: {p}" for p in rules) or "No skip rules yet.")
+        return
+    n = add_skip_rule(s, text)
+    typer.echo(f"Calendar sync will skip meetings whose title contains \"{' '.join(text.split())}\". "
+               f"Removed {n} already in the notebook (see Removed on the Sheet).")
+
+
+@calendar_app.command("unskip")
+def calendar_unskip(text: str = typer.Argument(..., help="The rule's text, exactly as listed by `calendar skip`"),
+                    data_dir: Optional[str] = DataOpt) -> None:
+    """Stop skipping meetings with this title text. Removed meetings stay removed until you restore them."""
+    from .storage.removal import drop_skip_rule
+    dd, s = _open_personal(data_dir, "Calendar rules")
+    typer.echo("Rule removed." if drop_skip_rule(s, text) else "No rule with that text. Run `calendar skip` to list them.")
+
+
 @calendar_app.command("connect")
 def calendar_connect(data_dir: Optional[str] = DataOpt) -> None:
     """Save your calendar's secret iCal address (typed hidden, stored owner-only, never shown again)."""

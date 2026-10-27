@@ -218,6 +218,15 @@ class RemovedEntry(Base):
     removed_at: Mapped[datetime] = mapped_column(DateTime)
 
 
+class SkipRule(Base):
+    """Calendar events whose title contains this text (any case) are never brought into the notebook."""
+    __tablename__ = "skip_rule"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(String, default="calendar")
+    pattern: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 class JournalAttachment(Base):
     """Something pasted under a journal entry: a link, meeting notes, a transcript, a canvas, a prompt."""
     __tablename__ = "journal_attachment"

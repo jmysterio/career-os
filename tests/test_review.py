@@ -191,6 +191,25 @@ def test_remove_keeps_it_out_of_syncs_and_can_restore(nb):
         assert back and back.kind == "meeting" and s.get(RemovedEntry, rid) is None
 
 
+def test_calendar_skip_rule(nb):
+    from typer.testing import CliRunner
+    from careeros.cli import app as cli
+    dd, *_ = nb
+    with session(dd) as s:
+        for i, t in enumerate(["11:45 AM  [EXT] IRS Sustainment DSU — OCC", "12:00 PM  [EXT] irs sustainment dsu - TAS",
+                               "1:00 PM  Refresh review"]):
+            s.add(JournalEntry(day="2026-10-20", kind="meeting", text=t, created_at=datetime.now(), source="calendar",
+                               external_id=f"u{i}"))
+        s.commit()
+    r = CliRunner().invoke(cli, ["calendar", "skip", "IRS Sustainment DSU", "--data-dir", str(dd.root)])
+    assert r.exit_code == 0 and "Removed 2" in r.output, r.output
+    with session(dd) as s:
+        assert [e.text for e in s.scalars(select(JournalEntry))] == ["1:00 PM  Refresh review"]
+        new = gcal.Event("u9", "2026-10-21", datetime(2026, 10, 21, 11, 45), None, "[EXT] IRS Sustainment DSU — OCC")
+        assert gcal.sync(s, [new], date(2026, 10, 21), date(2026, 10, 21))["added"] == 0
+    assert "Sustainment" in CliRunner().invoke(cli, ["calendar", "skip", "--data-dir", str(dd.root)]).output
+
+
 def test_sync_never_deletes_entries_you_built_on(nb):
     dd, *_ = nb
     with session(dd) as s:
