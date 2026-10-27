@@ -284,3 +284,58 @@ def test_tabs_list_by_kind_and_tasks_open_first(tmp_path):
     for path in ("/conversations", "/documents", "/other"):
         assert c.get(path).status_code == 200
     assert 'href="/tasks"' in c.get("/").text
+
+
+def test_wins_add_from_entry_edit_filter_search_and_export(seeded):
+    from careeros.storage.models import Win
+    dd, c, token = seeded
+    form(c, "/journal/add", token, kind="task", text="Fixed the deploy script", day="2026-03-04")
+    with make_session_factory(make_engine(dd.db))() as s:
+        eid = s.scalar(select(JournalEntry.id))
+    assert "Count this as a win" in c.get("/tasks").text
+    r = form(c, "/wins/add", token, title="Fixed the <b>deploy</b> script", size="medium",
+             theme="Quality & reliability", entry_id=eid, day="2026-03-04", next="/tasks")
+    assert r.status_code == 303 and r.headers["location"].startswith("/tasks?msg=")
+    form(c, "/wins/add", token, title="Led the October B release", impact="Shipped on time", size="large",
+         theme="Delivery", day="2026-10-02")
+    form(c, "/wins/add", token, title="   ")
+    form(c, "/wins/add", token, title="Odd input", size="huge", theme="Made up", day="2999-01-01")
+    with make_session_factory(make_engine(dd.db))() as s:
+        ws = {w.title: w for w in s.scalars(select(Win))}
+    assert len(ws) == 3 and ws["Odd input"].size == "small" and ws["Odd input"].theme == ""
+    assert ws["Odd input"].day <= date.today().isoformat()
+    html = c.get("/wins", params={"year": 2026}).text
+    assert "&lt;b&gt;deploy" in html and "<b>deploy" not in html
+    assert "From your notebook: Fixed the deploy script" in html
+    assert "1 large, 1 medium" in html and "Why did this matter?" in html
+    big = c.get("/wins", params={"year": 2026, "size": "large"}).text
+    assert "Led the October B release" in big and "deploy</b> script" not in big
+    assert "Led the October B" in c.get("/search", params={"q": "on time"}).text
+
+    wid = ws["Fixed the <b>deploy</b> script"].id
+    form(c, f"/wins/{wid}/edit", token, title="Fixed the deploy script", impact="No more failed Friday deploys",
+         size="medium", theme="Quality & reliability", day="2026-03-04")
+    form(c, f"/journal/{eid}/delete", token)  # the win outlives its entry
+    md = c.get("/wins/export", params={"year": 2026})
+    assert md.headers["content-type"].startswith("text/markdown")
+    assert "my-wins-2026.md" in md.headers["content-disposition"]
+    body = md.text
+    assert body.startswith("# My wins, 2026") and "## Highlights" in body
+    assert body.index("Led the October B release") < body.index("### Delivery")
+    assert "### Quality & reliability" in body and "No more failed Friday deploys" in body
+    assert "Led the October B" not in c.get("/wins/export", params={"year": 2025}).text
+    form(c, f"/wins/{wid}/delete", token)
+    assert "Fixed the deploy script" not in c.get("/wins", params={"year": 2026}).text
+
+
+def test_wins_page_works_on_an_existing_notebook(tmp_path):
+    import sqlite3
+    dd = DataDir(tmp_path / "nb")
+    dd.init_personal()
+    con = sqlite3.connect(dd.db)
+    con.execute("CREATE TABLE journal_entry (id INTEGER PRIMARY KEY, day VARCHAR, kind VARCHAR, "
+                "text VARCHAR, created_at DATETIME)")
+    con.commit()
+    con.close()
+    c = TestClient(create_app(dd), base_url=BASE)
+    assert c.get("/wins").status_code == 200 and 'href="/wins"' in c.get("/").text

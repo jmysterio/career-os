@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import quote, urlparse
 
 from fastapi import Depends, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -18,10 +18,12 @@ from sqlalchemy.orm import Session
 from ..claims import service as svc
 from ..config import DataDir
 from ..correlate.engine import link, rebuild_episodes, unlink
+from ..export.wins import wins_markdown
 from ..google import summaries
 from ..storage.db import init_db, make_engine, make_session_factory
 from ..storage.models import (
     AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, JournalAttachment, JournalEntry, SourceObservation,
+    Win,
 )
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
@@ -74,8 +76,12 @@ TABS = {  # path -> (kind, tab name, heading, what's on it)
     "/tasks": ("task", "Tasks", "Tasks", "Your Google Tasks and any you've noted yourself. What's still open is at the top, finished ones are grouped by the day you completed them."),
     "/other": ("note", "Other", "Something else", "Anything that didn't fit the other tabs."),
 }
-PAGES = {"/", "/releases", "/search", *TABS}
+PAGES = {"/", "/releases", "/search", "/wins", *TABS}
 LIST_LIMIT = 300
+SIZES = [("small", "Small"), ("medium", "Medium"), ("large", "Large")]
+SIZE_LABEL = dict(SIZES)
+THEMES = ["Delivery", "Quality & reliability", "Leadership", "Collaboration", "Customer impact",
+          "Process improvement", "Mentoring", "Learning & growth"]
 
 
 def day_label(d: date, today: date) -> str:
@@ -113,7 +119,7 @@ def create_app(dd: DataDir) -> FastAPI:
     Session_ = make_session_factory(engine)
     csrf_token = hmac.new(dd.secret(), b"csrf", hashlib.sha256).hexdigest()
     env = Environment(loader=FileSystemLoader(Path(__file__).parent / "templates"), autoescape=True)
-    env.globals["tabs"] = TABS
+    env.globals.update(tabs=TABS, sizes=SIZES, themes=THEMES)
     app = FastAPI(debug=False, docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.middleware("http")
@@ -263,6 +269,10 @@ def create_app(dd: DataDir) -> FastAPI:
                                  snippets=snippets[:2]))
                 if len(hits) >= 50:
                     break
+            for w in s.scalars(select(Win).order_by(Win.day.desc(), Win.id.desc())):
+                if all(t.lower() in f"{w.title}\n{w.impact}\n{w.theme}".lower() for t in terms):
+                    hits.append(dict(day=w.day, kind_label="Win", text=w.title, snippets=[]))
+            hits.sort(key=lambda h: h["day"], reverse=True)
         html = env.get_template("search.html").render(
             q=q, hits=hits, csrf=csrf_token, msg=None, sync_warning=dd.sync_warning(), theme=theme_of(request),
             greeting=greeting(), tagline=TAGLINES[0], page="/search", personal=personal)
@@ -338,9 +348,90 @@ def create_app(dd: DataDir) -> FastAPI:
             if e:
                 for a in s.scalars(select(JournalAttachment).where(JournalAttachment.entry_id == eid)):
                     s.delete(a)
+                for w in s.scalars(select(Win).where(Win.entry_id == eid)):
+                    w.entry_id = None  # the win is the user's own record and outlives the entry
                 s.delete(e)
                 s.commit()
         return back(to="/")
+
+    def win_years(s: Session) -> list[int]:
+        return sorted({int(d[:4]) for d in s.scalars(select(Win.day))} | {date.today().year}, reverse=True)
+
+    def year_wins(s: Session, year: int) -> list[Win]:
+        return list(s.scalars(select(Win).where(Win.day >= f"{year}-01-01", Win.day <= f"{year}-12-31")
+                              .order_by(Win.day.desc(), Win.id.desc())))
+
+    @app.get("/wins", response_class=HTMLResponse)
+    def wins_page(request: Request, year: int | None = None, size: str = "", msg: str | None = None,
+                  s: Session = Depends(db)):
+        year = year or date.today().year
+        rows = year_wins(s, year)
+        counts = {k: sum(1 for w in rows if w.size == k) for k in SIZE_LABEL}
+        shown = [w for w in rows if not size or w.size == size]
+        entries = {e.id: e.text for e in s.scalars(select(JournalEntry).where(
+            JournalEntry.id.in_([w.entry_id for w in shown if w.entry_id])))}
+        months: list[dict] = []
+        for w in shown:
+            label = date.fromisoformat(w.day).strftime("%B")
+            if not months or months[-1]["label"] != label:
+                months.append(dict(label=label, wins=[]))
+            months[-1]["wins"].append(dict(w=w, size_label=SIZE_LABEL.get(w.size, w.size),
+                                           from_entry=entries.get(w.entry_id)))
+        html = env.get_template("wins.html").render(
+            year=year, years=win_years(s), size=size, months=months, total=len(rows), counts=counts,
+            missing=sum(1 for w in rows if not w.impact), today=date.today().isoformat(),
+            csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(),
+            tagline=TAGLINES[0], page="/wins", personal=personal, q="")
+        return HTMLResponse(html)
+
+    def win_fields(title: str, impact: str, size: str, theme: str, day: str) -> dict:
+        try:
+            d = min(date.fromisoformat(day), date.today()) if day else date.today()
+        except ValueError:
+            d = date.today()
+        return dict(title=title.strip(), impact=impact.strip(), size=size if size in SIZE_LABEL else "small",
+                    theme=theme if theme in THEMES else "", day=d.isoformat())
+
+    @app.post("/wins/add", dependencies=[Depends(check_csrf)])
+    def win_add(title: str = Form(..., max_length=500), impact: str = Form("", max_length=2000),
+                size: str = Form("small"), theme: str = Form(""), day: str = Form(""),
+                entry_id: int | None = Form(None), next: str = Form("/wins"), s: Session = Depends(db)):
+        to = next if next in PAGES else "/wins"
+        f = win_fields(title, impact, size, theme, day)
+        if not f["title"]:
+            return back("Write what you did first.", to)
+        with _write_lock:
+            entry = s.get(JournalEntry, entry_id) if entry_id else None
+            s.add(Win(**f, entry_id=entry.id if entry else None, created_at=datetime.now()))
+            s.commit()
+        return back(f"Saved to your wins: {f['title']}", to)
+
+    @app.post("/wins/{wid}/edit", dependencies=[Depends(check_csrf)])
+    def win_edit(wid: int, title: str = Form(..., max_length=500), impact: str = Form("", max_length=2000),
+                 size: str = Form("small"), theme: str = Form(""), day: str = Form(""), s: Session = Depends(db)):
+        f = win_fields(title, impact, size, theme, day)
+        with _write_lock:
+            w = s.get(Win, wid)
+            if w and f["title"]:
+                for k, v in f.items():
+                    setattr(w, k, v)
+                s.commit()
+        return back(to=f"/wins?year={f['day'][:4]}")
+
+    @app.post("/wins/{wid}/delete", dependencies=[Depends(check_csrf)])
+    def win_delete(wid: int, s: Session = Depends(db)):
+        with _write_lock:
+            w = s.get(Win, wid)
+            if w:
+                s.delete(w)
+                s.commit()
+        return back(to="/wins")
+
+    @app.get("/wins/export")
+    def win_export(year: int | None = None, s: Session = Depends(db)):
+        year = year or date.today().year
+        return Response(wins_markdown(year_wins(s, year), year), media_type="text/markdown; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="my-wins-{year}.md"'})
 
     @app.get("/releases", response_class=HTMLResponse)
     def index(request: Request, msg: str | None = None, s: Session = Depends(db)):

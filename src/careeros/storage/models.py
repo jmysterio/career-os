@@ -211,3 +211,16 @@ class JournalAttachment(Base):
     title: Mapped[str] = mapped_column(String, default="")
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class Win(Base):
+    """An accomplishment the user chose to keep for reviews, promotion cases, and resumes. Written by the user."""
+    __tablename__ = "win"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[str] = mapped_column(String, index=True)  # YYYY-MM-DD
+    title: Mapped[str] = mapped_column(String)  # what I did
+    impact: Mapped[str] = mapped_column(Text, default="")  # why it mattered, in the user's words
+    size: Mapped[str] = mapped_column(String, default="small")  # small | medium | large
+    theme: Mapped[str] = mapped_column(String, default="")
+    entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entry.id"), nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime)

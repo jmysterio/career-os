@@ -18,9 +18,20 @@ The demo story is a fake release called "October B": a spreadsheet row, some git
 5. **Waits for you.** Nothing counts until you click "Looks right". You then save it to your accomplishments, and it exports a Markdown file with a source reference on every claim.
 6. **Can delete a source completely**: database, leftover files, and exports. Tests prove it.
 
-## Start the demo
+## Start your notebook (the everyday way)
 
-Open Terminal. (Inside a Claude Code session, put `!` in front of each command.)
+Your real, permanent notebook lives in `~/Library/Application Support/CareerOS`. It survives restarts. Open Terminal and run:
+
+```
+cd ~/Documents/career-os
+uv run careeros serve
+```
+
+Open **http://127.0.0.1:8765** in a browser. Leave the terminal running. Press **Ctrl+C** in it to stop the app. If the page stops loading (for example after the Mac restarts), run the same command again. Your entries and wins are still there.
+
+Don't add `--data-dir` to this command. That flag points the app at a different folder, such as the practice demo below.
+
+## Start the practice demo (made-up data)
 
 ```
 cd ~/Documents/career-os
@@ -28,9 +39,23 @@ uv run careeros demo seed --data-dir /tmp/cos-demo
 uv run careeros serve --data-dir /tmp/cos-demo
 ```
 
-Open **http://127.0.0.1:8765** in a browser. Leave the terminal running. Press **Ctrl+C** in it to stop the app.
+`/tmp` is cleared when the Mac restarts. Just run `demo seed` again to rebuild the demo. To start fresh at any time, delete `/tmp/cos-demo` and seed again. Never put real notes here.
 
-`/tmp` is cleared when the Mac restarts. Just run `demo seed` again to rebuild the demo. To start fresh at any time, delete `/tmp/cos-demo` and seed again.
+## Wins: your accomplishments for reviews, promotion, and your resume
+
+The **Wins** tab is where accomplishments go, small to large, all year. You can add one in two ways:
+
+- On the **Wins** tab, type what you did, why it mattered, how big it was, and a theme, then click **Save to my wins**.
+- On any entry in the other tabs (a meeting, a finished task), open **Count this as a win**. It starts with the entry's text so you can reword it, and it remembers which entry it came from.
+
+Tips:
+
+- **What I did** is one line starting with a verb: "Led", "Fixed", "Mentored", "Automated".
+- **Why it mattered** is the result: who it helped, what got faster, cheaper, or safer. Numbers help. You can leave it blank and fill it in later with **Edit**; the page reminds you which wins still need it.
+- **Size** is your own call: small for a helpful fix, large for something you'd lead a promotion case with.
+- **Theme** (Delivery, Leadership, Mentoring, and so on) groups wins in the export, which maps nicely onto promotion criteria.
+
+At year end, pick the year on the Wins tab and click **Download as Markdown**. The file opens with your large wins as highlights, then lists everything by theme with its date and why it mattered. Paste it into a promotion doc or use it to pick resume bullets. Removing a notebook entry never removes a win made from it.
 
 ## What you should see
 
@@ -89,7 +114,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `77 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `82 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -160,3 +185,9 @@ Yes. On the Today page, press **Sync calendar** (or run `uv run careeros calenda
 
 **How were my calendar and tasks pulled in?**
 Through the Google Workspace connector in a Claude Code session, not by a script on its own. Meeting titles/times, the files attached to each meeting (Gemini notes, recordings, chat), and task titles and notes pass through the AI tool on the way in. Asking Claude to refresh pulls new ones without duplicating. Meetings you declined are dropped, and so are ones that vanished from the calendar, unless you attached your own notes. Open tasks stay off the Today page and live on the Tasks tab. Links to Google files are only links: the app never opens or reads the file. You need to be signed in to Google to open them.
+
+**Where is my information stored, and is it backed up?**
+Everything (entries, pasted notes, wins) is in one file: `~/Library/Application Support/CareerOS/careeros.db`, on this laptop only. It is not in iCloud or any synced folder, and the app refuses to keep a real notebook in one. Time Machine backs it up if Time Machine is on. To make a manual copy, stop the app and copy that file somewhere safe; a copy taken on Oct 27, 2026 is already there as `careeros-backup-2026-10-27.db`.
+
+**After a restart the app opened with demo data and my entries were missing. Were they lost?**
+No. The app had been started with `--data-dir /tmp/cos-demo`, which opens the practice folder instead of your notebook. Run `uv run careeros serve` with no `--data-dir` and your notebook comes back.

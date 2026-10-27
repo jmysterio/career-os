@@ -23,7 +23,7 @@ h3{font-size:1.02rem;color:var(--muted);margin:1.4rem 0 .3rem;letter-spacing:.01
 .item.happened{border-color:var(--c-happened)}.item.did{border-color:var(--c-did)}.item.why{border-color:var(--c-why)}
 .chip{display:inline-block;font-size:.76rem;border-radius:99px;padding:.05rem .6rem;margin-left:.4rem;
   background:var(--btn);color:var(--muted);vertical-align:middle}
-.chip.done{color:var(--good)}
+.chip.done{color:var(--good)}a.chip{text-decoration:none;margin-left:0}
 .muted{color:var(--muted);font-size:.88rem}
 details{margin:.25rem 0}summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 blockquote{margin:.3rem 0 .3rem .2rem;padding-left:.8rem;border-left:2px solid var(--line);color:var(--muted)}
@@ -67,6 +67,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
     <button>{{ 'Switch to light' if theme == 'dark' else 'Switch to dark' }}</button></form>
 </div>
 <nav><a href="/" class="{{ 'on' if page == '/' }}">Today &amp; this week</a>
+  <a href="/wins" class="{{ 'on' if page == '/wins' }}">Wins</a>
   {% for path, tab in tabs.items() %}<a href="{{ path }}" class="{{ 'on' if page == path }}">{{ tab[1] }}</a>{% endfor %}
   {% if not personal %}<a href="/releases" class="{{ 'on' if page == '/releases' }}">Releases</a>{% endif %}
   <form method="get" action="/search" style="margin-left:auto"><input type="search" name="q" value="{{ q }}" placeholder="Search your notebook" aria-label="Search your notebook" maxlength="200"><button>Search</button></form></nav>

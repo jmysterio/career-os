@@ -10,6 +10,21 @@
   <textarea name="a_body" maxlength="200000" placeholder="Paste a link, meeting notes, a transcript, a Slack canvas, or a prompt here" aria-label="Paste here"></textarea>
 {% endmacro %}
 
+{% macro win_fields(w=None, show_day=False) %}
+  <input name="title" required maxlength="500" value="{{ w.title if w else '' }}" placeholder="What I did, e.g. Led the October B release" aria-label="What I did" style="width:100%">
+  <textarea name="impact" maxlength="2000" style="min-height:4.5rem" placeholder="Why it mattered (optional, you can add it later). e.g. Cut failed deploys from 5 to 1, so on-call got quieter" aria-label="Why it mattered">{{ w.impact if w else '' }}</textarea>
+  <div class="row">
+    <select name="size" aria-label="How big">
+      {% for k, label in sizes %}<option value="{{ k }}" {{ 'selected' if w and w.size == k }}>{{ label }}</option>{% endfor %}
+    </select>
+    <select name="theme" aria-label="Theme">
+      <option value="">No theme</option>
+      {% for t in themes %}<option value="{{ t }}" {{ 'selected' if w and w.theme == t }}>{{ t }}</option>{% endfor %}
+    </select>
+    {% if show_day %}<input type="date" name="day" value="{{ w.day if w else today }}" max="{{ today }}" aria-label="Day">{% endif %}
+  </div>
+{% endmacro %}
+
 {% macro entry_card(e) %}
   <div class="entry">
     <div class="entry-head">
@@ -31,6 +46,13 @@
     <details><summary>Add more to this</summary>
       <form method="post" action="/journal/{{ e.id }}/attach" class="stack">
         <input type="hidden" name="csrf" value="{{ csrf }}">{{ attach_fields() }}<div><button>Add</button></div></form>
+    </details>
+    <details><summary>Count this as a win</summary>
+      <form method="post" action="/wins/add" class="stack">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="entry_id" value="{{ e.id }}">
+        <input type="hidden" name="day" value="{{ e.day }}"><input type="hidden" name="next" value="{{ page }}">
+        {{ win_fields(dict(title=e.text, impact='', size='', theme='', day=e.day)) }}
+        <div><button class="primary">Save to my wins</button></div></form>
     </details>
   </div>
 {% endmacro %}
