@@ -342,7 +342,7 @@ def test_download_everything_is_a_zip_of_csvs_with_formulas_defused(seeded):
     r = c.get("/export/everything")
     assert r.headers["content-type"] == "application/zip" and ".zip" in r.headers["content-disposition"]
     z = zipfile.ZipFile(io.BytesIO(r.content))
-    assert sorted(z.namelist()) == ["entries.csv", "pasted_notes.csv", "wins.csv"]
+    assert sorted(z.namelist()) == ["entries.csv", "guide_links.csv", "pasted_notes.csv", "wins.csv"]
     read = lambda n: list(csv.DictReader(io.StringIO(z.read(n).decode("utf-8-sig"))))
     entries, notes, wins = read("entries.csv"), read("pasted_notes.csv"), read("wins.csv")
     assert {e["text"] for e in entries} == {"'=HYPERLINK(\"http://evil\")", "Fixed the deploy script"}

@@ -55,6 +55,34 @@ Tips:
 - **Size** is your own call: small for a helpful fix, large for something you'd lead a promotion case with.
 - **Theme** (Delivery, Leadership, Mentoring, and so on) groups wins in the export, which maps nicely onto promotion criteria.
 
+## Leveling guide and Promo map
+
+The app knows the DevOps leveling guide, so your work can be lined up against what Grade 6 and Grade 7 ask for. You're Grade 5, aiming at 6, with Grade 7 evidence where the work is already at that level.
+
+**Loading the guide.** The guide lives at `guides/Leveling Guides - DevOps.csv`. That folder is ignored by git, so the guide never goes to GitHub. It's already loaded. When a new version comes out, save it over that file and run:
+
+```
+cd ~/Documents/career-os
+uv run careeros guide import "guides/Leveling Guides - DevOps.csv"
+```
+
+Links you've made are kept. Anything the new guide drops leaves the map but stays on the wins that pointed to it.
+
+**Linking your work.** Each time you save a win, the app asks **Which parts of the leveling guide does this show?** It ticks the items that look related based on your words, such as "sandbox", "deploy", "merge", or "demo". Untick what doesn't fit, tick what it missed, and click **Save**, or choose **Skip for now**. Nothing is linked until you save. Notebook entries can be linked too. Entries that look related show a dashed **Might show** label with a link, and linked ones show **Shows:** with the items.
+
+**The Promo map tab.** It shows:
+
+- A progress bar for Grade 6 and for Grade 7 (how many key experiences you've shown).
+- **Aim for next**: one concrete step per topic. Topics you've started come first, and a topic moves to its Grade 7 step once Grade 6 is shown.
+- The 12 topics, each with the Grade 6 experiences beside the Grade 7 ones. Each is colored **Not yet**, **Started**, **Shown**, or **Strong**, with **Ideas to get here** underneath.
+- The skills whose bar rises from Grade 6 to Grade 7, with your evidence for each.
+
+Colors come from points. A linked entry is worth 1, and a small, medium, or large win is worth 2, 3, or 4. One point makes an item Started, 3 make it Shown, and 6 make it Strong. So one large win shows an experience, and a large win plus a medium one makes it strong. An entry and the win made from it only count once.
+
+**Download promo case** writes a Markdown draft grouped by grade and topic. Each guide item lists the wins and entries behind it, with dates and why they mattered, and a **Not shown yet** list at the end shows what to aim for before you submit.
+
+## Year-end exports
+
 At year end, pick the year on the Wins tab and click **Download as Markdown**. The file opens with your large wins as highlights, then lists everything by theme with its date and why it mattered. Paste it into a promotion doc or use it to pick resume bullets. Removing a notebook entry never removes a win made from it.
 
 ## What you should see
@@ -114,7 +142,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `83 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `90 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -190,7 +218,7 @@ Through the Google Workspace connector in a Claude Code session, not by a script
 Everything (entries, pasted notes, wins) is in one file: `~/Library/Application Support/CareerOS/careeros.db`, on this laptop only. It is not in iCloud or any synced folder, and the app refuses to keep a real notebook in one. Time Machine backs it up if Time Machine is on. To make a manual copy, stop the app and copy that file somewhere safe; a copy taken on Oct 27, 2026 is already there as `careeros-backup-2026-10-27.db`.
 
 **Can I export everything, not just wins?**
-Yes. Click **Download everything (CSV)** at the bottom of any page. You get one zip with three spreadsheets: `entries.csv` (every meeting, task, and note), `pasted_notes.csv` (everything pasted under them, with the entry it belongs to), and `wins.csv`. They open in Excel, Numbers, or Google Sheets, so the data stays readable even without this app. It's a snapshot of that moment; download a fresh one whenever you like, for example at year end. The zip holds everything you pasted, so keep it somewhere as safe as this laptop, and remember that removing something in the app doesn't remove it from zips you already downloaded. Text that starts with `=`, `+`, `-`, or `@` gets a leading `'` so a spreadsheet shows it instead of running it as a formula.
+Yes. Click **Download everything (CSV)** at the bottom of any page. You get one zip with four spreadsheets: `entries.csv` (every meeting, task, and note), `pasted_notes.csv` (everything pasted under them, with the entry it belongs to), `wins.csv`, and `guide_links.csv` (which wins and entries you linked to which leveling guide items). They open in Excel, Numbers, or Google Sheets, so the data stays readable even without this app. It's a snapshot of that moment; download a fresh one whenever you like, for example at year end. The zip holds everything you pasted, so keep it somewhere as safe as this laptop, and remember that removing something in the app doesn't remove it from zips you already downloaded. Text that starts with `=`, `+`, `-`, or `@` gets a leading `'` so a spreadsheet shows it instead of running it as a formula.
 
 **After a restart the app opened with demo data and my entries were missing. Were they lost?**
 No. The app had been started with `--data-dir /tmp/cos-demo`, which opens the practice folder instead of your notebook. Run `uv run careeros serve` with no `--data-dir` and your notebook comes back.

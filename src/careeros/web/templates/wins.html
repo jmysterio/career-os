@@ -38,6 +38,9 @@
     </div>
     {% if w.impact %}<p class="att">{{ w.impact }}</p>{% else %}<p class="attn">Why did this matter? Add it while you still remember.</p>{% endif %}
     {% if x.from_entry %}<p class="help">From your notebook: {{ x.from_entry }}</p>{% endif %}
+    {% if x.guide %}<p class="help">Shows: {% for g in x.guide %}<span class="chip guide">{{ g }}</span>{% endfor %}
+      <a href="/guide/link?win={{ w.id }}&next=/wins">change</a></p>
+    {% elif guided %}<p class="attn"><a href="/guide/link?win={{ w.id }}&next=/wins">Link this to the leveling guide</a></p>{% endif %}
     <details><summary>Edit</summary>
       <form method="post" action="/wins/{{ w.id }}/edit" class="stack">
         <input type="hidden" name="csrf" value="{{ csrf }}">{{ win_fields(w, show_day=True) }}

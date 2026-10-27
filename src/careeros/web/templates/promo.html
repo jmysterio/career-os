@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% macro evidence(x) %}
+  {% set n = x.wins|length + x.entries|length %}
+  {% if n %}<details><summary>{{ x.wins|length }} win{{ '' if x.wins|length == 1 else 's' }}{% if x.entries %}, {{ x.entries|length }} entr{{ 'y' if x.entries|length == 1 else 'ies' }}{% endif %}</summary>
+    <ul>{% for w in x.wins %}<li><span class="muted">{{ w.day }}</span> <b>{{ w.title }}</b> <span class="chip">{{ w.size }}</span>{% if w.impact %}<br><span class="muted">{{ w.impact }}</span>{% endif %}</li>{% endfor %}
+    {% for e in x.entries %}<li><span class="muted">{{ e.day }}</span> {{ e.text }}</li>{% endfor %}</ul></details>
+  {% endif %}
+{% endmacro %}
+{% block body %}
+{% if not pm %}
+<section class="card">
+  <h2>Promo map</h2>
+  <p class="muted">Load your leveling guide first. In Terminal:</p>
+  <pre class="paper">cd ~/Documents/career-os
+uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
+</section>
+{% else %}
+<section class="card">
+  <div class="row" style="justify-content:space-between">
+    <h2>Promo map: Grade {{ pm.current }} to {{ pm.grades[0] }}, aiming at {{ pm.grades[-1] }}</h2>
+    <form method="get" action="/promo/export"><button class="primary">Download promo case</button></form>
+  </div>
+  <p class="muted">Each key experience from the leveling guide, colored by how much of your own logged work backs it up. Link wins and entries to the guide to fill it in. Wins count more than plain entries, and bigger wins count more.</p>
+  {% for gr in pm.grades %}{% set p = pm.progress[gr] %}
+  <p style="margin:.9rem 0 0"><b>Grade {{ gr }}</b>: {{ p.shown + p.strong }} of {{ p.total }} key experiences shown{% if p.strong %} ({{ p.strong }} strong){% endif %}, {{ p.started }} started, {{ p.gap }} not yet.</p>
+  <div class="bar" role="img" aria-label="Grade {{ gr }}: {{ p.strong }} strong, {{ p.shown }} shown, {{ p.started }} started, {{ p.gap }} not yet">
+    {% for k in ('strong', 'shown', 'started') %}{% if p[k] %}<span class="b-{{ k }}" style="width:{{ (100 * p[k] / p.total)|round(1) }}%"></span>{% endif %}{% endfor %}
+  </div>
+  {% endfor %}
+  <p class="help key"><span class="b-strong"></span>Strong <span class="b-shown"></span>Shown <span class="b-started"></span>Started <span></span>Not yet</p>
+  {% for gr in pm.grades %}{% if pm.summaries.get(gr) %}<details><summary>What Grade {{ gr }} looks like, in the guide's words</summary><p class="muted">{{ pm.summaries[gr] }}</p></details>{% endif %}{% endfor %}
+</section>
+
+{% if hints %}
+<section class="card">
+  <h2>Start with what you've already done</h2>
+  <p class="muted">{{ hints }} of your notebook entries look related to the guide and aren't linked yet. They're marked <span class="chip hint">Might show</span> on the <a href="/meetings">Meetings</a> and <a href="/tasks">Tasks</a> tabs. Link the ones that are real evidence, or turn the bigger ones into wins with <b>Count this as a win</b>.</p>
+</section>
+{% endif %}
+{% if pm.next %}
+<section class="card">
+  <h2>Aim for next</h2>
+  <p class="muted">One step per topic: topics you've started come first, and a topic moves to its Grade {{ pm.grades[-1] }} step once Grade {{ pm.grades[0] }} is shown. More ideas are under each topic below.</p>
+  {% for n in pm.next[:6] %}
+  <div class="exp {{ 'started' if n.started }}"><span class="chip">Grade {{ n.grade }}</span> <b>{{ n.topic.name }}</b>
+    <br>{{ n.idea }}<br><span class="help">Guide: {{ n.item.name }}</span></div>
+  {% endfor %}
+  {% if pm.next|length > 6 %}<p class="help">{{ pm.next|length - 6 }} more topics have a next step below.</p>{% endif %}
+</section>
+{% endif %}
+
+{% for row in pm.rows %}
+<section class="card">
+  <h2>{{ row.topic.name }}</h2>
+  <div class="grid2">
+    {% for gr in pm.grades %}<div><p class="muted" style="margin:.4rem 0 0">Grade {{ gr }}</p>
+      {% for x in row.cells[gr] %}
+      <div class="exp {{ x.status }}"><span class="st">{{ x.status_label }}</span><br>{{ x.item.name }}{{ evidence(x) }}</div>
+      {% else %}<p class="help">The guide has nothing for this at Grade {{ gr }}.</p>{% endfor %}
+    </div>{% endfor %}
+  </div>
+  {% if row.topic.ideas %}<details><summary>Ideas to get here</summary><ul>{% for i in row.topic.ideas %}<li>{{ i }}</li>{% endfor %}</ul></details>{% endif %}
+</section>
+{% endfor %}
+
+<section class="card">
+  <h2>Skills where Grade {{ pm.grades[-1] }} asks for more</h2>
+  <p class="muted">The guide rates each skill from 1 to 4. These are the ones whose bar goes up between Grade {{ pm.grades[0] }} and Grade {{ pm.grades[-1] }}. Link wins to them to show you're already working at the higher level.</p>
+  {% for x in pm.rising %}
+  <div class="exp {{ x.status }}"><span class="st">{{ x.status_label }}</span><br><b>{{ x.item.name }}</b>
+    <span class="muted">Grade {{ pm.current }}: {{ x.now }} &middot; Grade {{ pm.grades[0] }}: {{ x['g' ~ pm.grades[0]] }} &middot; Grade {{ pm.grades[-1] }}: {{ x['g' ~ pm.grades[-1]] }}</span>
+    <br><span class="help">{{ x.item.description }}</span>{{ evidence(x) }}</div>
+  {% endfor %}
+  <details><summary>Other skills ({{ pm.steady|length }}), same bar at both grades</summary>
+    {% for x in pm.steady %}<div class="exp {{ x.status }}"><span class="st">{{ x.status_label }}</span><br><b>{{ x.item.name }}</b>
+      <span class="muted">Grade {{ pm.grades[0] }} and {{ pm.grades[-1] }}: {{ x['g' ~ pm.grades[0]] }}</span>{{ evidence(x) }}</div>{% endfor %}
+  </details>
+</section>
+{% endif %}
+{% endblock %}

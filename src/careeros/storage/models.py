@@ -224,3 +224,29 @@ class Win(Base):
     theme: Mapped[str] = mapped_column(String, default="")
     entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entry.id"), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class GuideItem(Base):
+    """One line of the leveling guide: a grade's role summary, a key experience, or a rated skill."""
+    __tablename__ = "guide_item"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String, unique=True)  # stable across re-imports, e.g. exp:6:<slug>
+    kind: Mapped[str] = mapped_column(String)  # summary | experience | skill
+    grade: Mapped[int | None] = mapped_column(Integer, nullable=True)  # None for skills
+    category: Mapped[str] = mapped_column(String, default="")
+    name: Mapped[str] = mapped_column(Text)
+    description: Mapped[str] = mapped_column(Text, default="")
+    targets: Mapped[dict] = mapped_column(JSON, default=dict)  # skills: {"6": 3, "7": 4}
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    active: Mapped[bool] = mapped_column(default=True)  # False once a re-import no longer has it
+
+
+class GuideLink(Base):
+    """The user's statement that a win or a notebook entry shows a guide item."""
+    __tablename__ = "guide_link"
+    __table_args__ = (UniqueConstraint("item_id", "win_id", "entry_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("guide_item.id"), index=True)
+    win_id: Mapped[int | None] = mapped_column(ForeignKey("win.id"), nullable=True, index=True)
+    entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entry.id"), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)

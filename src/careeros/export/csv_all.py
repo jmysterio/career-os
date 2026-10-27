@@ -9,7 +9,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..storage.models import JournalAttachment, JournalEntry, Win
+from ..storage.models import GuideItem, GuideLink, JournalAttachment, JournalEntry, Win
 
 FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
 
@@ -32,7 +32,10 @@ def notebook_zip(s: Session) -> bytes:
     entries = list(s.scalars(select(JournalEntry).order_by(JournalEntry.day, JournalEntry.id)))
     text_of = {e.id: (e.day, e.text) for e in entries}
     atts = s.scalars(select(JournalAttachment).order_by(JournalAttachment.entry_id, JournalAttachment.id))
-    wins = s.scalars(select(Win).order_by(Win.day, Win.id))
+    wins = list(s.scalars(select(Win).order_by(Win.day, Win.id)))
+    title_of = {w.id: w.title for w in wins}
+    links = s.execute(select(GuideLink, GuideItem).join(GuideItem, GuideItem.id == GuideLink.item_id)
+                      .order_by(GuideItem.position, GuideLink.id))
     files = {
         "entries.csv": _csv(
             ["entry_id", "day", "kind", "text", "task_status", "source", "created_at"],
@@ -45,6 +48,11 @@ def notebook_zip(s: Session) -> bytes:
             ["win_id", "day", "what_i_did", "why_it_mattered", "size", "theme", "entry_id", "entry_text", "created_at"],
             ([w.id, w.day, w.title, w.impact, w.size, w.theme, w.entry_id or "",
               text_of.get(w.entry_id, ("", ""))[1], w.created_at] for w in wins)),
+        "guide_links.csv": _csv(
+            ["guide_kind", "grade", "guide_item", "linked_to", "linked_id", "linked_text", "linked_at"],
+            ([g.kind, g.grade or "", g.name, "win" if l.win_id else "entry", l.win_id or l.entry_id,
+              title_of.get(l.win_id, "") if l.win_id else text_of.get(l.entry_id, ("", ""))[1], l.created_at]
+             for l, g in links)),
     }
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:

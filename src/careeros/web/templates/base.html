@@ -24,6 +24,18 @@ h3{font-size:1.02rem;color:var(--muted);margin:1.4rem 0 .3rem;letter-spacing:.01
 .chip{display:inline-block;font-size:.76rem;border-radius:99px;padding:.05rem .6rem;margin-left:.4rem;
   background:var(--btn);color:var(--muted);vertical-align:middle}
 .chip.done{color:var(--good)}a.chip{text-decoration:none;margin-left:0}
+:root{--st-strong:#4f9d5d;--st-shown:#9cc98c;--st-started:#d9963f}a{color:var(--accent)}
+.chip.guide{color:var(--text);border:1px solid var(--line)}.chip.hint{background:transparent;border:1px dashed var(--line)}
+.bar{display:flex;height:.8rem;border-radius:99px;background:var(--btn);overflow:hidden;margin:.35rem 0 .2rem}
+.bar span{display:block;height:100%}.b-strong{background:var(--st-strong)}.b-shown{background:var(--st-shown)}.b-started{background:var(--st-started)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}@media (max-width:680px){.grid2{grid-template-columns:1fr}}
+.exp{border-left:5px solid var(--line);background:var(--bg);border-radius:8px;padding:.45rem .7rem;margin:.45rem 0;font-size:.92rem}
+.exp.strong{border-color:var(--st-strong)}.exp.shown{border-color:var(--st-shown)}.exp.started{border-color:var(--st-started)}
+.st{font-size:.74rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+.exp.strong .st{color:var(--st-strong)}.exp.shown .st{color:var(--st-shown)}.exp.started .st{color:var(--st-started)}
+.key span{display:inline-block;width:.8rem;height:.8rem;border-radius:3px;margin:0 .25rem 0 .7rem;vertical-align:-.1rem;border:1px solid var(--line)}
+label.pick{display:flex;gap:.5rem;align-items:flex-start;padding:.3rem .4rem;border-radius:6px;font-size:.92rem}label.pick:hover{background:var(--bg)}
+label.pick input{margin-top:.3rem}
 .muted{color:var(--muted);font-size:.88rem}
 details{margin:.25rem 0}summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 blockquote{margin:.3rem 0 .3rem .2rem;padding-left:.8rem;border-left:2px solid var(--line);color:var(--muted)}
@@ -68,6 +80,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 </div>
 <nav><a href="/" class="{{ 'on' if page == '/' }}">Today &amp; this week</a>
   <a href="/wins" class="{{ 'on' if page == '/wins' }}">Wins</a>
+  <a href="/promo" class="{{ 'on' if page == '/promo' }}">Promo map</a>
   {% for path, tab in tabs.items() %}<a href="{{ path }}" class="{{ 'on' if page == path }}">{{ tab[1] }}</a>{% endfor %}
   {% if not personal %}<a href="/releases" class="{{ 'on' if page == '/releases' }}">Releases</a>{% endif %}
   <form method="get" action="/search" style="margin-left:auto"><input type="search" name="q" value="{{ q }}" placeholder="Search your notebook" aria-label="Search your notebook" maxlength="200"><button>Search</button></form></nav>

@@ -152,6 +152,35 @@ def notebook_init(data_dir: Optional[str] = typer.Option(None, "--data-dir", hel
     typer.echo("Start it with:  uv run careeros serve" + (f" --data-dir {dd.root}" if data_dir else ""))
 
 
+guide_app = typer.Typer(no_args_is_help=True, help="Your leveling guide")
+app.add_typer(guide_app, name="guide")
+
+
+@guide_app.command("import")
+def guide_import(file: str = typer.Argument(..., help="Leveling guide CSV export"),
+                 data_dir: Optional[str] = DataOpt) -> None:
+    """Load (or refresh) the leveling guide. Links you've already made are kept."""
+    from .guide.parse import GuideFormatError
+    from .guide.service import import_guide
+    os.umask(0o077)
+    dd = resolve(data_dir)
+    try:
+        dd.require_known()
+    except NotDemoData as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    engine = make_engine(dd.db)
+    init_db(engine)
+    with make_session_factory(engine)() as s:
+        try:
+            r = import_guide(s, file)
+        except (OSError, GuideFormatError) as exc:
+            typer.echo(f"Couldn't load the guide: {exc}")
+            raise typer.Exit(1)
+    typer.echo(f"Guide loaded into {dd.root}: {r['added']} new, {r['updated']} changed, "
+               f"{r['retired']} no longer in the guide.")
+
+
 calendar_app = typer.Typer(no_args_is_help=True, help="Pull Google Calendar meetings into your notebook (read-only)")
 app.add_typer(calendar_app, name="calendar")
 

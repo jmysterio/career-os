@@ -19,12 +19,15 @@ from ..claims import service as svc
 from ..config import DataDir
 from ..correlate.engine import link, rebuild_episodes, unlink
 from ..export.csv_all import notebook_zip
+from ..export.promo import promo_markdown
 from ..export.wins import wins_markdown
 from ..google import summaries
+from ..guide import service as gsvc
+from ..guide.topics import suggest, topic_of
 from ..storage.db import init_db, make_engine, make_session_factory
 from ..storage.models import (
-    AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, JournalAttachment, JournalEntry, SourceObservation,
-    Win,
+    AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, GuideItem, GuideLink, JournalAttachment,
+    JournalEntry, SourceObservation, Win,
 )
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
@@ -77,7 +80,7 @@ TABS = {  # path -> (kind, tab name, heading, what's on it)
     "/tasks": ("task", "Tasks", "Tasks", "Your Google Tasks and any you've noted yourself. What's still open is at the top, finished ones are grouped by the day you completed them."),
     "/other": ("note", "Other", "Something else", "Anything that didn't fit the other tabs."),
 }
-PAGES = {"/", "/releases", "/search", "/wins", *TABS}
+PAGES = {"/", "/releases", "/search", "/wins", "/promo", *TABS}
 LIST_LIMIT = 300
 SIZES = [("small", "Small"), ("medium", "Medium"), ("large", "Large")]
 SIZE_LABEL = dict(SIZES)
@@ -109,6 +112,23 @@ def claim_text(c: Claim) -> str:
 
 def _hostname(value: str) -> str:
     return urlparse(f"//{value}").hostname or ""
+
+
+def guide_label(g: GuideItem) -> str:
+    return f"{topic_of(g.name).name} (Grade {g.grade})" if g.kind == "experience" else g.name
+
+
+def guide_chips(s: Session, *, win_ids=(), entry_ids=()) -> dict[tuple[str, int], list[str]]:
+    """("win"|"entry", id) -> short labels of the guide items it's linked to."""
+    out: dict[tuple[str, int], list[str]] = {}
+    q = select(GuideLink, GuideItem).join(GuideItem, GuideItem.id == GuideLink.item_id).where(
+        (GuideLink.win_id.in_(list(win_ids))) | (GuideLink.entry_id.in_(list(entry_ids))))
+    for l, g in s.execute(q.order_by(GuideItem.position)):
+        label = guide_label(g)
+        k = ("win", l.win_id) if l.win_id else ("entry", l.entry_id)
+        if label not in out.setdefault(k, []):
+            out[k].append(label)
+    return out
 
 
 def create_app(dd: DataDir) -> FastAPI:
@@ -175,13 +195,18 @@ def create_app(dd: DataDir) -> FastAPI:
                 id=a.id, label=ATTACH_LABEL.get(a.kind, "Text"), title=a.title, body=a.body,
                 url=a.body.strip() if link else None,
                 ai=a.kind == "notes" and a.title == summaries.AI_TITLE))
+        guided = gsvc.has_guide(s)
+        chips = guide_chips(s, entry_ids=[e.id for e in rows]) if guided else {}
         out = []
         for e in rows:
+            linked = chips.get(("entry", e.id), [])
+            hint = [t.name for t in suggest(e.text)[0]] if guided and not linked else []
             mine = atts.get(e.id, [])
             has_notes = any(summaries.doc_ids([a["url"]]) for a in mine if a["url"])
             from_cal = e.source == "calendar"
             out.append(dict(id=e.id, day=e.day, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"),
-                            from_calendar=from_cal, status=e.status, attachments=mine,
+                            from_calendar=from_cal, status=e.status, attachments=mine, guided=guided,
+                            guide=linked, hint=hint,
                             notes_state=("" if not from_cal else "summarized" if any(a["ai"] for a in mine)
                                          else "pending" if has_notes else "none")))
         return out
@@ -351,6 +376,7 @@ def create_app(dd: DataDir) -> FastAPI:
                     s.delete(a)
                 for w in s.scalars(select(Win).where(Win.entry_id == eid)):
                     w.entry_id = None  # the win is the user's own record and outlives the entry
+                gsvc.drop_links(s, entry_id=eid)
                 s.delete(e)
                 s.commit()
         return back(to="/")
@@ -371,16 +397,17 @@ def create_app(dd: DataDir) -> FastAPI:
         shown = [w for w in rows if not size or w.size == size]
         entries = {e.id: e.text for e in s.scalars(select(JournalEntry).where(
             JournalEntry.id.in_([w.entry_id for w in shown if w.entry_id])))}
+        chips = guide_chips(s, win_ids=[w.id for w in shown])
         months: list[dict] = []
         for w in shown:
             label = date.fromisoformat(w.day).strftime("%B")
             if not months or months[-1]["label"] != label:
                 months.append(dict(label=label, wins=[]))
             months[-1]["wins"].append(dict(w=w, size_label=SIZE_LABEL.get(w.size, w.size),
-                                           from_entry=entries.get(w.entry_id)))
+                                           from_entry=entries.get(w.entry_id), guide=chips.get(("win", w.id), [])))
         html = env.get_template("wins.html").render(
             year=year, years=win_years(s), size=size, months=months, total=len(rows), counts=counts,
-            missing=sum(1 for w in rows if not w.impact), today=date.today().isoformat(),
+            missing=sum(1 for w in rows if not w.impact), today=date.today().isoformat(), guided=gsvc.has_guide(s),
             csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(),
             tagline=TAGLINES[0], page="/wins", personal=personal, q="")
         return HTMLResponse(html)
@@ -403,8 +430,11 @@ def create_app(dd: DataDir) -> FastAPI:
             return back("Write what you did first.", to)
         with _write_lock:
             entry = s.get(JournalEntry, entry_id) if entry_id else None
-            s.add(Win(**f, entry_id=entry.id if entry else None, created_at=datetime.now()))
+            w = Win(**f, entry_id=entry.id if entry else None, created_at=datetime.now())
+            s.add(w)
             s.commit()
+        if gsvc.has_guide(s):
+            return RedirectResponse(f"/guide/link?win={w.id}&next={quote(to)}", status_code=303)
         return back(f"Saved to your wins: {f['title']}", to)
 
     @app.post("/wins/{wid}/edit", dependencies=[Depends(check_csrf)])
@@ -424,9 +454,69 @@ def create_app(dd: DataDir) -> FastAPI:
         with _write_lock:
             w = s.get(Win, wid)
             if w:
+                gsvc.drop_links(s, win_id=wid)
                 s.delete(w)
                 s.commit()
         return back(to="/wins")
+
+    def link_target(s: Session, win: int | None, entry: int | None):
+        if win is not None:
+            w = s.get(Win, win)
+            return (w, dict(win_id=w.id), w.title + "\n" + w.impact) if w else None
+        e = s.get(JournalEntry, entry) if entry is not None else None
+        return (e, dict(entry_id=e.id), e.text) if e else None
+
+    @app.get("/guide/link", response_class=HTMLResponse)
+    def guide_link_page(request: Request, win: int | None = None, entry: int | None = None, next: str = "/wins",
+                        s: Session = Depends(db)):
+        t = link_target(s, win, entry)
+        if t is None or not gsvc.has_guide(s):
+            return back("That item is gone, or the leveling guide isn't loaded yet.", "/promo")
+        obj, ref, text = t
+        linked = gsvc.linked_ids(s, **ref)
+        if not linked and isinstance(obj, Win) and obj.entry_id:
+            linked = gsvc.linked_ids(s, entry_id=obj.entry_id)
+        suggested = set() if linked else gsvc.suggested_ids(s, text)
+        pm = gsvc.promo_map(s)
+        html = env.get_template("guide_link.html").render(
+            obj=obj, is_win=isinstance(obj, Win), ref=ref, checked=linked or suggested, suggested=bool(suggested),
+            pm=pm, next=next if next in PAGES else "/wins", csrf=csrf_token, msg=None, sync_warning=dd.sync_warning(),
+            theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0], page="/promo", personal=personal, q="")
+        return HTMLResponse(html)
+
+    @app.post("/guide/link", dependencies=[Depends(check_csrf)])
+    def guide_link_save(win: int | None = Form(None), entry: int | None = Form(None), item: list[int] = Form([]),
+                        next: str = Form("/wins"), s: Session = Depends(db)):
+        to = next if next in PAGES else "/wins"
+        with _write_lock:
+            t = link_target(s, win, entry)
+            if t is None:
+                return back("That item is gone.", to)
+            gsvc.set_links(s, set(item), **t[1])
+        n = len(item)
+        return back(f"Linked to {n} leveling guide item{'' if n == 1 else 's'}." if n else "Saved, with no guide items.", to)
+
+    @app.get("/promo", response_class=HTMLResponse)
+    def promo_page(request: Request, msg: str | None = None, s: Session = Depends(db)):
+        guided = gsvc.has_guide(s)
+        hints = 0
+        if guided:
+            linked = set(s.scalars(select(GuideLink.entry_id).where(GuideLink.entry_id.is_not(None))))
+            hints = sum(1 for eid, text in s.execute(select(JournalEntry.id, JournalEntry.text))
+                        if eid not in linked and suggest(text)[0])
+        html = env.get_template("promo.html").render(
+            pm=gsvc.promo_map(s) if guided else None, hints=hints, csrf=csrf_token, msg=msg,
+            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
+            page="/promo", personal=personal, q="")
+        return HTMLResponse(html)
+
+    @app.get("/promo/export")
+    def promo_export(s: Session = Depends(db)):
+        if not gsvc.has_guide(s):
+            return back("Load the leveling guide first.", "/promo")
+        name = f"promo-case-{date.today().isoformat()}.md"
+        return Response(promo_markdown(gsvc.promo_map(s)), media_type="text/markdown; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @app.get("/wins/export")
     def win_export(year: int | None = None, s: Session = Depends(db)):

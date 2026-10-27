@@ -41,6 +41,11 @@
       </details>
     </div>
     {% endfor %}
+    {% if e.guide %}<p class="help">Shows: {% for g in e.guide %}<span class="chip guide">{{ g }}</span>{% endfor %}
+      <a href="/guide/link?entry={{ e.id }}&next={{ page|urlencode }}">change</a></p>
+    {% elif e.hint %}<p class="help">Might show: {% for h in e.hint %}<span class="chip hint">{{ h }}</span>{% endfor %}
+      <a href="/guide/link?entry={{ e.id }}&next={{ page|urlencode }}">Link to the leveling guide</a></p>
+    {% elif e.guided %}<p class="help"><a href="/guide/link?entry={{ e.id }}&next={{ page|urlencode }}">Link to the leveling guide</a></p>{% endif %}
     {% if e.notes_state == "none" %}<p class="muted">No meeting notes or transcript attached.</p>
     {% elif e.notes_state == "pending" %}<p class="muted">Notes found, but no summary yet. Press Sync calendar to write one.</p>{% endif %}
     <details><summary>Add more to this</summary>
