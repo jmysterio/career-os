@@ -18,6 +18,12 @@
 *{box-sizing:border-box}
 body{background-color:var(--bg);color:var(--text);font:16px/1.5 -apple-system,system-ui,sans-serif;
   margin:0 auto;max-width:860px;padding:1.5rem 1.25rem 4rem}
+body::before{content:"";position:fixed;left:0;top:0;width:min(56vw,820px);aspect-ratio:3/2;z-index:-1;pointer-events:none;
+  background:url(/static/img/latte-light.jpg) left top/cover no-repeat;opacity:.9;
+  -webkit-mask-image:radial-gradient(ellipse 70% 75% at 22% 30%,#000 45%,transparent 100%);
+  mask-image:radial-gradient(ellipse 70% 75% at 22% 30%,#000 45%,transparent 100%)}
+:root[data-theme=dark] body::before{background-image:url(/static/img/latte-dark.jpg);opacity:.75}
+@media (max-width:680px){body::before{width:90vw;opacity:.45}}
 :root[data-theme=light] body{background-image:linear-gradient(var(--tile) 1px,transparent 1px),
   linear-gradient(90deg,var(--tile) 1px,transparent 1px);background-size:72px 36px;background-attachment:fixed}
 h1,h2,h3{font-family:Georgia,'Iowan Old Style',serif;font-weight:600;margin:0}
@@ -90,7 +96,6 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .att a{color:var(--accent);word-break:break-all}
 .entry{flex-direction:column;align-items:stretch}.entry details{width:100%}
 .entry-head{display:flex;justify-content:space-between;gap:.8rem;align-items:baseline;width:100%}
-.mug{font-size:1.1rem}
 body.wide{max-width:1400px}
 table.sheet{width:100%;border-collapse:collapse;font-size:.86rem}
 .sheet th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:.35rem .4rem;position:sticky;top:0;background:var(--card)}
@@ -127,7 +132,7 @@ p.sync.ok .dot{background:var(--st-strong)}p.sync.late .dot{background:var(--st-
 .help{color:var(--muted);font-size:.84rem;margin:.15rem 0 0}.warn{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.5rem .8rem;font-size:.86rem;margin:.2rem 0}mark{background:var(--accent);color:var(--accent-text);border-radius:3px;padding:0 .15rem}
 </style></head><body{% if wide %} class="wide"{% endif %}>
 <div class="top">
-  <div><h1><span class="mug" aria-hidden="true">&#9749;</span> {{ greeting }}</h1><p class="sub">{{ tagline }}</p></div>
+  <div><h1>{{ greeting }}</h1><p class="sub">{{ tagline }}</p></div>
   <form method="post" action="/theme"><input type="hidden" name="csrf" value="{{ csrf }}">
     <input type="hidden" name="next" value="{{ page }}">
     <input type="hidden" name="theme" value="{{ 'light' if theme == 'dark' else 'dark' }}">

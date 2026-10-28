@@ -36,11 +36,14 @@ from ..storage.models import (
 )
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
-CSP = ("default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; "
+CSP = ("default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self'; img-src 'self'; "
+       "form-action 'self'; "
        "base-uri 'none'; frame-ancestors 'none'")
 SHEET_JS = (Path(__file__).parent / "static" / "sheet.js").read_text()
 SYNC_JS = (Path(__file__).parent / "static" / "sync.js").read_text()
 PAGE_JS = (Path(__file__).parent / "static" / "page.js").read_text()
+IMG_DIR = Path(__file__).parent / "static" / "img"
+IMG_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
 _write_lock = threading.Lock()
 
 # Plain-language versions of the rule codes in claims/rules.py.
@@ -379,6 +382,14 @@ def create_app(dd: DataDir) -> FastAPI:
     @app.get("/static/page.js")
     def page_js():
         return Response(PAGE_JS, media_type="text/javascript; charset=utf-8")
+
+    @app.get("/static/img/{name}")
+    def static_img(name: str):
+        path = IMG_DIR / name
+        if "/" in name or name.startswith(".") or path.suffix.lower() not in IMG_TYPES or not path.is_file():
+            return Response(status_code=404)
+        return Response(path.read_bytes(), media_type=IMG_TYPES[path.suffix.lower()],
+                        headers={"Cache-Control": "max-age=86400"})
 
     @app.post("/journal/{eid}/attach", dependencies=[Depends(check_csrf)])
     def journal_attach(eid: int, a_kind: str = Form("notes"), a_title: str = Form("", max_length=200),

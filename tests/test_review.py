@@ -309,6 +309,10 @@ def test_sync_google_runs_every_step(nb, monkeypatch):
     assert 'data-sync="google"' in page and "/static/sync.js" in page and "Sync calendar" not in page
     assert c.get("/static/sync.js").status_code == 200
     assert "replaceState" in c.get("/static/page.js").text
+    img = c.get("/static/img/latte-light.jpg")
+    assert img.status_code == 200 and img.headers["content-type"] == "image/jpeg"
+    assert c.get("/static/img/..%2Fapp.py").status_code == 404 and c.get("/static/img/nope.jpg").status_code == 404
+    assert "img-src 'self'" in c.get("/").headers["content-security-policy"]
     flashed = c.get("/?msg=old news").text
     assert 'class="note flash"' in flashed and 'src="/static/page.js"' in flashed
 

@@ -34,3 +34,5 @@ To run it, test it, or read your notes on usage, see [INSTRUCTIONS.md](INSTRUCTI
 | `storage/` | Database tables, removed-record and skip-rule bookkeeping, and the sync log |
 
 Stack: Python 3.12, FastAPI, SQLAlchemy, SQLite, Jinja2, Typer.
+
+The latte photos in `web/static/img/` (one for light mode, one for dark) were AI-generated for this project. To swap in your own, keep the file names `latte-light.jpg` and `latte-dark.jpg`, keep the cup in the top-left with empty space around it, and stay around 1500 px wide.
