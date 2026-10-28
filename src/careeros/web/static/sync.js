@@ -38,7 +38,7 @@ function render(name, job) {
     const end = el("p", "jmsg", job.message);
     const again = el("button", "", "Show the new items");
     again.type = "button";
-    again.addEventListener("click", () => location.reload());
+    again.addEventListener("click", () => location.assign(location.pathname));
     end.append(" ", again);
     box.append(end);
   } else {
@@ -68,6 +68,7 @@ document.addEventListener("submit", async (ev) => {
   const form = ev.target;
   if (!form.dataset.sync) return;
   ev.preventDefault();
+  document.querySelectorAll(".note.flash").forEach((n) => n.remove());
   const button = form.querySelector("button");
   button.disabled = true;
   button.textContent = "Starting…";

@@ -40,6 +40,7 @@ CSP = ("default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; connec
        "base-uri 'none'; frame-ancestors 'none'")
 SHEET_JS = (Path(__file__).parent / "static" / "sheet.js").read_text()
 SYNC_JS = (Path(__file__).parent / "static" / "sync.js").read_text()
+PAGE_JS = (Path(__file__).parent / "static" / "page.js").read_text()
 _write_lock = threading.Lock()
 
 # Plain-language versions of the rule codes in claims/rules.py.
@@ -374,6 +375,10 @@ def create_app(dd: DataDir) -> FastAPI:
     @app.get("/static/sync.js")
     def sync_js():
         return Response(SYNC_JS, media_type="text/javascript; charset=utf-8")
+
+    @app.get("/static/page.js")
+    def page_js():
+        return Response(PAGE_JS, media_type="text/javascript; charset=utf-8")
 
     @app.post("/journal/{eid}/attach", dependencies=[Depends(check_csrf)])
     def journal_attach(eid: int, a_kind: str = Form("notes"), a_title: str = Form("", max_length=200),

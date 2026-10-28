@@ -308,6 +308,9 @@ def test_sync_google_runs_every_step(nb, monkeypatch):
     page = c.get("/").text
     assert 'data-sync="google"' in page and "/static/sync.js" in page and "Sync calendar" not in page
     assert c.get("/static/sync.js").status_code == 200
+    assert "replaceState" in c.get("/static/page.js").text
+    flashed = c.get("/?msg=old news").text
+    assert 'class="note flash"' in flashed and 'src="/static/page.js"' in flashed
 
 
 def test_sync_never_deletes_entries_you_built_on(nb):

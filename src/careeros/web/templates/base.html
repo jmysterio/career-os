@@ -135,7 +135,8 @@ p.sync.ok .dot{background:var(--st-strong)}p.sync.late .dot{background:var(--st-
   <form method="get" action="/search" style="margin-left:auto"><input type="search" name="q" value="{{ q }}" placeholder="Search your notebook" aria-label="Search your notebook" maxlength="200"><button>Search</button></form></nav>
 {% if not personal %}<div class="note">This is a practice notebook. Everything in it is made-up demo data.</div>{% endif %}
 {% if sync_warning %}<div class="note">{{ sync_warning }}</div>{% endif %}
-{% if msg %}<div class="note">{{ msg }}</div>{% endif %}
+{% if msg %}<div class="note flash" role="status">{{ msg }}</div>{% endif %}
+<script src="/static/page.js" defer></script>
 {% block body %}{% endblock %}
 <footer class="row muted" style="margin-top:2.5rem">
   <form method="get" action="/export/everything"><button>Download everything (CSV)</button></form>
