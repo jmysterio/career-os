@@ -35,4 +35,4 @@ To run it, test it, or read your notes on usage, see [INSTRUCTIONS.md](INSTRUCTI
 
 Stack: Python 3.12, FastAPI, SQLAlchemy, SQLite, Jinja2, Typer.
 
-The latte photos in `web/static/img/` (one for light mode, one for dark) were AI-generated for this project. To swap in your own, keep the file names `latte-light.jpg` and `latte-dark.jpg`, keep the cup in the top-left with empty space around it, and stay around 1500 px wide.
+The backdrop photos in `web/static/img/` were AI-generated for this project, each in a light and a dark version: the latte (`latte-*.jpg`, top-left), the pothos vine along the top (`vine-top-*.jpg`), and the pothos, snake plant, and fern down the right side (`plants-right-*.jpg`). Each is shot against a plain wall that drops out against the page, so only the cup and leaves show. To swap one, keep its file name, keep the subject where it is now with plain wall around it (off-white for light, charcoal for dark), and stay around 1500 px on the long side.

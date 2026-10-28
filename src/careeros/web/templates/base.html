@@ -18,14 +18,27 @@
 *{box-sizing:border-box}
 body{background-color:var(--bg);color:var(--text);font:16px/1.5 -apple-system,system-ui,sans-serif;
   margin:0 auto;max-width:860px;padding:1.5rem 1.25rem 4rem}
-body::before{content:"";position:fixed;left:0;top:0;width:min(56vw,820px);aspect-ratio:3/2;z-index:-1;pointer-events:none;
-  background:url(/static/img/latte-light.jpg) left top/cover no-repeat;opacity:.9;
+/* The backdrop behind everything: the wall (tile in light mode), the latte top-left, a pothos vine along the top,
+   and pothos, a snake plant, and a fern down the right. It's one isolated layer so each photo's plain wall can drop
+   out against the wall color (darken on the light wall, lighten on the dark one), leaving only the cup and leaves. */
+.decor{position:fixed;inset:0;z-index:-1;pointer-events:none;isolation:isolate;overflow:hidden;background:var(--bg)}
+:root[data-theme=light] .decor{background-image:linear-gradient(var(--tile) 1px,transparent 1px),
+  linear-gradient(90deg,var(--tile) 1px,transparent 1px);background-size:72px 36px}
+.decor i{position:absolute;background-repeat:no-repeat;mix-blend-mode:darken;filter:brightness(1.06) contrast(1.03)}
+:root[data-theme=dark] .decor i{mix-blend-mode:lighten;filter:none}
+.d-cup{left:0;top:0;width:min(56vw,820px);aspect-ratio:3/2;background:url(/static/img/latte-light.jpg) left top/cover;
   -webkit-mask-image:radial-gradient(ellipse 70% 75% at 22% 30%,#000 45%,transparent 100%);
   mask-image:radial-gradient(ellipse 70% 75% at 22% 30%,#000 45%,transparent 100%)}
-:root[data-theme=dark] body::before{background-image:url(/static/img/latte-dark.jpg);opacity:.75}
-@media (max-width:680px){body::before{width:90vw;opacity:.45}}
-:root[data-theme=light] body{background-image:linear-gradient(var(--tile) 1px,transparent 1px),
-  linear-gradient(90deg,var(--tile) 1px,transparent 1px);background-size:72px 36px;background-attachment:fixed}
+.d-vine{left:0;top:0;width:100%;height:min(34vh,40vw);background:url(/static/img/vine-top-light.jpg) right top/max(100vw,1100px) auto;
+  -webkit-mask-image:linear-gradient(90deg,transparent 18%,#000 45%),linear-gradient(180deg,#000 45%,transparent);
+  -webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent 18%,#000 45%),linear-gradient(180deg,#000 45%,transparent);
+  mask-composite:intersect}
+.d-plants{right:0;bottom:0;height:96vh;aspect-ratio:2/3;background:url(/static/img/plants-right-light.jpg) right bottom/cover;
+  -webkit-mask-image:linear-gradient(90deg,transparent 35%,#000 62%);mask-image:linear-gradient(90deg,transparent 35%,#000 62%)}
+:root[data-theme=dark] .d-cup{background-image:url(/static/img/latte-dark.jpg);opacity:.8}
+:root[data-theme=dark] .d-vine{background-image:url(/static/img/vine-top-dark.jpg);opacity:.75}
+:root[data-theme=dark] .d-plants{background-image:url(/static/img/plants-right-dark.jpg);opacity:.8}
+@media (max-width:680px){.d-cup{width:90vw;opacity:.45}.d-vine,.d-plants{opacity:.35}}
 h1,h2,h3{font-family:Georgia,'Iowan Old Style',serif;font-weight:600;margin:0}
 h1{font-size:1.9rem}h2{font-size:1.35rem}
 h3{font-size:1.02rem;color:var(--muted);margin:1.4rem 0 .3rem;letter-spacing:.01em}
@@ -131,6 +144,7 @@ p.sync.ok .dot{background:var(--st-strong)}p.sync.late .dot{background:var(--st-
 .chip.ai{background:transparent;border:1px solid var(--c-why);color:var(--c-why)}
 .help{color:var(--muted);font-size:.84rem;margin:.15rem 0 0}.warn{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.5rem .8rem;font-size:.86rem;margin:.2rem 0}mark{background:var(--accent);color:var(--accent-text);border-radius:3px;padding:0 .15rem}
 </style></head><body{% if wide %} class="wide"{% endif %}>
+<div class="decor" aria-hidden="true"><i class="d-cup"></i><i class="d-vine"></i><i class="d-plants"></i></div>
 <div class="top">
   <div><h1>{{ greeting }}</h1><p class="sub">{{ tagline }}</p></div>
   <form method="post" action="/theme"><input type="hidden" name="csrf" value="{{ csrf }}">
