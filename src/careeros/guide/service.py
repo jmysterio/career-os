@@ -104,7 +104,8 @@ def evidence(s: Session) -> dict[int, dict]:
 
 
 def promo_map(s: Session) -> dict:
-    """Topics as rows with each target grade's experiences, plus per-grade progress and skills, with evidence."""
+    """Topics as rows with each target grade's experiences, plus per-grade progress, skills, and impact counts."""
+    from .activities import counts
     from .topics import OTHER, TOPICS, topic_of
     ev = evidence(s)
     empty = dict(points=0, wins=[], entries=[])
@@ -142,7 +143,7 @@ def promo_map(s: Session) -> dict:
     nxt.sort(key=lambda n: (not n["started"], n["grade"]))
     return dict(rows=rows, progress=progress, rising=rising, next=nxt,
                 steady=[x for x in skill_views if x not in rising], summaries=summaries(s), grades=TARGET_GRADES,
-                current=CURRENT_GRADE)
+                current=CURRENT_GRADE, impact=counts(s))
 
 
 def suggested_ids(s: Session, text: str) -> set[int]:

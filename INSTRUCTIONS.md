@@ -106,6 +106,8 @@ uv run careeros guide group --dry-run
 uv run careeros guide group
 ```
 
+**Impact numbers.** Claude tags each record with the one activity it shows, from a fixed list: deployment, sandbox refresh, release coordinated, PR reviewed or approved, incident or blocker resolved, document written, process change, mentoring or teaching, demo or presentation, access request handled, branch audit, hotfix, and training or certification. Routine meetings and status pings get nothing, and a meeting *about* a deploy isn't a deployment. The Promo map's **By the numbers** table counts each activity for this half (calendar halves), this year, and all time. A piece of work counts once per day it was done: three records of the same deploy on the same day count once, and a release deployed to lab on Monday and to UAT on Thursday counts twice. Open tasks don't count. Click a number to see the records behind it. In the Intake Review Queue, **Counts as** shows each record's activity (marked AI until you set it) and lets you change it; Claude never changes one you set. New records are tagged after every sync. To tag everything already in the notebook: `uv run careeros guide activities`. The promo case download includes the table.
+
 **Skipping a recurring meeting for good.** To keep a meeting you don't attend out of the notebook, including future ones, add a skip rule. It removes the ones already here and Calendar sync skips any meeting whose title contains the text (any capitalization):
 
 ```
@@ -172,7 +174,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `96 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `100 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

@@ -32,6 +32,18 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
   {% for gr in pm.grades %}{% if pm.summaries.get(gr) %}<details><summary>What Grade {{ gr }} looks like, in the guide's words</summary><p class="muted">{{ pm.summaries[gr] }}</p></details>{% endif %}{% endfor %}
 </section>
 
+{% if pm.impact %}
+<section class="card">
+  <h2>By the numbers</h2>
+  <p class="muted">How many times you did each kind of activity. A piece of work counts once per day it was done, so a deploy logged as a meeting, a Slack thread, and a task on the same day counts once. Halves are calendar halves (January to June, July to December). Click a number to see what's behind it.</p>
+  <table class="sheet" style="max-width:34rem">
+    <thead><tr><th>Activity</th><th style="text-align:right">This half</th><th style="text-align:right">This year</th><th style="text-align:right">All time</th></tr></thead>
+    <tbody>{% for c in pm.impact %}<tr><td>{{ c.label[:1]|upper }}{{ c.label[1:] }}</td>
+      {% for w in ('half', 'year', 'all') %}<td style="text-align:right">{% if c[w] %}<a href="/impact/{{ c.key }}?window={{ w }}">{{ c[w] }}</a>{% else %}<span class="muted">0</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table>
+</section>
+{% endif %}
+
 {% if hints %}
 <section class="card">
   <h2>Start with what you've already done</h2>

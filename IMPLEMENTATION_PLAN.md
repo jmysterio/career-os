@@ -119,7 +119,7 @@ Dependencies: 2 needs 1. 4 needs 3. 5 needs 3 and 4. 6 needs 5. 9 needs 2 (and u
 - `guide/activities.py`: the fixed list as one constant (key, label), starting with your nine. This is the only place the list lives; the prompt, the validation and the page all read it.
 - `JournalEntry.activity` (nullable string, added in `init_db`).
 - Reader output gets `activity`; `_apply` stores it only if it is in the constant list.
-- Counting reuses item 3's distinct-work-item helper: one count per work item per activity.
+- Counting reuses item 3's distinct-work-item helper: one count per work item per activity. **Changed when built: one count per work item per day** (you chose this after seeing 14 vs 28 vs 36 deployments on your data).
 - Promo map shows the counts for this year, this half, and all time. Each count links to a list of the records behind it (`/impact/<activity>?window=...`), grouped by work item.
 - Backfill: `careeros guide review --redo` already re-reads records; check that it fills `activity` without wiping your edits, or add an `--activities-only` pass. Mention the cost in the PR (it re-reads every record).
 

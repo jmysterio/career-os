@@ -31,7 +31,10 @@ def init_db(engine: Engine) -> None:
                           ("external_id", "VARCHAR"), ("kind_was", "VARCHAR NOT NULL DEFAULT ''"),
                           ("ai_read", "BOOLEAN NOT NULL DEFAULT 0"), ("reviewed", "BOOLEAN NOT NULL DEFAULT 0"),
                           ("work_item_id", "INTEGER REFERENCES work_item(id)"),
-                          ("grouped", "BOOLEAN NOT NULL DEFAULT 0"), ("work_fixed", "BOOLEAN NOT NULL DEFAULT 0")],
+                          ("grouped", "BOOLEAN NOT NULL DEFAULT 0"), ("work_fixed", "BOOLEAN NOT NULL DEFAULT 0"),
+                          ("activity", "VARCHAR NOT NULL DEFAULT ''"),
+                          ("activity_read", "BOOLEAN NOT NULL DEFAULT 0"),
+                          ("activity_fixed", "BOOLEAN NOT NULL DEFAULT 0")],
         "win": [("by_ai", "BOOLEAN NOT NULL DEFAULT 0")],
         "guide_link": [("by_ai", "BOOLEAN NOT NULL DEFAULT 0")],
     }

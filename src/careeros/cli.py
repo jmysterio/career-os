@@ -244,6 +244,32 @@ def guide_group(dry_run: bool = typer.Option(False, "--dry-run", help="Show the 
                f"{r['alone']} on their own." + (f" {r['failed']} couldn't be read; run again." if r["failed"] else ""))
 
 
+@guide_app.command("activities")
+def guide_activities(redo: bool = typer.Option(False, "--redo", help="Also re-tag records Claude already tagged "
+                                                                   "(never ones you set yourself)"),
+                     limit: Optional[int] = typer.Option(None, help="Only this many records (oldest first)"),
+                     data_dir: Optional[str] = DataOpt) -> None:
+    """Tag each record with the activity it shows (deployment, sandbox refresh, …) for the impact numbers."""
+    from .claude_cli import ClaudeError
+    from .guide import activities
+    dd, s = _open_personal(data_dir, "Impact tagging")
+    n = len(activities.pending(s, redo)[:limit])
+    if not n:
+        typer.echo("Nothing to tag.")
+        return
+    typer.echo(f"Claude is tagging {n} records. This takes a minute or two.")
+    try:
+        r = activities.tag(s, everything=redo, limit=limit,
+                           progress=lambda i, t: typer.echo(f"  batch {i} of {t} done"))
+    except ClaudeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    typer.echo(f"Tagged {r['read']} records, {r['tagged']} with an activity."
+               + (f" {r['failed']} couldn't be read; run again." if r["failed"] else ""))
+    for c in activities.counts(s):
+        typer.echo(f"  {c['all']:>4} {c['label']} ({c['year']} this year)")
+
+
 slack_app = typer.Typer(no_args_is_help=True, help="Bring Slack canvases into your notebook (read-only)")
 app.add_typer(slack_app, name="slack")
 

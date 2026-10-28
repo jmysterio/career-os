@@ -36,7 +36,7 @@ def test_backup_has_the_same_rows_and_is_owner_only(tmp_path):
     assert stat.S_IMODE(path.stat().st_mode) == 0o600 and stat.S_IMODE(dd.backups.stat().st_mode) == 0o700
     with sqlite3.connect(dd.db) as c:
         c.execute("INSERT INTO journal_entry (day, kind, text, created_at, source, status, kind_was, ai_read, reviewed,"
-                  " grouped, work_fixed) VALUES ('2026-10-28', 'note', 'later', '2026-10-28', '', '', '', 0, 0, 0, 0)")
+                  " grouped, work_fixed, activity, activity_read, activity_fixed) VALUES ('2026-10-28', 'note', 'later', '2026-10-28', '', '', '', 0, 0, 0, 0, '', 0, 0)")
     assert make_backup(dd, today=date(2026, 10, 28)) == path  # same day: overwritten, not duplicated
     assert rows(path)[-1] == "later" and len(list(dd.backups.glob("*.db"))) == 1
 
@@ -46,7 +46,7 @@ def test_backup_while_another_connection_is_writing(tmp_path):
     busy = sqlite3.connect(dd.db)
     busy.execute("BEGIN IMMEDIATE")
     busy.execute("INSERT INTO journal_entry (day, kind, text, created_at, source, status, kind_was, ai_read, reviewed,"
-                 " grouped, work_fixed) VALUES ('2026-10-28', 'note', 'not yet committed', '2026-10-28', '', '', '', 0, 0, 0, 0)")
+                 " grouped, work_fixed, activity, activity_read, activity_fixed) VALUES ('2026-10-28', 'note', 'not yet committed', '2026-10-28', '', '', '', 0, 0, 0, 0, '', 0, 0)")
     try:
         path = make_backup(dd, today=date(2026, 10, 28))
     finally:

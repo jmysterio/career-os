@@ -28,7 +28,7 @@ from ..storage.sync_log import status as sync_status
 from . import syncs
 from .jobs import Jobs
 from ..storage.db import init_db, make_engine, make_session_factory
-from ..guide import work
+from ..guide import activities, work
 from ..storage.models import GuideItem, GuideLink, JournalAttachment, JournalEntry, RemovedEntry, Win, WorkItem
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
@@ -513,7 +513,7 @@ def create_app(dd: DataDir) -> FastAPI:
 
     def sheet_ctx(s: Session, f: dict) -> dict:
         return dict(ret=urlencode(f), csrf=csrf_token, kind_opts=SHEET_KIND, size_label=SIZE_LABEL,
-                    guided=gsvc.has_guide(s))
+                    guided=gsvc.has_guide(s), activity_opts=[(k, label) for k, label, _ in activities.ACTIVITIES])
 
     def sheet_back(request: Request, s: Session, ret: str, eid: int | None = None, msg: str | None = None,
                    after: int | None = None) -> Response:
@@ -604,7 +604,8 @@ def create_app(dd: DataDir) -> FastAPI:
                      win=wins.get(e.id), notes=notes.get(e.id, ""),
                      work=(dict(id=w.id, title=w.title, ai=w.by_ai and not e.work_fixed, size=members.get(w.id, 1))
                            if (w := by_id.get(e.work_item_id)) else None),
-                     near=near(e)) for e in rows]
+                     near=near(e), activity=e.activity, activity_label=activities.LABEL.get(e.activity, ""),
+                     activity_ai=e.activity_read and not e.activity_fixed) for e in rows]
 
     @app.post("/sheet/{eid}/split", dependencies=[Depends(check_csrf)])
     def sheet_split(request: Request, eid: int, ret: str = Form(""), s: Session = Depends(db)):
@@ -749,6 +750,30 @@ def create_app(dd: DataDir) -> FastAPI:
             sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
             page="/promo", personal=personal, q="")
         return HTMLResponse(html)
+
+    @app.get("/impact/{key}", response_class=HTMLResponse)
+    def impact_page(request: Request, key: str, window: str = "all", s: Session = Depends(db)):
+        """The records behind one impact number, grouped by piece of work."""
+        if key not in activities.KEYS:
+            return HTMLResponse("Not found", status_code=404)
+        window = window if window in ("half", "year", "all") else "all"
+        groups = activities.records(s, key, window)
+        html = env.get_template("impact.html").render(
+            label=activities.LABEL[key], key=key, window=window, groups=groups, csrf=csrf_token, msg=None,
+            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
+            page="/promo", personal=personal, q="")
+        return HTMLResponse(html)
+
+    @app.post("/sheet/{eid}/activity", dependencies=[Depends(check_csrf)])
+    def sheet_activity(request: Request, eid: int, activity: str = Form(""), ret: str = Form(""),
+                       s: Session = Depends(db)):
+        """Set what this record counts toward (or nothing); Claude won't change it after."""
+        with _write_lock:
+            e = s.get(JournalEntry, eid)
+            if e and (activity in activities.KEYS or activity == ""):
+                e.activity, e.activity_fixed, e.activity_read = activity, True, True
+                s.commit()
+        return sheet_back(request, s, ret, eid)
 
     @app.get("/promo/export")
     def promo_export(s: Session = Depends(db)):

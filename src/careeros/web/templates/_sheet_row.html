@@ -8,6 +8,10 @@
     <td>{{ r.text }}
       {% if r.work %}<br><span class="chip {{ 'ai' if r.work.ai else 'guide' }}" title="Records in the same piece of work count once on the Promo map">{% if r.work.ai %}AI: {% endif %}Part of: {{ r.work.title }}{% if r.work.size > 1 %} &middot; {{ r.work.size }} records{% endif %}</span>
         <form method="post" action="/sheet/{{ r.id }}/split">{{ hidden() }}<button aria-label="Not the same work as {{ r.work.title }}">Not the same work</button></form>{% endif %}
+      <br><form method="post" action="/sheet/{{ r.id }}/activity" class="row" style="margin-top:.2rem">{{ hidden() }}
+        <label class="help" for="act{{ r.id }}">Counts as{% if r.activity_ai %} <span class="chip ai">AI</span>{% endif %}</label>
+        <select id="act{{ r.id }}" name="activity"><option value="">Nothing</option>{% for k, label in activity_opts %}<option value="{{ k }}" {{ 'selected' if r.activity == k }}>{{ label }}</option>{% endfor %}</select>
+        <button>Set</button></form>
       <details><summary>Group with&hellip;</summary>
         <form method="post" action="/sheet/{{ r.id }}/group" class="row">{{ hidden() }}
           {% if r.near %}<select name="item" aria-label="Piece of work"><option value="">Pick nearby work</option>{% for w in r.near %}<option value="{{ w.id }}">{{ w.title }} ({{ w.day }})</option>{% endfor %}</select> or {% endif %}
