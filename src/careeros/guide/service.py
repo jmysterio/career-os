@@ -66,15 +66,23 @@ def status(points: float) -> tuple[str, str]:
     return next((key, label) for floor, key, label in STATUSES if points >= floor)
 
 
+def work_key(entry: JournalEntry | None, win: Win | None = None) -> str:
+    """What counts once: a whole piece of work when the record is grouped, else the record (or a lone win) itself."""
+    if entry is not None:
+        return f"w{entry.work_item_id}" if entry.work_item_id else f"e{entry.id}"
+    return f"win{win.id}"
+
+
 def evidence(s: Session) -> dict[int, dict]:
-    """item id -> {points, wins, entries}. An entry already counted through a win made from it isn't counted twice."""
+    """item id -> {points, items, wins, entries}. Points count once per piece of work, at its strongest evidence,
+    so a deployment seen in a meeting, a Slack thread, and a task (or an entry and the win made from it) scores once."""
     links = list(s.scalars(select(GuideLink)))
     wins = {w.id: w for w in s.scalars(select(Win).where(Win.id.in_({l.win_id for l in links if l.win_id})))}
-    entries = {e.id: e for e in s.scalars(select(JournalEntry).where(
-        JournalEntry.id.in_({l.entry_id for l in links if l.entry_id})))}
+    want = {l.entry_id for l in links if l.entry_id} | {w.entry_id for w in wins.values() if w.entry_id}
+    entries = {e.id: e for e in s.scalars(select(JournalEntry).where(JournalEntry.id.in_(want)))}
     out: dict[int, dict] = {}
     for l in links:
-        ev = out.setdefault(l.item_id, dict(points=0, wins=[], entries=[]))
+        ev = out.setdefault(l.item_id, dict(points=0, items=0, wins=[], entries=[]))
         if l.win_id in wins:
             ev["wins"].append(wins[l.win_id])
     for l in links:
@@ -84,7 +92,14 @@ def evidence(s: Session) -> dict[int, dict]:
     for ev in out.values():
         ev["wins"].sort(key=lambda w: w.day, reverse=True)
         ev["entries"].sort(key=lambda e: e.day, reverse=True)
-        ev["points"] = sum(POINTS.get(w.size, 2) for w in ev["wins"]) + POINTS["entry"] * len(ev["entries"])
+        groups: dict[str, int] = {}
+        for w in ev["wins"]:
+            k = work_key(entries.get(w.entry_id), w)
+            groups[k] = max(groups.get(k, 0), POINTS.get(w.size, 2))
+        for e in ev["entries"]:
+            k = work_key(e)
+            groups[k] = max(groups.get(k, 0), POINTS["entry"])
+        ev["points"], ev["items"] = sum(groups.values()), len(groups)
     return out
 
 
@@ -161,6 +176,8 @@ def confirm(s: Session, entry_id: int) -> None:
     if e is None:
         return
     e.reviewed = True
+    if e.work_item_id:
+        e.work_fixed = True  # accepting the row accepts its grouping too
     wins = list(s.scalars(select(Win).where(Win.entry_id == entry_id)))
     for w in wins:
         w.by_ai = False

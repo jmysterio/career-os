@@ -99,6 +99,13 @@ The **Intake Review Queue** (in the Menu) lists every record (calendar meetings,
 
 **Is everything pulled in?** The **Last pulled in** box at the top of the queue (and a line under each Sync button on Today & this week) shows when each source was last pulled, how many new items came in, and the date of the newest item. A green dot means up to date: Slack was pulled after 5:30 PM on the latest evening (the tracker automation runs at 5 PM), and Calendar was synced today. An orange dot says what's missing; press that Sync button. "(about)" means the time is estimated from when items were added, before the app kept a sync history.
 
+**One piece of work, counted once.** A deployment often shows up three times: a calendar meeting, a Slack thread, and a Google task. Claude groups records like that into one piece of work, and the Promo map counts the piece once, at its strongest evidence (a large win made from one of them beats a plain record). A grouped row shows **Part of: OCC 5.1.2 release · 3 records** (marked AI until you check the row). **Not the same work** takes a row out of its group, and **Group with…** puts it in a nearby group or starts a new one you name. Claude never regroups a row you grouped, split, or marked **Looks right**. A piece of work runs at most 30 days from its first record, and a record joins only work that's had activity in the last 14 days, so groups don't snowball. New records are grouped after every sync. To group everything already in the notebook (it shows what it would do first with `--dry-run`):
+
+```
+uv run careeros guide group --dry-run
+uv run careeros guide group
+```
+
 **Skipping a recurring meeting for good.** To keep a meeting you don't attend out of the notebook, including future ones, add a skip rule. It removes the ones already here and Calendar sync skips any meeting whose title contains the text (any capitalization):
 
 ```
@@ -165,7 +172,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `80 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `92 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

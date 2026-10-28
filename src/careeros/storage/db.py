@@ -29,8 +29,11 @@ def init_db(engine: Engine) -> None:
     added = {
         "journal_entry": [("source", "VARCHAR NOT NULL DEFAULT ''"), ("status", "VARCHAR NOT NULL DEFAULT ''"),
                           ("external_id", "VARCHAR"), ("kind_was", "VARCHAR NOT NULL DEFAULT ''"),
-                          ("ai_read", "BOOLEAN NOT NULL DEFAULT 0"), ("reviewed", "BOOLEAN NOT NULL DEFAULT 0")],
+                          ("ai_read", "BOOLEAN NOT NULL DEFAULT 0"), ("reviewed", "BOOLEAN NOT NULL DEFAULT 0"),
+                          ("work_item_id", "INTEGER REFERENCES work_item(id)"),
+                          ("grouped", "BOOLEAN NOT NULL DEFAULT 0"), ("work_fixed", "BOOLEAN NOT NULL DEFAULT 0")],
         "win": [("by_ai", "BOOLEAN NOT NULL DEFAULT 0")],
+        "work_item": [("started", "VARCHAR NOT NULL DEFAULT ''")],
         "guide_link": [("by_ai", "BOOLEAN NOT NULL DEFAULT 0")],
     }
     with engine.begin() as c:

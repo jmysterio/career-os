@@ -5,7 +5,15 @@
       <br><form method="post" action="/sheet/{{ r.id }}/remove">{{ hidden() }}<input type="hidden" name="after" value="{{ nxt }}"><button class="remove" aria-label="Remove this record">Remove</button></form></td>
     <td style="white-space:nowrap">{{ r.day }}</td>
     <td>{{ r.source }}</td>
-    <td>{{ r.text }}{% if r.notes %}<details><summary>Notes</summary><pre class="paper" style="max-height:12rem">{{ r.notes }}</pre></details>{% endif %}</td>
+    <td>{{ r.text }}
+      {% if r.work %}<br><span class="chip {{ 'ai' if r.work.ai else 'guide' }}" title="Records in the same piece of work count once on the Promo map">{% if r.work.ai %}AI: {% endif %}Part of: {{ r.work.title }}{% if r.work.size > 1 %} &middot; {{ r.work.size }} records{% endif %}</span>
+        <form method="post" action="/sheet/{{ r.id }}/split">{{ hidden() }}<button aria-label="Not the same work as {{ r.work.title }}">Not the same work</button></form>{% endif %}
+      <details><summary>Group with&hellip;</summary>
+        <form method="post" action="/sheet/{{ r.id }}/group" class="row">{{ hidden() }}
+          {% if r.near %}<select name="item" aria-label="Piece of work"><option value="">Pick nearby work</option>{% for w in r.near %}<option value="{{ w.id }}">{{ w.title }} ({{ w.day }})</option>{% endfor %}</select> or {% endif %}
+          <input name="title" maxlength="200" placeholder="New piece of work, e.g. OCC 5.1.2 release" aria-label="New piece of work">
+          <button>Group</button></form></details>
+      {% if r.notes %}<details><summary>Notes</summary><pre class="paper" style="max-height:12rem">{{ r.notes }}</pre></details>{% endif %}</td>
     <td style="white-space:nowrap"><form method="post" action="/sheet/{{ r.id }}/kind">{{ hidden() }}
       {% for k, label in kind_opts %}<button name="kind" value="{{ k }}" class="{{ 'on' if r.kind == k }}" aria-pressed="{{ 'true' if r.kind == k else 'false' }}">{{ label }}</button>{% endfor %}</form>
       {% if r.kind_was %}<br><span class="chip ai">AI, was {{ r.kind_was }}</span>{% endif %}</td>

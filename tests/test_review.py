@@ -295,6 +295,9 @@ def test_sync_google_runs_every_step(nb, monkeypatch):
         recs = _json.loads(data)["records"]
         return _json.dumps({"results": [dict(id=r["id"], guide=["E0"], kind=r["kind"], win=None) for r in recs]})
     monkeypatch.setattr(ai_review, "ask", fake_ask)
+    from careeros.guide import work as work_mod
+    monkeypatch.setattr(work_mod, "ask", lambda prompt, data, timeout=0: _json.dumps(
+        {"results": [dict(id=r["id"], work=None) for r in _json.loads(data)["records"]]}))
     assert c.post("/sync/google", data={"csrf": token}, headers={"X-Sync": "1"}).json() == {"started": True}
     for _ in range(200):
         job = c.get("/sync/status").json()["google"]

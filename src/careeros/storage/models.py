@@ -27,6 +27,20 @@ class JournalEntry(Base):
     kind_was: Mapped[str] = mapped_column(String, default="")  # the kind before Claude changed it, else ""
     ai_read: Mapped[bool] = mapped_column(Boolean, default=False)  # Claude has read it against the guide
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False)  # the user checked it in the Intake Review Queue
+    work_item_id: Mapped[int | None] = mapped_column(ForeignKey("work_item.id"), nullable=True, default=None)
+    grouped: Mapped[bool] = mapped_column(Boolean, default=False)  # Claude has decided which work item it belongs to
+    work_fixed: Mapped[bool] = mapped_column(Boolean, default=False)  # the user grouped or split it; Claude leaves it
+
+
+class WorkItem(Base):
+    """One piece of work (a release, a refresh, a runbook) that several records can describe. Counted once."""
+    __tablename__ = "work_item"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String)
+    day: Mapped[str] = mapped_column(String, index=True)  # YYYY-MM-DD of its latest record
+    started: Mapped[str] = mapped_column(String, default="")  # YYYY-MM-DD of its first record
+    by_ai: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
 
 
 class RemovedEntry(Base):
