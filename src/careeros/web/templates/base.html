@@ -91,6 +91,13 @@ table.sheet{width:100%;border-collapse:collapse;font-size:.86rem}
 .sheet button.remove{color:var(--muted);background:transparent}.sheet button.remove:hover{color:#e07a6a;border-color:#e07a6a}
 p.sync{font-size:.86rem;margin:.35rem 0 0;color:var(--text)}p.sync .dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;margin-right:.35rem;background:var(--line)}
 p.sync.ok .dot{background:var(--st-strong)}p.sync.late .dot{background:var(--st-started)}p.sync.late b:first-of-type{color:var(--st-started)}
+.job{margin-top:.8rem;padding:.7rem .9rem;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.jbar{height:.55rem;border-radius:99px;background:var(--btn);overflow:hidden}.jbar span{display:block;height:100%;background:var(--accent);transition:width .6s ease}
+.job.done .jbar span{background:var(--st-strong)}.job.error .jbar span,.job.partial .jbar span{background:#d9734f}
+.jsteps{list-style:none;padding:0;margin:.55rem 0 0;font-size:.88rem}.jsteps li{display:flex;gap:.5rem;align-items:baseline;padding:.12rem 0;flex-wrap:wrap}
+.jicon{width:1rem;text-align:center;color:var(--muted)}.jdetail{color:var(--muted);font-size:.82rem}
+.js-running .jicon{color:var(--accent)}.js-done .jicon{color:var(--st-strong)}.js-error .jicon,.js-error .jdetail{color:#e07a6a}
+.js-skipped{opacity:.55}.jmsg{margin:.5rem 0 0;font-size:.88rem}.job.error .jmsg,.job.partial .jmsg{color:#e07a6a}
 .chip.ai{background:transparent;border:1px solid var(--c-why);color:var(--c-why)}
 .help{color:var(--muted);font-size:.84rem;margin:.15rem 0 0}.warn{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.5rem .8rem;font-size:.86rem;margin:.2rem 0}mark{background:var(--accent);color:var(--accent-text);border-radius:3px;padding:0 .15rem}
 </style></head><body{% if wide %} class="wide"{% endif %}>

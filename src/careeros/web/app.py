@@ -27,6 +27,8 @@ from ..guide.topics import suggest, topic_of
 from ..slack import importer as slack_imp
 from ..storage.removal import remove_entry, restore_entry
 from ..storage.sync_log import status as sync_status
+from . import syncs
+from .jobs import Jobs
 from ..storage.db import init_db, make_engine, make_session_factory
 from ..storage.models import (
     AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, GuideItem, GuideLink, JournalAttachment,
@@ -37,6 +39,7 @@ ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
 CSP = ("default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; "
        "base-uri 'none'; frame-ancestors 'none'")
 SHEET_JS = (Path(__file__).parent / "static" / "sheet.js").read_text()
+SYNC_JS = (Path(__file__).parent / "static" / "sync.js").read_text()
 _write_lock = threading.Lock()
 
 # Plain-language versions of the rule codes in claims/rules.py.
@@ -147,6 +150,7 @@ def create_app(dd: DataDir) -> FastAPI:
     engine = make_engine(dd.db)
     init_db(engine)
     Session_ = make_session_factory(engine)
+    jobs = Jobs()
     csrf_token = hmac.new(dd.secret(), b"csrf", hashlib.sha256).hexdigest()
     env = Environment(loader=FileSystemLoader(Path(__file__).parent / "templates"), autoescape=True)
     env.globals.update(tabs=TABS, sizes=SIZES, themes=THEMES)
@@ -341,47 +345,35 @@ def create_app(dd: DataDir) -> FastAPI:
             s.commit()
         return back(to="/")
 
-    @app.post("/calendar/sync", dependencies=[Depends(check_csrf)])
-    def calendar_sync(s: Session = Depends(db)):
-        """Ask Claude Code to fetch yesterday's and today's meetings through the Google Workspace connector."""
+    def start_sync(request: Request, name: str):
         if not personal:
-            return back("Calendar sync only works with your personal notebook.", "/")
-        from ..google import calendar as gcal, connector
-        last = date.today()
-        first = last - timedelta(days=1)
-        try:
-            items = connector.fetch(first, last)
-            with _write_lock:
-                r = gcal.import_events(s, items, first, last)
-                n = summaries.summarize_pending(s, first, last)
-        except gcal.CalendarError as exc:
-            return back(str(exc), "/")
-        msg = (f"Calendar synced: {r['added']} new, {r['updated']} changed, {r['removed']} removed. "
-               f"{n['summarized']} meeting summaries written.")
-        if n["failed"]:
-            msg += f" {n['failed']} couldn't be summarized; press Sync calendar to try again."
-        return back(msg, "/")
+            return back("Syncing only works with your personal notebook.", "/")
+        if name == "google":
+            started = jobs.start("google", syncs.GOOGLE_STEPS, lambda j: syncs.run_google(j, Session_, _write_lock))
+        else:
+            started = jobs.start("slack", syncs.SLACK_STEPS, lambda j: syncs.run_slack(j, Session_, _write_lock, dd))
+        if request.headers.get("x-sync") == "1":
+            return JSONResponse({"started": started})
+        return back("Sync started. Refresh this page in a minute or two to see the result." if started
+                    else "That sync is already running.", "/")
+
+    @app.post("/sync/google", dependencies=[Depends(check_csrf)])
+    def google_sync(request: Request):
+        """Calendar, Tasks, and meeting-note summaries in one go, in the background."""
+        return start_sync(request, "google")
 
     @app.post("/slack/sync", dependencies=[Depends(check_csrf)])
-    def slack_sync(s: Session = Depends(db)):
-        """Ask Claude Code to read the connected Slack tracker canvas, then sort and import its new items."""
-        if not personal:
-            return back("Slack sync only works with your personal notebook.", "/")
-        from ..claude_cli import ClaudeError
-        from ..slack.classify import classify
-        from ..slack.connector import fetch_canvas
-        from ..slack.parse import CanvasFormatError, parse_canvas
-        cid = slack_imp.load_canvas_id(dd)
-        if not cid:
-            return back("No Slack canvas connected yet. In Terminal run: uv run careeros slack connect <canvas link>", "/")
-        try:
-            items = parse_canvas(fetch_canvas(cid))
-            with _write_lock:
-                r = slack_imp.import_items(s, items, classify)
-        except (ClaudeError, CanvasFormatError) as exc:
-            return back(f"Slack sync didn't finish: {exc}", "/")
-        return back(f"Slack synced: {r['added']} new ({r['meeting']} meetings, {r['conversation']} conversations, "
-                    f"{r['document']} documents, {r['task']} tasks, {r['note']} other), {r['skipped']} already here.", "/")
+    def slack_sync(request: Request):
+        """Read the Slack tracker canvas, then sort and import its new items, in the background."""
+        return start_sync(request, "slack")
+
+    @app.get("/sync/status")
+    def sync_status_json():
+        return JSONResponse(jobs.status(), headers={"Cache-Control": "no-store"})
+
+    @app.get("/static/sync.js")
+    def sync_js():
+        return Response(SYNC_JS, media_type="text/javascript; charset=utf-8")
 
     @app.post("/journal/{eid}/attach", dependencies=[Depends(check_csrf)])
     def journal_attach(eid: int, a_kind: str = Form("notes"), a_title: str = Form("", max_length=200),

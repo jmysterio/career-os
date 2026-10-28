@@ -38,11 +38,9 @@ def status(s: Session, now: datetime | None = None) -> dict[str, dict]:
                 cutoff -= timedelta(days=1)
             ok = bool(last and last >= cutoff)
             hint = "" if ok else f"The 5 PM Slack log from {when(cutoff.date(), now)} isn't pulled in yet."
-        elif src == "calendar":
+        else:
             ok = bool(last and last.date() == now.date())
             hint = "" if ok else "Not synced today yet."
-        else:
-            hint = "Imported once; there's no Tasks sync yet."
         out[src] = dict(label=label, at=last, at_text=when(last, now) if last else "never",
                         added=run.added if run else None, estimated=bool(last and not run),
                         newest=when(date.fromisoformat(newest), now) if newest else "", ok=ok, hint=hint)

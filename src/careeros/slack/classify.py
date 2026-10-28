@@ -34,7 +34,7 @@ def _batch(items: list[SlackItem]) -> dict[str, str]:
     return {key: (got.get(i) if got.get(i) in KINDS else "note") for i, key in ids.items()}
 
 
-def classify(items: list[SlackItem]) -> dict[str, str]:
+def classify(items: list[SlackItem], progress=None) -> dict[str, str]:
     """item key -> kind. Raises ClaudeError only if Claude couldn't be reached at all."""
     batches = [items[i:i + BATCH] for i in range(0, len(items), BATCH)]
     out: dict[str, str] = {}
@@ -47,11 +47,13 @@ def classify(items: list[SlackItem]) -> dict[str, str]:
             return None
 
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        for b, got in zip(batches, pool.map(one, batches)):
+        for n, (b, got) in enumerate(zip(batches, pool.map(one, batches)), 1):
             if got is None:
                 failed += 1
                 got = {it.key: "note" for it in b}
             out.update(got)
+            if progress:
+                progress(n, len(batches))
     if batches and failed == len(batches):
         raise ClaudeError("Claude couldn't sort the Slack items, so nothing was imported. Try again.")
     return out

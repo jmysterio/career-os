@@ -23,7 +23,8 @@ from .calendar import SOURCE, CalendarError
 
 TOOL = "mcp__plugin_google-workspace_google-workspace__get_doc_as_markdown"
 # Long notes come back as a saved file; this lets Claude read those saved answers and nothing else.
-READ_SAVED = "Read(~/.claude/projects/**/tool-results/**)"
+READ_SAVED = ["Read(~/.claude/projects/**/tool-results/**)", "Read(//tmp/tool-responses/**)",
+              "Read(//private/tmp/tool-responses/**)"]
 AI_TITLE = "AI summary"
 TIMEOUT_SECONDS = 240
 WORKERS = 3
@@ -52,7 +53,7 @@ def summarize(ids: list[str]) -> str:
         raise CalendarError("Couldn't find the `claude` command on this computer.")
     try:
         run = subprocess.run(
-            [claude, "-p", PROMPT.format(ids=", ".join(ids)), "--allowedTools", TOOL, READ_SAVED,
+            [claude, "-p", PROMPT.format(ids=", ".join(ids)), "--allowedTools", TOOL, *READ_SAVED,
              "--output-format", "json", "--max-turns", str(len(ids) + 8)],
             capture_output=True, text=True, timeout=TIMEOUT_SECONDS, cwd=Path.home())
         out = json.loads(run.stdout)
@@ -76,7 +77,7 @@ def pending(s: Session, first: date, last: date) -> dict[int, list[str]]:
     return out
 
 
-def summarize_pending(s: Session, first: date, last: date) -> dict[str, int]:
+def summarize_pending(s: Session, first: date, last: date, progress=None) -> dict[str, int]:
     todo = pending(s, first, last)
 
     def one(item: tuple[int, list[str]]) -> tuple[int, str | None]:
@@ -85,8 +86,12 @@ def summarize_pending(s: Session, first: date, last: date) -> dict[str, int]:
         except CalendarError:
             return item[0], None
 
+    results = []
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        results = list(pool.map(one, todo.items()))
+        for r in pool.map(one, todo.items()):
+            results.append(r)
+            if progress:
+                progress(len(results), len(todo))
     done = 0
     for eid, text in results:
         if text:

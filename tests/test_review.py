@@ -1,4 +1,5 @@
 """The Intake Review Queue page and Claude's read-through of records against the leveling guide (with a fake Claude)."""
+import json
 import sqlite3
 from datetime import date, datetime
 
@@ -234,6 +235,76 @@ def test_last_pulled_status(nb):
     html = c.get("/").text
     assert "Google Calendar</b> last pulled today" in html and "Slack tracker</b> last pulled" in html
     assert "Last pulled in" in c.get("/sheet").text
+
+
+TASKS_TEXT = """Tasks in list L1 for me@example.com:
+- deploy occ to uat (ID: T1)
+  Status: completed
+  Completed: 2026-10-27T13:43:50.919Z
+  Updated: 2026-10-27T13:43:51.275Z
+
+- 10 questions (ID: T2)
+  Status: needsAction
+  Updated: 2026-10-20T12:14:45.468Z
+
+- write (the) plan (ID: T3)
+  Status: needsAction
+  Due: 2026-10-30T00:00:00.000Z
+  Notes: draft first
+  Updated: 2026-10-27T12:00:00.000Z
+"""
+
+
+def test_google_tasks_parse_and_merge(nb):
+    from careeros.google import tasks as gtasks
+    dd, *_ = nb
+    ts = gtasks.parse_tasks(TASKS_TEXT)
+    assert [(t.title, t.done, t.gid) for t in ts] == [("deploy occ to uat", True, "T1"), ("10 questions", False, "T2"),
+                                                      ("write (the) plan", False, "T3")]
+    assert ts[2].notes == "draft first"
+    from careeros.claude_cli import _result_text
+    assert len(gtasks.parse_tasks(_result_text(json.dumps({"result": TASKS_TEXT})))) == 3
+    assert gtasks.parse_lists("- Week of 7/14/25 (ID: A1)\n  Updated: 2026-10-22T04:01:38.851Z\n- Old (ID: B2)\n"
+                              "  Updated: 2025-07-28T12:39:12.431Z")[0][0] == "A1"
+    with session(dd) as s:
+        s.add(JournalEntry(day="2026-10-20", kind="task", text="deploy occ to uat", created_at=datetime.now(),
+                           source="tasks", external_id="task:legacy", status="open"))
+        s.commit()
+        assert gtasks.merge(s, ts) == dict(added=2, updated=1)
+        rows = {e.text: e for e in s.scalars(select(JournalEntry).where(JournalEntry.source == "tasks"))}
+        assert rows["deploy occ to uat"].status == "done" and rows["deploy occ to uat"].external_id == "gtask:T1"
+        assert gtasks.merge(s, ts) == dict(added=0, updated=0)
+
+
+def test_sync_google_runs_every_step(nb, monkeypatch):
+    import json as _json
+    import time
+    from careeros.google import connector, summaries, tasks as gtasks
+    dd, c, token, _ = nb
+    today = date.today().isoformat()
+    monkeypatch.setattr(connector, "fetch", lambda first, last: [
+        {"id": "ev1", "title": "Release go/no-go", "start": f"{today}T09:00:00-04:00", "end": f"{today}T09:30:00-04:00",
+         "links": []}])
+    monkeypatch.setattr(gtasks, "fetch", lambda since: (gtasks.parse_tasks(TASKS_TEXT), 1))
+    monkeypatch.setattr(summaries, "summarize_pending", lambda s, f, l, progress=None: dict(summarized=0, failed=0))
+
+    def fake_ask(prompt, data, timeout=0):
+        recs = _json.loads(data)["records"]
+        return _json.dumps({"results": [dict(id=r["id"], guide=["E0"], kind=r["kind"], win=None) for r in recs]})
+    monkeypatch.setattr(ai_review, "ask", fake_ask)
+    assert c.post("/sync/google", data={"csrf": token}, headers={"X-Sync": "1"}).json() == {"started": True}
+    for _ in range(200):
+        job = c.get("/sync/status").json()["google"]
+        if job["state"] != "running":
+            break
+        time.sleep(0.05)
+    assert [st["state"] for st in job["steps"]] == ["done", "error", "done", "done"]
+    assert "1 task list couldn't be read" in job["steps"][1]["detail"] and job["state"] == "partial"
+    assert job["message"] == "Google synced: 1 meeting and 3 tasks new."
+    assert "4 guide links" in job["steps"][3]["detail"]
+    page = c.get("/").text
+    assert 'data-sync="google"' in page and "/static/sync.js" in page and "Sync calendar" not in page
+    assert c.get("/static/sync.js").status_code == 200
 
 
 def test_sync_never_deletes_entries_you_built_on(nb):

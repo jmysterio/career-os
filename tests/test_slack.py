@@ -162,15 +162,45 @@ def test_web_sync_and_cards(tmp_path, monkeypatch):
     app = create_app(dd)
     c, token = TestClient(app, base_url=BASE), app.state.csrf_token
     assert "Not connected yet" in c.get("/").text
-    r = c.post("/slack/sync", data={"csrf": token}, follow_redirects=True)
-    assert "No Slack canvas connected" in r.text
+    job = run_sync(c, token, "slack")
+    assert job["state"] == "error" and "No Slack canvas connected" in job["steps"][0]["detail"]
 
     save_canvas_id(dd, "F0C2ZF10L02")
     monkeypatch.setattr(connector, "call_tool", lambda prompt, tool: json.dumps({"markdown_content": TRACKER}))
     monkeypatch.setattr(cls, "ask", lambda p, d: '{"i0": "task", "i1": "document", "i2": "conversation"}')
-    r = c.post("/slack/sync", data={"csrf": token}, follow_redirects=True)
-    assert "Slack synced: 3 new" in r.text
+    job = run_sync(c, token, "slack")
+    assert job["message"] == "Slack synced: 3 new items." and job["pct"] == 100
+    assert [st["state"] for st in job["steps"]] == ["done", "done", "skipped"]  # no leveling guide loaded
     tasks = c.get("/tasks").text
     assert "from Slack" in tasks and "suggested win" in tasks and "Stopped the error spike before the weekend." in tasks
     assert "Written by Slack" in tasks
-    assert "Slack synced: 0 new" in c.post("/slack/sync", data={"csrf": token}, follow_redirects=True).text
+    assert run_sync(c, token, "slack")["message"] == "Slack synced: 0 new items."
+
+    monkeypatch.setattr(connector, "call_tool", lambda prompt, tool: 'MCP tool call failed: status 401 {"error": "invalid_token"}')
+    job = run_sync(c, token, "slack")
+    assert job["state"] == "error" and "sign-in has expired" in job["steps"][0]["detail"]
+
+
+def run_sync(c, token, name):
+    import time
+    path = {"slack": "/slack/sync", "google": "/sync/google"}[name]
+    assert c.post(path, data={"csrf": token}, headers={"X-Sync": "1"}).json()["started"]
+    for _ in range(200):
+        job = c.get("/sync/status").json().get(name)
+        if job and job["state"] != "running":
+            return job
+        time.sleep(0.05)
+    raise AssertionError("sync never finished")
+
+
+def test_saved_big_answers_are_read_back(tmp_path, monkeypatch):
+    from careeros import claude_cli
+    monkeypatch.setattr(claude_cli, "SAVED_DIRS", (tmp_path.resolve(),))
+    f = tmp_path / "slack-x.json"
+    f.write_text(json.dumps({"content": [{"type": "text", "text": json.dumps({"markdown_content": TRACKER})}]}))
+    got = claude_cli._result_text(f"Result text too large for inline response (276037 bytes). Full results saved to: {f}")
+    assert len(parse_canvas(got)) == 3
+    with pytest.raises(ClaudeError):
+        claude_cli._result_text("Result text too large. Full results saved to: /etc/passwd.txt")
+    with pytest.raises(ClaudeError):
+        claude_cli._result_text("Result text too large for inline response (276037 bytes).")

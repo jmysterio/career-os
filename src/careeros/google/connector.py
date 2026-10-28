@@ -51,15 +51,11 @@ def parse_events_text(text: str, me: str | None = None) -> list[dict]:
 
 def _tool_result_text(content: object) -> str:
     """The tool's answer, whether it came back inline or was saved to a file because it was large."""
-    raw = content if isinstance(content, str) else "".join(
-        part.get("text", "") for part in content if isinstance(part, dict))
-    saved = re.search(r"saved to (\S+\.txt)", raw)
-    if not saved:
-        return raw
-    path = Path(saved.group(1))
-    if ".claude" not in path.parts or not path.is_file():
-        raise CalendarError("Claude saved the calendar answer somewhere unexpected; stopping.")
-    return json.loads(path.read_text()).get("result", "")
+    from ..claude_cli import ClaudeError, _result_text
+    try:
+        return _result_text(content)
+    except ClaudeError as exc:
+        raise CalendarError(str(exc)) from None
 
 
 def fetch(first: date, last: date) -> list[dict]:

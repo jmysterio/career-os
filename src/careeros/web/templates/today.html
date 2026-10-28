@@ -5,7 +5,7 @@
 
 <section class="card">
   <h2>What did you get up to?</h2>
-  <p class="muted">Jot it down in a few words. You can paste the longer stuff underneath. It's just for you and it stays on this computer. The only things that send anything out are the Sync calendar and Sync Slack buttons below, which are explained next to them.</p>
+  <p class="muted">Jot it down in a few words. You can paste the longer stuff underneath. It's just for you and it stays on this computer. The only things that send anything out are the Sync Google and Sync Slack buttons below, which are explained next to them.</p>
   <form method="post" action="/journal/add" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="row">
@@ -24,21 +24,24 @@
 
 {% if personal %}
 <section class="card">
-  <form method="post" action="/calendar/sync" class="row" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Syncing… this can take a minute'">
+  <form method="post" action="/sync/google" class="row" data-sync="google">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <button class="primary">Sync calendar</button>
-    <span class="help">Asks Claude Code to fetch yesterday's and today's meetings from Google Calendar and to summarize any meeting notes attached to them. This can take a few minutes. Meeting titles, times, attendee details, and the text of the notes pass through the AI tool; only titles, times, file links, and the summaries are saved here.</span>
+    <button class="primary" data-label="Sync Google">Sync Google</button>
+    <span class="help">Pulls yesterday's and today's meetings from Google Calendar, your recently changed Google Tasks, and summaries of any meeting notes, then has Claude link the new records to the leveling guide. Usually a minute or two. Meeting titles, times, task titles, and the text of meeting notes pass through the AI tool.</span>
   </form>
-  {{ sync_line(sync.calendar) }}
+  {{ sync_line(sync.calendar) }}{{ sync_line(sync.tasks) }}
+  <div class="job" data-job="google" hidden></div>
 </section>
 <section class="card">
-  <form method="post" action="/slack/sync" class="row">
+  <form method="post" action="/slack/sync" class="row" data-sync="slack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <button class="primary" {{ 'disabled' if not slack_canvas }}>Sync Slack tracker</button>
-    <span class="help">{% if slack_canvas %}Asks Claude Code to read your Slack Work Activity Tracker canvas, then has Claude sort each new item into a meeting, conversation, document, task, or other. Items already here are skipped, and each one is tagged &ldquo;from Slack&rdquo;. The canvas text passes through the AI tool. This can take a few minutes.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</span>
+    <button class="primary" data-label="Sync Slack tracker" {{ 'disabled' if not slack_canvas }}>Sync Slack tracker</button>
+    <span class="help">{% if slack_canvas %}Reads your Slack Work Activity Tracker canvas, has Claude sort each new item into a meeting, conversation, document, task, or other, then links the new records to the leveling guide. Items already here are skipped, and each one is tagged &ldquo;from Slack&rdquo;. The canvas text passes through the AI tool. Usually a minute or two.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</span>
   </form>
   {{ sync_line(sync.slack) }}
+  <div class="job" data-job="slack" hidden></div>
 </section>
+<script src="/static/sync.js" defer></script>
 {% endif %}
 
 {% for d in days %}
