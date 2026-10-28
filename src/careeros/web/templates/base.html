@@ -89,6 +89,8 @@ table.sheet{width:100%;border-collapse:collapse;font-size:.86rem}
 .sheet button.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600}
 .sheet .chip{margin:.1rem .2rem .1rem 0}.sheet .chip button{border:0;background:none;padding:0 0 0 .3rem;margin:0;color:var(--muted)}
 .sheet button.remove{color:var(--muted);background:transparent}.sheet button.remove:hover{color:#e07a6a;border-color:#e07a6a}
+p.sync{font-size:.86rem;margin:.35rem 0 0;color:var(--text)}p.sync .dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;margin-right:.35rem;background:var(--line)}
+p.sync.ok .dot{background:var(--st-strong)}p.sync.late .dot{background:var(--st-started)}p.sync.late b:first-of-type{color:var(--st-started)}
 .chip.ai{background:transparent;border:1px solid var(--c-why);color:var(--c-why)}
 .help{color:var(--muted);font-size:.84rem;margin:.15rem 0 0}.warn{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.5rem .8rem;font-size:.86rem;margin:.2rem 0}mark{background:var(--accent);color:var(--accent-text);border-radius:3px;padding:0 .15rem}
 </style></head><body{% if wide %} class="wide"{% endif %}>

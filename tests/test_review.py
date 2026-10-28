@@ -210,6 +210,32 @@ def test_calendar_skip_rule(nb):
     assert "Sustainment" in CliRunner().invoke(cli, ["calendar", "skip", "--data-dir", str(dd.root)]).output
 
 
+def test_last_pulled_status(nb):
+    from careeros.storage.models import SyncRun
+    from careeros.storage.sync_log import status
+    dd, c, *_ = nb
+    with session(dd) as s:
+        assert status(s)["slack"]["at_text"] == "never" and status(s)["slack"]["ok"] is False
+        s.add(JournalEntry(day="2026-10-26", kind="task", text="old", created_at=datetime(2026, 10, 27, 12), source="slack"))
+        s.commit()
+        st = status(s, now=datetime(2026, 10, 28, 8, 30))
+        assert st["slack"]["estimated"] and st["slack"]["at_text"] == "yesterday at 12:00 PM"
+        assert st["slack"]["ok"] is False and "yesterday" in st["slack"]["hint"]
+        s.add(SyncRun(source="slack", at=datetime(2026, 10, 27, 18, 5), added=4))
+        s.add(SyncRun(source="calendar", at=datetime(2026, 10, 28, 8, 1), added=2))
+        s.commit()
+        st = status(s, now=datetime(2026, 10, 28, 8, 30))
+        assert st["slack"]["ok"] and st["slack"]["added"] == 4 and st["slack"]["newest"] == "Mon, Oct 26"
+        assert st["calendar"]["ok"] and st["calendar"]["at_text"] == "today at 8:01 AM"
+        assert status(s, now=datetime(2026, 10, 28, 18))["slack"]["ok"] is False  # tonight's log is ready now
+        assert status(s, now=datetime(2026, 10, 29, 9))["calendar"]["ok"] is False
+        gcal.sync(s, [], date(2026, 10, 28), date(2026, 10, 28))
+        assert s.scalar(select(SyncRun).where(SyncRun.source == "calendar").order_by(SyncRun.id.desc())).added == 0
+    html = c.get("/").text
+    assert "Google Calendar</b> last pulled today" in html and "Slack tracker</b> last pulled" in html
+    assert "Last pulled in" in c.get("/sheet").text
+
+
 def test_sync_never_deletes_entries_you_built_on(nb):
     dd, *_ = nb
     with session(dd) as s:

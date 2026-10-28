@@ -1,0 +1,8 @@
+{% macro sync_line(st) %}
+<p class="sync {{ 'ok' if st.ok else ('late' if st.ok is false else '') }}">
+  {% if st.ok %}<span class="dot" aria-hidden="true"></span><b>Up to date.</b>{% elif st.ok is false %}<span class="dot" aria-hidden="true"></span><b>Needs a pull.</b>{% endif %}
+  <b>{{ st.label }}</b> last pulled {{ st.at_text }}{% if st.estimated %} (about){% endif %}{% if st.added is not none %}, {{ st.added }} new{% endif %}.
+  {% if st.newest %}Newest item is from {{ st.newest }}.{% endif %}
+  {% if st.hint %}<span class="muted">{{ st.hint }}</span>{% endif %}
+</p>
+{% endmacro %}

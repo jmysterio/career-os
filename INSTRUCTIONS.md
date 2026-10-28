@@ -91,6 +91,8 @@ The **Intake Review Queue** (in the Menu) lists every record (calendar meetings,
 - **Looks right** marks the row checked. Whatever Claude picked for it becomes yours, and the row leaves the **Not checked yet** list, so you can work down the list until it's empty.
 - **Remove** (under Looks right) takes a record out for good, for example a meeting you didn't attend. Its pasted notes, guide links, and any win Claude drafted from it go too; wins you made or edited stay. Calendar, Tasks, and Slack syncs skip removed records so they don't come back. Choose **Removed** in the Show menu to see them and **Restore** one if you change your mind.
 
+**Is everything pulled in?** The **Last pulled in** box at the top of the queue (and a line under each Sync button on Today & this week) shows when each source was last pulled, how many new items came in, and the date of the newest item. A green dot means up to date: Slack was pulled after 5:30 PM on the latest evening (the tracker automation runs at 5 PM), and Calendar was synced today. An orange dot says what's missing; press that Sync button. "(about)" means the time is estimated from when items were added, before the app kept a sync history.
+
 **Skipping a recurring meeting for good.** To keep a meeting you don't attend out of the notebook, including future ones, add a skip rule. It removes the ones already here and Calendar sync skips any meeting whose title contains the text (any capitalization):
 
 ```
@@ -186,7 +188,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `108 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `109 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

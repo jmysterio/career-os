@@ -135,6 +135,8 @@ def sync(s: Session, events: list[Event], first: date, last: date) -> dict[str, 
         if not has_notes and not keeps_entry(s, gone):
             s.delete(gone)
             removed += 1
+    from ..storage.sync_log import record
+    record(s, SOURCE, added)
     s.commit()
     return dict(added=added, updated=updated, removed=removed)
 

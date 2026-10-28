@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 {% from "_entry.html" import attach_fields, entry_card with context %}
+{% from "_sync.html" import sync_line %}
 
 <section class="card">
   <h2>What did you get up to?</h2>
@@ -28,6 +29,7 @@
     <button class="primary">Sync calendar</button>
     <span class="help">Asks Claude Code to fetch yesterday's and today's meetings from Google Calendar and to summarize any meeting notes attached to them. This can take a few minutes. Meeting titles, times, attendee details, and the text of the notes pass through the AI tool; only titles, times, file links, and the summaries are saved here.</span>
   </form>
+  {{ sync_line(sync.calendar) }}
 </section>
 <section class="card">
   <form method="post" action="/slack/sync" class="row">
@@ -35,6 +37,7 @@
     <button class="primary" {{ 'disabled' if not slack_canvas }}>Sync Slack tracker</button>
     <span class="help">{% if slack_canvas %}Asks Claude Code to read your Slack Work Activity Tracker canvas, then has Claude sort each new item into a meeting, conversation, document, task, or other. Items already here are skipped, and each one is tagged &ldquo;from Slack&rdquo;. The canvas text passes through the AI tool. This can take a few minutes.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</span>
   </form>
+  {{ sync_line(sync.slack) }}
 </section>
 {% endif %}
 

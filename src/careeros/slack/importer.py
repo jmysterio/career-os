@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..config import DataDir
 from ..storage.models import JournalAttachment, JournalEntry
-from .parse import SlackItem
+from .parse import TRACKER, SlackItem
 
 SOURCE = "slack"
 NOTES_TITLE = "From Slack (AI-written)"
@@ -41,6 +41,9 @@ def import_items(s: Session, items: list[SlackItem], classify: Callable[[list[Sl
             s.add(JournalAttachment(entry_id=e.id, kind="link", title="Slack thread", body=it.link,
                                     created_at=datetime.now()))
         counts[kind] += 1
+    if any(i.origin == TRACKER for i in items):  # old promo canvases don't say anything about the daily log
+        from ..storage.sync_log import record
+        record(s, SOURCE, len(todo))
     s.commit()
     return dict(added=len(todo), skipped=len(items) - len(todo), **counts)
 

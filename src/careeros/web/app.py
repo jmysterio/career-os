@@ -26,6 +26,7 @@ from ..guide import service as gsvc
 from ..guide.topics import suggest, topic_of
 from ..slack import importer as slack_imp
 from ..storage.removal import remove_entry, restore_entry
+from ..storage.sync_log import status as sync_status
 from ..storage.db import init_db, make_engine, make_session_factory
 from ..storage.models import (
     AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, GuideItem, GuideLink, JournalAttachment,
@@ -246,7 +247,7 @@ def create_app(dd: DataDir) -> FastAPI:
             days=days, tally=tally, kinds=KINDS, attach_kinds=ATTACH_KINDS, today=today.isoformat(),
             tagline=TAGLINES[today.toordinal() % len(TAGLINES)], csrf=csrf_token, msg=msg,
             sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), page="/", personal=personal, q="",
-            slack_canvas=slack_imp.load_canvas_id(dd) if personal else None)
+            slack_canvas=slack_imp.load_canvas_id(dd) if personal else None, sync=sync_status(s))
         return HTMLResponse(html)
 
     def tab_page(path: str):
@@ -604,7 +605,8 @@ def create_app(dd: DataDir) -> FastAPI:
         html = env.get_template("sheet.html").render(
             rows=out, f=f, total=total, pages=pages, counts=counts, show_opts=SHEET_SHOW, source_opts=SOURCE_LABEL,
             msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(),
-            tagline=TAGLINES[0], page="/sheet", personal=personal, q="", wide=True, **sheet_ctx(s, f))
+            tagline=TAGLINES[0], page="/sheet", personal=personal, q="", wide=True, sync=sync_status(s),
+            **sheet_ctx(s, f))
         return HTMLResponse(html)
 
     def sheet_rows(s: Session, rows: list) -> list[dict]:

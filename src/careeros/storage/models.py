@@ -218,6 +218,15 @@ class RemovedEntry(Base):
     removed_at: Mapped[datetime] = mapped_column(DateTime)
 
 
+class SyncRun(Base):
+    """One pull from a source (Slack tracker, Google Calendar, Google Tasks), even when nothing new came in."""
+    __tablename__ = "sync_run"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(String, index=True)
+    at: Mapped[datetime] = mapped_column(DateTime)
+    added: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class SkipRule(Base):
     """Calendar events whose title contains this text (any case) are never brought into the notebook."""
     __tablename__ = "skip_rule"

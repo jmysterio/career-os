@@ -52,5 +52,7 @@ def sync(s: Session, tasks: list[Task]) -> dict[str, int]:
                 s.delete(a)
             s.delete(gone)
             removed += 1
+    from ..storage.sync_log import record
+    record(s, SOURCE, added)
     s.commit()
     return dict(added=added, removed=removed)
