@@ -1,108 +1,95 @@
-"""Synthetic fixture story. Everything here is fake and flagged is_fixture.
+"""The practice notebook: a week of made-up records, a few wins, and a tiny made-up leveling guide.
 
-Traps built in (see plan §8):
- - DEMO-999 merge on the deploy day shares no key -> must not link.
- - A merge citing DEMO-102 and DEMO-201 matches two release rows -> suggested only.
- - Sheet note "team deployed 12 changes; Alex coordinated" -> never first-person.
- - "Target: 20% ..." -> never an achieved metric.
+Everything here is fake. It exists so every page has something to show without touching real data.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
-from ..ingest.envelope import Envelope
-from ..ingest.importer import Approval
+from sqlalchemy.orm import Session
 
-SELF_EMAIL = "demo.user@example.com"
-OTHER_EMAIL = "alex@example.com"
-SHEET = "demo-sheet"
-GIT = "demo-git"
-MANUAL = "manual"
+from ..storage.models import GuideItem, GuideLink, JournalAttachment, JournalEntry, Win
 
-CONNECTORS = {
-    SHEET: ("release_sheet", "demo/release-schedule"),
-    GIT: ("git", "demo/repo"),
-    MANUAL: ("manual", "local"),
+# (days ago, kind, source, text, notes) - notes are shown under the record like a Slack tracker note
+RECORDS = [
+    (0, "meeting", "calendar", "9:30 AM–10:00 AM  Release readiness review", ""),
+    (0, "task", "tasks", "Update the sandbox refresh checklist", ""),
+    (1, "conversation", "slack", "Deployment: Pine 2.4 release to UAT",
+     "Action: Deployed Pine 2.4 to UAT and posted the change log.\n"
+     "Why it mattered: QA could start testing a day early."),
+    (1, "meeting", "calendar", "2:00 PM–2:30 PM  Sprint planning", ""),
+    (2, "document", "slack", "Documentation: Rollback runbook for the Pine pipeline",
+     "Action: Wrote the rollback steps and shared them with the team.\n"
+     "Why it mattered: anyone on call can now roll back without help."),
+    (2, "task", "tasks", "Review three feature-branch pull requests", ""),
+    (3, "conversation", "slack", "Sandbox / Environment: Full sandbox refresh planning",
+     "Action: Lined up four teams for Friday's refresh and owned the timeline.\n"
+     "Why it mattered: no team lost test data during the refresh."),
+    (4, "note", "", "Office hours: answered branching questions from two new engineers", ""),
+    (5, "meeting", "calendar", "11:00 AM–11:30 AM  1:1 with my manager", ""),
+    (6, "task", "tasks", "Ship the Pine 2.3 hotfix", ""),
+]
+
+WINS = [  # (record index, title, why it mattered, size, theme)
+    (2, "Wrote the Pine rollback runbook", "Anyone on call can now roll back without help.", "medium", "Process improvement"),
+    (6, "Planned and ran a full sandbox refresh for four teams", "No team lost test data.", "large", "Leadership"),
+]
+
+GUIDE = [  # (kind, grade, name, description)
+    ("summary", 6, "Senior: owns delivery for a project and guides others.", ""),
+    ("summary", 7, "Lead: sets the approach across teams and programs.", ""),
+    ("experience", 6, "Designs sandbox refresh strategies for a project.", ""),
+    ("experience", 6, "Develops and executes deployment strategies with minimal downtime.", ""),
+    ("experience", 6, "Generates end-to-end DevOps documentation and runbooks.", ""),
+    ("experience", 6, "Proactively shares knowledge with teammates and mentors newer engineers.", ""),
+    ("experience", 7, "Leads sandbox strategy across teams, including refresh cycles.", ""),
+    ("experience", 7, "Independently deploys and manages releases across environments.", ""),
+    ("skill", None, "Communicate Effectively", "Conveys information clearly."),
+    ("skill", None, "Environment/Sandbox Management", "Manages sandboxes and refreshes."),
+]
+
+LINKS = {  # record index -> guide names it shows
+    2: ["Generates end-to-end DevOps documentation and runbooks."],
+    6: ["Leads sandbox strategy across teams, including refresh cycles."],
+    7: ["Proactively shares knowledge with teammates and mentors newer engineers."],
+    9: ["Develops and executes deployment strategies with minimal downtime."],
 }
-ALLOWED = {
-    SHEET: {"release_id", "title", "status", "notes", "deployed_at", "owner_email", "url"},
-    GIT: {"sha", "subject", "author_email", "committed_at", "branch", "is_merge", "url"},
-    MANUAL: {"text", "created_at"},
-}
-T0 = datetime(2026, 10, 12, 9, 0)
 
 
-def approvals(now: datetime | None = None) -> dict[str, Approval]:
-    exp = (now or T0) + timedelta(days=365)
-    return {cid: Approval(cid, frozenset(f), exp) for cid, f in ALLOWED.items()}
-
-
-def _env(cid, export_id, records, *, before, after, mode="delta", complete=True,
-         scope=None, tombs=(), hours=0) -> Envelope:
-    return Envelope.model_validate({
-        "schema_version": 1, "connector_instance_id": cid, "export_id": export_id,
-        "export_mode": mode, "scope": scope or {"kind": "rows"},
-        "collection_started_at": T0 + timedelta(hours=hours),
-        "collection_completed_at": T0 + timedelta(hours=hours, minutes=1),
-        "complete": complete, "cursor_before": before, "cursor_after": after,
-        "records": [{"native_record_id": nid, "fields": f, "source_updated_at": T0 + timedelta(hours=hours)}
-                    for nid, f in records],
-        "explicit_tombstones": [{"native_record_id": x} for x in tombs],
-    })
-
-
-def _row(rid, status, notes, title, deployed=None):
-    return (rid, {"release_id": rid, "title": title, "status": status, "notes": notes,
-                  "deployed_at": deployed, "owner_email": OTHER_EMAIL,
-                  "url": f"https://sheets.example.com/demo#{rid}"})
-
-
-def _commit(sha, subject, branch, when, author=SELF_EMAIL, merge=True):
-    return (sha, {"sha": sha, "subject": subject, "author_email": author, "committed_at": when,
-                  "branch": branch, "is_merge": merge, "url": f"https://git.example.com/demo/commit/{sha}"})
-
-
-NOTES_PLANNED_B = "Target: 20% fewer failed deployments. Stories DEMO-101, DEMO-102."
-NOTES_DONE_B = NOTES_PLANNED_B + " Team deployed 12 changes; Alex coordinated."
-
-
-def sheet_week1() -> Envelope:
-    return _env(SHEET, "sheet-1", [
-        _row("R-2026-10-B", "Planned", NOTES_PLANNED_B, "October B release"),
-        _row("R-2026-10-C", "Planned", "Stories DEMO-201.", "October C release"),
-    ], before=None, after="s1", mode="snapshot", scope={"kind": "all"})
-
-
-def git_week1() -> Envelope:
-    return _env(GIT, "git-1", [
-        _commit("a1b2c3d", "Merge pull request #1 from feature/DEMO-101-fix-validation",
-                "main", "2026-10-12T10:15:00-07:00"),
-        _commit("b2c3d4e", "Merge pull request #2 from feature/DEMO-102-pipeline-gate",
-                "main", "2026-10-13T14:00:00-07:00"),
-        _commit("c3d4e5f", "Merge pull request #3 from feature/DEMO-999-readme",
-                "main", "2026-10-14T15:00:00-07:00"),
-        _commit("d4e5f6a", "Share deploy script for DEMO-102 and DEMO-201",
-                "main", "2026-10-13T16:00:00-07:00", merge=False),
-    ], before=None, after="g1", hours=1)
-
-
-def sheet_deployed() -> Envelope:
-    return _env(SHEET, "sheet-2", [
-        _row("R-2026-10-B", "Deployed", NOTES_DONE_B, "October B release",
-             deployed="2026-10-14T22:30:00-07:00"),
-    ], before="s1", after="s2", hours=48)
-
-
-def sheet_title_edit() -> Envelope:
-    return _env(SHEET, "sheet-3", [
-        _row("R-2026-10-B", "Deployed", NOTES_DONE_B, "October B release (renamed)",
-             deployed="2026-10-14T22:30:00-07:00"),
-    ], before="s2", after="s3", hours=72)
-
-
-def sheet_tombstone_c() -> Envelope:
-    return _env(SHEET, "sheet-4", [], before="s3", after="s4", hours=96, tombs=["R-2026-10-C"])
-
-
-def initial_envelopes() -> list[Envelope]:
-    return [sheet_week1(), git_week1(), sheet_deployed()]
+def seed(s: Session, today: date | None = None) -> dict[str, int]:
+    """Fill an empty practice notebook. Does nothing if it already has records."""
+    if s.query(JournalEntry).first() is not None:
+        return dict(records=0, wins=0, guide=0)
+    today = today or date.today()
+    now = datetime.now()
+    entries = []
+    for ago, kind, source, text, notes in RECORDS:
+        e = JournalEntry(day=(today - timedelta(days=ago)).isoformat(), kind=kind, text=text, created_at=now,
+                         source=source, external_id=f"demo:{len(entries)}" if source else None,
+                         status="done" if kind == "task" else "")
+        s.add(e)
+        s.flush()
+        if notes:
+            s.add(JournalAttachment(entry_id=e.id, kind="notes", title="From Slack (AI-written), Slack tracker",
+                                    body=notes, created_at=now))
+        entries.append(e)
+    items = {}
+    for pos, (kind, grade, name, desc) in enumerate(GUIDE):
+        g = GuideItem(key=f"demo:{pos}", kind=kind, grade=grade, category="Practice", name=name,
+                      description=desc, targets={"5": 2, "6": 3, "7": 4} if kind == "skill" else {},
+                      position=pos, active=True)
+        s.add(g)
+        items[name] = g
+    s.flush()
+    for idx, names in LINKS.items():
+        for n in names:
+            s.add(GuideLink(item_id=items[n].id, entry_id=entries[idx].id, created_at=now))
+    for idx, title, impact, size, theme in WINS:
+        e = entries[idx]
+        w = Win(day=e.day, title=title, impact=impact, size=size, theme=theme, entry_id=e.id, created_at=now)
+        s.add(w)
+        s.flush()
+        for n in LINKS.get(idx, []):
+            s.add(GuideLink(item_id=items[n].id, win_id=w.id, created_at=now))
+    s.commit()
+    return dict(records=len(entries), wins=len(WINS), guide=len(GUIDE))
