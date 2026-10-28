@@ -149,7 +149,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `66 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `70 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -188,7 +188,13 @@ uv run careeros serve
 Use the search box at the top of any page. It looks through your entry headlines, pasted text, and names, and every word you type must appear somewhere in the entry. It is not case-sensitive and the match is highlighted. `%` and `_` are searched as ordinary characters.
 
 **Is my real notebook backed up?**
-Not yet. Time Machine has no destination configured on this Mac, so if the laptop's disk is lost, so is the notebook. A backup or "save a copy as a Markdown file" command is the next thing worth adding.
+Yes, on this laptop. `uv run careeros backup now` copies the notebook into `backups/` in the notebook folder, safely even while the app is running, and the daily automatic sync does it too. It keeps the last 30 days plus the first copy of each of the last 12 months, and deletes older ones. `uv run careeros backup list` shows them. These copies sit next to the notebook, so they protect against mistakes, not against losing the laptop: for that you'd also need Time Machine (no destination is set up on this Mac yet) or a copy somewhere else.
+
+**How do I restore from a backup?**
+1. Stop the app (Ctrl+C in its Terminal window).
+2. In `~/Library/Application Support/CareerOS`, move `careeros.db`, `careeros.db-wal`, and `careeros.db-shm` into a spare folder (don't delete them yet).
+3. Copy the backup you want from `backups/` (for example `careeros-2026-10-28.db`) into the notebook folder and rename it `careeros.db`.
+4. Start the app again with `uv run careeros serve` and check your entries. Once you're happy, the moved files can go.
 
 **How do I pull in my Google Calendar meetings?**
 This uses your calendar's private address, so no Google Cloud setup or admin sign-off is needed, and the data never passes through an AI tool. One-time setup:
@@ -208,7 +214,7 @@ Yes. On the Today page, press **Sync Google** (or run `uv run careeros calendar 
 Through the Google Workspace connector in a Claude Code session, not by a script on its own. Meeting titles/times, the files attached to each meeting (Gemini notes, recordings, chat), and task titles and notes pass through the AI tool on the way in. Asking Claude to refresh pulls new ones without duplicating. Meetings you declined are dropped, and so are ones that vanished from the calendar, unless you attached your own notes. Open tasks stay off the Today page and live on the Tasks tab. Links to Google files are only links: the app never opens or reads the file. You need to be signed in to Google to open them.
 
 **Where is my information stored, and is it backed up?**
-Everything (entries, pasted notes, wins) is in one file: `~/Library/Application Support/CareerOS/careeros.db`, on this laptop only. It is not in iCloud or any synced folder, and the app refuses to keep a real notebook in one. Time Machine backs it up if Time Machine is on. To make a manual copy, stop the app and copy that file somewhere safe; a copy taken on Oct 27, 2026 is already there as `careeros-backup-2026-10-27.db`.
+Everything (entries, pasted notes, wins) is in one file: `~/Library/Application Support/CareerOS/careeros.db`, on this laptop only. It is not in iCloud or any synced folder, and the app refuses to keep a real notebook in one. Time Machine backs it up if Time Machine is on. Daily copies go into `backups/` next to it (see "Is my real notebook backed up?" below). A few one-off copies from October 2026 also sit in the notebook folder as `careeros-backup-2026-10-*.db`.
 
 **Can I export everything, not just wins?**
 Yes. Click **Download everything (CSV)** at the bottom of any page. You get one zip with four spreadsheets: `entries.csv` (every meeting, task, and note), `pasted_notes.csv` (everything pasted under them, with the entry it belongs to), `wins.csv`, and `guide_links.csv` (which wins and entries you linked to which leveling guide items). They open in Excel, Numbers, or Google Sheets, so the data stays readable even without this app. It's a snapshot of that moment; download a fresh one whenever you like, for example at year end. The zip holds everything you pasted, so keep it somewhere as safe as this laptop, and remember that removing something in the app doesn't remove it from zips you already downloaded. Text that starts with `=`, `+`, `-`, or `@` gets a leading `'` so a spreadsheet shows it instead of running it as a formula.

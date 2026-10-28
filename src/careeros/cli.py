@@ -34,6 +34,38 @@ def demo_seed(data_dir: Optional[str] = DataOpt) -> None:
                f"Start it with:  uv run careeros serve --data-dir {dd.root}")
 
 
+backup_app = typer.Typer(no_args_is_help=True, help="Daily copies of your notebook")
+app.add_typer(backup_app, name="backup")
+
+
+@backup_app.command("now")
+def backup_now(data_dir: Optional[str] = DataOpt) -> None:
+    """Copy the notebook into backups/ now (safe while the app is running), then drop copies past their keep date."""
+    from .backup import make_backup, prune
+    os.umask(0o077)
+    dd = resolve(data_dir)
+    try:
+        dd.require_known()
+    except NotDemoData as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    path = make_backup(dd)
+    n = prune(dd)
+    typer.echo(f"Backed up to {path}" + (f" (removed {n} older cop{'y' if n == 1 else 'ies'})" if n else ""))
+
+
+@backup_app.command("list")
+def backup_list(data_dir: Optional[str] = DataOpt) -> None:
+    """The copies in backups/, newest first."""
+    from .backup import backups
+    dd = resolve(data_dir)
+    found = backups(dd)
+    if not found:
+        typer.echo("No backups yet. Run: uv run careeros backup now")
+    for d, p in reversed(found):
+        typer.echo(f"{p.name}  {p.stat().st_size // 1024} KB")
+
+
 notebook_app = typer.Typer(no_args_is_help=True, help="Your personal notebook")
 app.add_typer(notebook_app, name="notebook")
 
