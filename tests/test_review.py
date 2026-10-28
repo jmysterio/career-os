@@ -318,3 +318,24 @@ def test_sync_never_deletes_entries_you_built_on(nb):
         s.commit()
         assert gcal.sync(s, [], date(2026, 10, 19), date(2026, 10, 21))["removed"] == 0
         assert s.get(JournalEntry, e.id) is not None
+
+
+def test_review_skips_records_removed_or_edited_while_claude_reads(nb):
+    from careeros.storage.removal import remove_entry
+    dd, *_ = nb
+    with session(dd) as s:
+        gone, checked, retyped, plain = (add(s, t) for t in ("gone", "checked", "retyped", "plain"))
+
+        def reader(guide, themes, records):
+            with session(dd) as other:  # what you do in the queue while Claude is thinking
+                remove_entry(other, gone)
+                other.get(JournalEntry, checked).reviewed = True
+                other.get(JournalEntry, retyped).kind = "document"
+                other.commit()
+            return {r["id"]: dict(guide=["E1"], kind="task", win=None) for r in records}
+
+        r = ai_review.review(s, reader=reader)
+        assert r["read"] == 2 and r["failed"] == 0
+        assert s.get(JournalEntry, retyped).kind == "document"  # your choice wins over Claude's
+        assert s.get(JournalEntry, plain).kind == "task"
+        assert {l.entry_id for l in s.scalars(select(GuideLink))} == {retyped, plain}
