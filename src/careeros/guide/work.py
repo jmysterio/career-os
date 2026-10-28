@@ -106,8 +106,8 @@ def group(s: Session, *, everything: bool = False, limit: int | None = None, dry
             if f"r{i}" not in got:
                 tot["failed"] += 1
                 continue
-            e = s.get(JournalEntry, e.id, populate_existing=True)  # you may have grouped it meanwhile
-            if e is None or e.work_fixed:
+            e = s.get(JournalEntry, e.id, populate_existing=True)  # you may have grouped it, or another run did, meanwhile
+            if e is None or e.work_fixed or (e.grouped and not everything):
                 continue
             w = got[f"r{i}"]
             item = None
@@ -144,6 +144,6 @@ def group(s: Session, *, everything: bool = False, limit: int | None = None, dry
         tot["groups"] = {titles.get(k, "?"): v for k, v in proposed.items() if len(v) > 1}
         s.rollback()
         return tot
-    if batches and tot["read"] == 0:
+    if todo and tot["failed"] == len(todo):  # skipped records (grouped meanwhile) are not failures
         raise ClaudeError("Claude couldn't group the records, so nothing changed. Try again.")
     return tot

@@ -11,6 +11,7 @@ def no_real_claude(monkeypatch):
     def refuse():
         raise claude_cli.ClaudeError("tests never call the real Claude")
     monkeypatch.setattr(claude_cli, "_claude", refuse)
+    monkeypatch.setattr("careeros.google.summaries._claude", refuse)  # imported by name, so patched separately
 
 
 @pytest.fixture

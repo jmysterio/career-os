@@ -74,7 +74,7 @@ def work_key(entry: JournalEntry | None, win: Win | None = None) -> str:
 
 
 def evidence(s: Session) -> dict[int, dict]:
-    """item id -> {points, items, wins, entries}. Points count once per piece of work, at its strongest evidence,
+    """item id -> {points, wins, entries}. Points count once per piece of work, at its strongest evidence,
     so a deployment seen in a meeting, a Slack thread, and a task (or an entry and the win made from it) scores once."""
     links = list(s.scalars(select(GuideLink)))
     wins = {w.id: w for w in s.scalars(select(Win).where(Win.id.in_({l.win_id for l in links if l.win_id})))}
@@ -82,7 +82,7 @@ def evidence(s: Session) -> dict[int, dict]:
     entries = {e.id: e for e in s.scalars(select(JournalEntry).where(JournalEntry.id.in_(want)))}
     out: dict[int, dict] = {}
     for l in links:
-        ev = out.setdefault(l.item_id, dict(points=0, items=0, wins=[], entries=[]))
+        ev = out.setdefault(l.item_id, dict(points=0, wins=[], entries=[]))
         if l.win_id in wins:
             ev["wins"].append(wins[l.win_id])
     for l in links:
@@ -99,7 +99,7 @@ def evidence(s: Session) -> dict[int, dict]:
         for e in ev["entries"]:
             k = work_key(e)
             groups[k] = max(groups.get(k, 0), POINTS["entry"])
-        ev["points"], ev["items"] = sum(groups.values()), len(groups)
+        ev["points"] = sum(groups.values())
     return out
 
 
@@ -176,8 +176,7 @@ def confirm(s: Session, entry_id: int) -> None:
     if e is None:
         return
     e.reviewed = True
-    if e.work_item_id:
-        e.work_fixed = True  # accepting the row accepts its grouping too
+    e.work_fixed = True  # accepting the row accepts its grouping (or lack of one), so a regroup run leaves it alone
     wins = list(s.scalars(select(Win).where(Win.entry_id == entry_id)))
     for w in wins:
         w.by_ai = False

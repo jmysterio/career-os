@@ -172,7 +172,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `93 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `96 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

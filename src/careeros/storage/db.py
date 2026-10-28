@@ -33,7 +33,6 @@ def init_db(engine: Engine) -> None:
                           ("work_item_id", "INTEGER REFERENCES work_item(id)"),
                           ("grouped", "BOOLEAN NOT NULL DEFAULT 0"), ("work_fixed", "BOOLEAN NOT NULL DEFAULT 0")],
         "win": [("by_ai", "BOOLEAN NOT NULL DEFAULT 0")],
-        "work_item": [("started", "VARCHAR NOT NULL DEFAULT ''")],
         "guide_link": [("by_ai", "BOOLEAN NOT NULL DEFAULT 0")],
     }
     with engine.begin() as c:

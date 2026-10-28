@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 import os
+import sqlite3
+import tempfile
+from contextlib import closing
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -207,6 +211,13 @@ def guide_group(dry_run: bool = typer.Option(False, "--dry-run", help="Show the 
     from .claude_cli import ClaudeError
     from .guide import work
     dd, s = _open_personal(data_dir, "Grouping")
+    scratch = None
+    if dry_run:  # try it on a copy, so the app can keep saving to the real notebook for the minutes Claude takes
+        s.close()
+        scratch = tempfile.TemporaryDirectory()
+        with closing(sqlite3.connect(dd.db)) as src, closing(sqlite3.connect(Path(scratch.name) / "dry.db")) as dst:
+            src.backup(dst)
+        s = make_session_factory(make_engine(Path(scratch.name) / "dry.db"))()
     n = len(work.pending(s, redo)[:limit])
     if not n:
         typer.echo("Nothing to group.")
@@ -218,6 +229,10 @@ def guide_group(dry_run: bool = typer.Option(False, "--dry-run", help="Show the 
     except ClaudeError as exc:
         typer.echo(str(exc))
         raise typer.Exit(1)
+    finally:
+        s.close()
+        if scratch:
+            scratch.cleanup()
     if dry_run:
         for title, texts in sorted(r.get("groups", {}).items(), key=lambda kv: -len(kv[1])):
             typer.echo(f"\n{title} ({len(texts)} records)")

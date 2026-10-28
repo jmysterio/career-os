@@ -45,7 +45,7 @@ def test_three_records_of_one_deployment_count_once(nb):
         assert r == dict(read=4, joined=2, new=1, alone=1, failed=0)
         w = s.scalar(select(WorkItem))
         assert (w.title, w.day, w.by_ai) == ("Pine release", "2026-10-22", True)  # dated by its last record
-        assert evidence(s)[item]["points"] == 1 and evidence(s)[item]["items"] == 1
+        assert evidence(s)[item]["points"] == 1
         s.add(Win(day="2026-10-22", title="Shipped Pine", size="large", entry_id=c, created_at=datetime.now()))
         s.commit()
         w_id = s.scalar(select(Win.id))
@@ -129,4 +129,57 @@ def test_removing_the_last_record_drops_its_group(nb):
         a = add(s, "Only one", "2026-10-01")
         work.group(s, reader=by_text({"Only one": {"new": "Solo", "key": "k"}}))
         remove_entry(s, a)
+        assert s.scalar(select(WorkItem)) is None
+
+
+def test_a_run_skips_records_another_run_grouped_meanwhile(nb):
+    dd, *_ = nb
+    with session(dd) as s:
+        add(s, "A", "2026-10-01")
+        add(s, "B", "2026-10-02")
+
+        def reader(open_work, records):  # the app's own run groups B while this reader is thinking
+            with session(dd) as other:
+                work.group(other, reader=by_text({"B": {"new": "Other run's work", "key": "k"}}))
+            return {r["id"]: {"new": "Mine", "key": r["id"]} for r in records}
+        work.group(s, reader=reader)
+        assert [w.title for w in s.scalars(select(WorkItem))] == ["Other run's work"]  # this run left both alone
+
+
+def test_confirming_a_row_locks_it_even_when_ungrouped(nb):
+    from careeros.guide.service import confirm
+    dd, *_ = nb
+    with session(dd) as s:
+        a = add(s, "One-off", "2026-10-01")
+        work.group(s, reader=by_text({}))
+        confirm(s, a)
+        seen = by_text({"One-off": {"new": "Late idea", "key": "k"}})
+        work.group(s, everything=True, reader=seen)
+        assert s.get(JournalEntry, a).work_item_id is None and seen.seen == []
+
+
+def test_dry_run_from_the_cli_never_locks_the_real_notebook(nb, monkeypatch):
+    import json
+    import sqlite3
+    from typer.testing import CliRunner
+    from careeros.cli import app
+    dd, *_ = nb
+    with session(dd) as s:
+        add(s, "A", "2026-10-01")
+        add(s, "B", "2026-10-02")
+    monkeypatch.setattr(work, "BATCH", 1)
+    monkeypatch.setattr(work, "pending", work.pending)
+    calls = []
+
+    def fake_ask(prompt, data, timeout=0):
+        recs = json.loads(data)["records"]
+        if calls:  # second batch: the first one has already written to the scratch copy
+            with sqlite3.connect(dd.db, timeout=0.2) as live:
+                live.execute("update journal_entry set text = text")  # raises "database is locked" if held
+        calls.append(1)
+        return json.dumps({"results": [{"id": r["id"], "work": {"new": "Pine", "key": "k"}} for r in recs]})
+    monkeypatch.setattr(work, "ask", fake_ask)
+    r = CliRunner().invoke(app, ["guide", "group", "--dry-run", "--data-dir", str(dd.root)])
+    assert r.exit_code == 0 and "nothing was saved" in r.output, r.output
+    with session(dd) as s:
         assert s.scalar(select(WorkItem)) is None
