@@ -234,7 +234,7 @@ def test_search_finds_titles_and_pasted_text_escaped(seeded):
 def test_page_has_help_text_and_paste_warning(seeded):
     dd, c, token = seeded
     html = c.get("/").text
-    assert "Before you paste" in html and "IRS" in html and "Who or what</b>" in html
+    assert "Before you paste" in html and "IRS" in html and "<b>Kind</b> sorts it" in html
 
 
 def test_personal_notebook_is_journal_only(tmp_path):

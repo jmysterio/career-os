@@ -98,6 +98,19 @@ p.sync.ok .dot{background:var(--st-strong)}p.sync.late .dot{background:var(--st-
 .jicon{width:1rem;text-align:center;color:var(--muted)}.jdetail{color:var(--muted);font-size:.82rem}
 .js-running .jicon{color:var(--accent)}.js-done .jicon{color:var(--st-strong)}.js-error .jicon,.js-error .jdetail{color:#e07a6a}
 .js-skipped{opacity:.55}.jmsg{margin:.5rem 0 0;font-size:.88rem}.job.error .jmsg,.job.partial .jmsg{color:#e07a6a}
+.fold:focus{outline:none}
+.reveal{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .28s ease,opacity .2s ease}
+.reveal>div{overflow:hidden;min-height:0}
+.fold:focus-within .reveal,.fold:has(details[open]) .reveal,.fold:has(input[name=text]:not(:placeholder-shown)) .reveal{grid-template-rows:1fr;opacity:1}
+.fold .reveal>div>:first-child{margin-top:.75rem}
+.quick{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.quick input[name=text]{flex:1;min-width:14rem;width:auto;padding:.5rem .75rem;font-size:1rem}
+.quick button{margin:0}.card.slim{padding:1rem 1.2rem}
+.sync-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}@media (max-width:680px){.sync-grid{grid-template-columns:1fr}}
+.sync-col form{display:block}.sync-col button{margin:0}
+.pills{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.5rem}
+.pill{font-size:.78rem;border:1px solid var(--line);border-radius:99px;padding:.12rem .65rem;color:var(--muted);display:inline-flex;align-items:center;gap:.4rem}
+.pill i{width:.5rem;height:.5rem;border-radius:50%;background:var(--line)}.pill.ok i{background:var(--st-strong)}.pill.late i{background:var(--st-started)}.pill.late{color:var(--text);border-color:var(--st-started)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .chip.ai{background:transparent;border:1px solid var(--c-why);color:var(--c-why)}
 .help{color:var(--muted);font-size:.84rem;margin:.15rem 0 0}.warn{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.5rem .8rem;font-size:.86rem;margin:.2rem 0}mark{background:var(--accent);color:var(--accent-text);border-radius:3px;padding:0 .15rem}
 </style></head><body{% if wide %} class="wide"{% endif %}>

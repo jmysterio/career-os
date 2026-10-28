@@ -1,3 +1,7 @@
+{% macro sync_pill(st, name) %}
+<span class="pill {{ 'ok' if st.ok else ('late' if st.ok is false else '') }}" title="{{ st.hint or 'Up to date' }}"><i aria-hidden="true"></i>{{ name }} &middot; {{ st.at_text }}<span class="sr">{{ ', up to date' if st.ok else (', needs a pull' if st.ok is false else '') }}</span></span>
+{% endmacro %}
+
 {% macro sync_line(st) %}
 <p class="sync {{ 'ok' if st.ok else ('late' if st.ok is false else '') }}">
   {% if st.ok %}<span class="dot" aria-hidden="true"></span><b>Up to date.</b>{% elif st.ok is false %}<span class="dot" aria-hidden="true"></span><b>Needs a pull.</b>{% endif %}

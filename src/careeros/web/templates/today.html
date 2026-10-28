@@ -1,45 +1,59 @@
 {% extends "base.html" %}
 {% block body %}
 {% from "_entry.html" import attach_fields, entry_card with context %}
-{% from "_sync.html" import sync_line %}
+{% from "_sync.html" import sync_line, sync_pill %}
 
-<section class="card">
-  <h2>What did you get up to?</h2>
-  <p class="muted">Jot it down in a few words. You can paste the longer stuff underneath. It's just for you and it stays on this computer. The only things that send anything out are the Sync Google and Sync Slack buttons below, which are explained next to them.</p>
-  <form method="post" action="/journal/add" class="stack">
+<section class="card slim fold" tabindex="-1" aria-label="Add to your notebook">
+  <form method="post" action="/journal/add">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <div class="row">
+    <div class="quick">
       <select name="kind" aria-label="What kind of thing">
         {% for k, label in kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
       </select>
-      <input name="text" required maxlength="500" placeholder="Who or what? e.g. Sam, about the rollout" aria-label="Details" style="flex:1;min-width:14rem">
+      <input name="text" required maxlength="500" placeholder="What did you get up to?" aria-label="What did you get up to?">
       <input type="date" name="day" value="{{ today }}" max="{{ today }}" aria-label="Day">
+      <button class="primary">Add</button>
     </div>
-    <p class="help"><b>Kind</b> sorts it for your weekly tally. <b>Who or what</b> is a short headline, like &ldquo;Sam, about the rollout&rdquo;, and it's what search and the list show first. <b>Day</b> is when it happened, so you can catch up on yesterday.</p>
-    <details><summary>Paste notes, a link, or a transcript (optional)</summary>
-      <div class="stack">{{ attach_fields() }}</div></details>
-    <div><button class="primary">Add to notebook</button></div>
+    <div class="reveal"><div>
+      <p class="help">A few words is plenty, like &ldquo;Sam, about the rollout&rdquo;. <b>Kind</b> sorts it into its tab, and <b>Day</b> lets you catch up on yesterday. It stays on this computer; only the Sync buttons send anything out.</p>
+      <details><summary>Paste notes, a link, or a transcript (optional)</summary>
+        <div class="stack">{{ attach_fields() }}</div></details>
+    </div></div>
   </form>
 </section>
 
 {% if personal %}
-<section class="card">
-  <form method="post" action="/sync/google" class="row" data-sync="google">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <button class="primary" data-label="Sync Google">Sync Google</button>
-    <span class="help">Pulls yesterday's and today's meetings from Google Calendar, your recently changed Google Tasks, and summaries of any meeting notes, then has Claude link the new records to the leveling guide. Usually a minute or two. Meeting titles, times, task titles, and the text of meeting notes pass through the AI tool.</span>
-  </form>
-  {{ sync_line(sync.calendar) }}{{ sync_line(sync.tasks) }}
-  <div class="job" data-job="google" hidden></div>
-</section>
-<section class="card">
-  <form method="post" action="/slack/sync" class="row" data-sync="slack">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <button class="primary" data-label="Sync Slack tracker" {{ 'disabled' if not slack_canvas }}>Sync Slack tracker</button>
-    <span class="help">{% if slack_canvas %}Reads your Slack Work Activity Tracker canvas, has Claude sort each new item into a meeting, conversation, document, task, or other, then links the new records to the leveling guide. Items already here are skipped, and each one is tagged &ldquo;from Slack&rdquo;. The canvas text passes through the AI tool. Usually a minute or two.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</span>
-  </form>
-  {{ sync_line(sync.slack) }}
-  <div class="job" data-job="slack" hidden></div>
+<section class="card slim fold" tabindex="-1" aria-label="Sync">
+  <div class="sync-grid">
+    <div class="sync-col">
+      <form method="post" action="/sync/google" data-sync="google">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="primary" data-label="Sync Google">Sync Google</button>
+      </form>
+      <div class="pills">{{ sync_pill(sync.calendar, "Calendar") }}{{ sync_pill(sync.tasks, "Tasks") }}</div>
+      <div class="job" data-job="google" hidden></div>
+    </div>
+    <div class="sync-col">
+      <form method="post" action="/slack/sync" data-sync="slack">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="primary" data-label="Sync Slack tracker" {{ 'disabled' if not slack_canvas }}>Sync Slack tracker</button>
+      </form>
+      <div class="pills">{{ sync_pill(sync.slack, "Slack") }}</div>
+      <div class="job" data-job="slack" hidden></div>
+    </div>
+  </div>
+  <div class="reveal"><div>
+    <div class="sync-grid">
+      <div>
+        <p class="help">Pulls yesterday's and today's meetings, your recently changed Google Tasks, and summaries of any meeting notes, then has Claude link the new records to the leveling guide. Usually a minute or two. Meeting titles, times, task titles, and the text of meeting notes pass through the AI tool.</p>
+        {{ sync_line(sync.calendar) }}{{ sync_line(sync.tasks) }}
+      </div>
+      <div>
+        <p class="help">{% if slack_canvas %}Reads your Slack Work Activity Tracker canvas, has Claude sort each new item into a meeting, conversation, document, task, or other, then links them to the leveling guide. Items already here are skipped, and each is tagged &ldquo;from Slack&rdquo;. The canvas text passes through the AI tool.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</p>
+        {{ sync_line(sync.slack) }}
+      </div>
+    </div>
+  </div></div>
 </section>
 <script src="/static/sync.js" defer></script>
 {% endif %}
