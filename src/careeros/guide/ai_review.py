@@ -1,6 +1,6 @@
 """Claude reads notebook entries against the leveling guide: guide items each one shows, its kind, and whether it's a win.
 
-Everything Claude decides is saved marked as AI (by_ai / kind_was) so the Sheet can show it and the user can undo it.
+Everything Claude decides is saved marked as AI (by_ai / kind_was) so the Intake Review Queue can show it and the user can undo it.
 """
 from __future__ import annotations
 

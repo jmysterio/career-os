@@ -556,7 +556,7 @@ def create_app(dd: DataDir) -> FastAPI:
 
     def sheet_back(request: Request, s: Session, ret: str, eid: int | None = None, msg: str | None = None,
                    after: int | None = None) -> Response:
-        """A full redirect for plain form posts; for the Sheet's script, just the redrawn row, or "gone"."""
+        """A full redirect for plain form posts; for the queue's script, just the redrawn row, or "gone"."""
         f = parse_ret(ret)
         if request.headers.get("x-sheet") == "1" and eid:
             s.expire_all()

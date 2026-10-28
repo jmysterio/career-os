@@ -1,4 +1,4 @@
-// Sheet buttons save in the background: the row fades out when it leaves the current view, else redraws in place.
+// Intake Review Queue buttons save in the background: the row fades out when it leaves the current view, else redraws in place.
 // Without this script the same forms still work as normal page loads.
 document.addEventListener("submit", async (ev) => {
   const form = ev.target;

@@ -202,7 +202,7 @@ class JournalEntry(Base):
     status: Mapped[str] = mapped_column(String, default="")  # tasks only: open | done
     kind_was: Mapped[str] = mapped_column(String, default="")  # the kind before Claude changed it, else ""
     ai_read: Mapped[bool] = mapped_column(Boolean, default=False)  # Claude has read it against the guide
-    reviewed: Mapped[bool] = mapped_column(Boolean, default=False)  # the user checked it on the Sheet
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False)  # the user checked it in the Intake Review Queue
 
 
 class RemovedEntry(Base):

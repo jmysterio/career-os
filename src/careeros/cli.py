@@ -296,7 +296,7 @@ def calendar_skip(text: Optional[str] = typer.Argument(None, help="Title text to
         return
     n = add_skip_rule(s, text)
     typer.echo(f"Calendar sync will skip meetings whose title contains \"{' '.join(text.split())}\". "
-               f"Removed {n} already in the notebook (see Removed on the Sheet).")
+               f"Removed {n} already in the notebook (see Removed in the Intake Review Queue).")
 
 
 @calendar_app.command("unskip")

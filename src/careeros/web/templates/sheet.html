@@ -2,7 +2,8 @@
 {% macro hidden() %}<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="ret" value="{{ ret }}">{% endmacro %}
 {% block body %}
 <section class="card">
-  <h2>Sheet: every record in one place</h2>
+  <h2>Intake Review Queue</h2>
+  <p class="sub" style="margin:.1rem 0 .5rem">Everything coming in from Slack, Google Calendar, and Google Tasks lands here to be sorted.</p>
   <p class="muted">Scan each row and fix what's off with one click: its type, the leveling guide items it shows, and whether it's a win. Purple <span class="chip ai">AI</span> marks are Claude's picks. They already count on the Promo map. <b>Looks right</b> makes a row's picks yours and moves it out of the "Not checked yet" list. <b>Remove</b> takes a record out for good, for example a meeting you didn't attend; syncs won't bring it back, and you can restore it from "Removed" in the first menu.</p>
   <p class="tally">{{ counts.total }} records. Claude has read {{ counts.read }}, and you've checked {{ counts.checked }}. {{ counts.links }} guide link{{ '' if counts.links == 1 else 's' }} and {{ counts.wins }} win{{ '' if counts.wins == 1 else 's' }} picked by Claude are waiting for a check.</p>
   {% if personal and guided and counts.unread %}

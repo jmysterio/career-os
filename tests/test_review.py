@@ -1,4 +1,4 @@
-"""The Sheet page and Claude's read-through of records against the leveling guide (with a fake Claude)."""
+"""The Intake Review Queue page and Claude's read-through of records against the leveling guide (with a fake Claude)."""
 import sqlite3
 from datetime import date, datetime
 

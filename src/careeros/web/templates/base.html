@@ -99,7 +99,7 @@ table.sheet{width:100%;border-collapse:collapse;font-size:.86rem}
     <input type="hidden" name="theme" value="{{ 'light' if theme == 'dark' else 'dark' }}">
     <button>{{ 'Switch to light' if theme == 'dark' else 'Switch to dark' }}</button></form>
 </div>
-{% set main_pages = [("/", "Today & this week"), ("/wins", "Wins"), ("/promo", "Promo map"), ("/sheet", "Sheet")] + ([] if personal else [("/releases", "Releases")]) %}
+{% set main_pages = [("/", "Today & this week"), ("/wins", "Wins"), ("/promo", "Promo map"), ("/sheet", "Intake Review Queue")] + ([] if personal else [("/releases", "Releases")]) %}
 {% set ns = namespace(here='Search' if page == '/search' else '') %}
 {% for path, label in main_pages %}{% if path == page %}{% set ns.here = label %}{% endif %}{% endfor %}
 {% for path, tab in tabs.items() %}{% if path == page %}{% set ns.here = tab[1] %}{% endif %}{% endfor %}

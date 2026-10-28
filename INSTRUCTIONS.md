@@ -81,9 +81,9 @@ Colors come from points. A linked entry is worth 1, and a small, medium, or larg
 
 **Download promo case** writes a Markdown draft grouped by grade and topic. Each guide item lists the wins and entries behind it, with dates and why they mattered, and a **Not shown yet** list at the end shows what to aim for before you submit.
 
-## The Sheet: every record, checked in one place
+## Intake Review Queue: sorting everything that comes in
 
-The **Sheet** tab lists every record (calendar meetings, Google Tasks, Slack items, and what you typed) as rows, newest first, 100 to a page. Each row has one-click buttons:
+The **Intake Review Queue** (in the Menu) lists every record (calendar meetings, Google Tasks, Slack items, and what you typed) as rows, newest first, 100 to a page. Each row has one-click buttons:
 
 - **Type**: Meeting, Convo, Doc, Task, or Other. The lit one is the current type.
 - **Leveling guide**: the guide items the record shows. Click &times; to remove one, or **edit**/**link** to pick items yourself.
@@ -99,11 +99,11 @@ uv run careeros calendar skip                          # list the rules
 uv run careeros calendar unskip "IRS Sustainment DSU"  # stop skipping
 ```
 
-Buttons on the Sheet save without reloading the page: a row you check or remove fades out, and a row you change redraws in place.
+Buttons in the queue save without reloading the page: a row you check or remove fades out, and a row you change redraws in place.
 
 Purple **AI** marks are Claude's picks: guide links, drafted wins, and type changes ("AI, was Other"). They count on the Promo map straight away, and the Promo map says how many are still unchecked. Use the **Show** menu for **Changed by Claude**, **Not linked**, **Wins**, or **Checked**.
 
-**Claude's read-through.** Claude has read every record against the Grade 6 and 7 key experiences and skills. It linked each one to the guide items it shows (none for routine standups and status pings), drafted wins for the stand-out ones, and fixed obvious type mix-ups (only for Slack and typed records; calendar items stay meetings and Google Tasks stay tasks). When new records come in, the Sheet shows a **Have Claude read the N records it hasn't read** button. You can also run it in Terminal:
+**Claude's read-through.** Claude has read every record against the Grade 6 and 7 key experiences and skills. It linked each one to the guide items it shows (none for routine standups and status pings), drafted wins for the stand-out ones, and fixed obvious type mix-ups (only for Slack and typed records; calendar items stay meetings and Google Tasks stay tasks). When new records come in, the queue shows a **Have Claude read the N records it hasn't read** button. You can also run it in Terminal:
 
 ```
 cd ~/Documents/career-os

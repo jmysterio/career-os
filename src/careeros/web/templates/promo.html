@@ -21,7 +21,7 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
     <form method="get" action="/promo/export"><button class="primary">Download promo case</button></form>
   </div>
   <p class="muted">Each key experience from the leveling guide, colored by how much of your own logged work backs it up. Link wins and entries to the guide to fill it in. Wins count more than plain entries, and bigger wins count more.</p>
-  {% if ai.links or ai.wins %}<p class="note">{{ ai.links }} guide link{{ '' if ai.links == 1 else 's' }} and {{ ai.wins }} win{{ '' if ai.wins == 1 else 's' }} on this map were picked by Claude and not checked yet. They count already. <a href="/sheet?show=ai">Check them on the Sheet</a>.</p>{% endif %}
+  {% if ai.links or ai.wins %}<p class="note">{{ ai.links }} guide link{{ '' if ai.links == 1 else 's' }} and {{ ai.wins }} win{{ '' if ai.wins == 1 else 's' }} on this map were picked by Claude and not checked yet. They count already. <a href="/sheet?show=ai">Check them in the Intake Review Queue</a>.</p>{% endif %}
   {% for gr in pm.grades %}{% set p = pm.progress[gr] %}
   <p style="margin:.9rem 0 0"><b>Grade {{ gr }}</b>: {{ p.shown + p.strong }} of {{ p.total }} key experiences shown{% if p.strong %} ({{ p.strong }} strong){% endif %}, {{ p.started }} started, {{ p.gap }} not yet.</p>
   <div class="bar" role="img" aria-label="Grade {{ gr }}: {{ p.strong }} strong, {{ p.shown }} shown, {{ p.started }} started, {{ p.gap }} not yet">
