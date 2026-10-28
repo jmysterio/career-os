@@ -1,13 +1,9 @@
-"""Data directory layout and the demo-only guard (milestone 1 never touches real data)."""
+"""Data directory layout: your personal notebook, or a practice notebook of made-up data."""
 from __future__ import annotations
 
 import os
-import tomllib
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-
-from .ingest.importer import Approval
 
 DEFAULT_DEMO_DIR = Path.home() / "Library" / "Application Support" / "CareerOS-demo"
 PERSONAL_DIR = Path.home() / "Library" / "Application Support" / "CareerOS"
@@ -25,12 +21,6 @@ class DataDir:
     @property
     def db(self) -> Path: return self.root / "careeros.db"
     @property
-    def inbox(self) -> Path: return self.root / "inbox"
-    @property
-    def exports(self) -> Path: return self.root / "exports"
-    @property
-    def approvals(self) -> Path: return self.root / "approvals"
-    @property
     def secret_file(self) -> Path: return self.root / ".secret"
     @property
     def demo_marker(self) -> Path: return self.root / ".demo"
@@ -43,16 +33,18 @@ class DataDir:
     def is_demo(self) -> bool: return self.demo_marker.exists()
 
     def create(self) -> None:
-        for d in (self.root, self.inbox, self.exports, self.approvals):
-            d.mkdir(parents=True, exist_ok=True)
-            os.chmod(d, 0o700)
+        self.root.mkdir(parents=True, exist_ok=True)
+        os.chmod(self.root, 0o700)
 
-    def require_demo(self) -> None:
-        if not self.demo_marker.exists():
-            raise NotDemoData(f"{self.root} is not a demo data dir; milestone 1 is synthetic-only")
+    def init_demo(self) -> None:
+        """An empty practice notebook. `careeros demo seed` fills it with made-up records."""
+        if self.is_personal:
+            raise NotDemoData(f"{self.root} is your personal notebook; practice data is never put there")
+        self.create()
+        self.demo_marker.write_text("practice notebook: made-up data only\n")
 
     def require_known(self) -> None:
-        """The web app opens demo folders and personal notebooks (journal only), nothing else."""
+        """The web app opens practice notebooks and your personal notebook, nothing else."""
         if self.is_demo == self.is_personal:  # neither, or (corrupt) both
             raise NotDemoData(f"{self.root} is not a recognized Career OS folder")
 
@@ -84,22 +76,3 @@ def resolve(path: str | None, *, demo: bool = False) -> DataDir:
     if not chosen:
         chosen = PERSONAL_DIR if (not demo and (PERSONAL_DIR / ".personal").exists()) else DEFAULT_DEMO_DIR
     return DataDir(Path(chosen).expanduser())
-
-
-def write_approval(dd: DataDir, cid: str, fields: set[str], expires: datetime, approver: str) -> None:
-    body = (f'connector_instance_id = "{cid}"\napprover = "{approver}"\n'
-            f'expires_at = "{expires.isoformat()}"\n'
-            f"allowed_fields = [{', '.join(repr(f).replace(chr(39), chr(34)) for f in sorted(fields))}]\n")
-    p = dd.approvals / f"{cid}.toml"
-    p.write_text(body)
-    os.chmod(p, 0o600)
-
-
-def load_approvals(dd: DataDir) -> dict[str, Approval]:
-    out: dict[str, Approval] = {}
-    for p in dd.approvals.glob("*.toml"):
-        d = tomllib.loads(p.read_text())
-        out[d["connector_instance_id"]] = Approval(
-            d["connector_instance_id"], frozenset(d["allowed_fields"]),
-            datetime.fromisoformat(d["expires_at"]))
-    return out

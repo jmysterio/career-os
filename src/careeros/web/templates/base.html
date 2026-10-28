@@ -8,12 +8,12 @@
 :root[data-theme=light]{--bg:#f6f4f0;--tile:#ece8e2;--card:#fffdfa;--text:#2d2621;--muted:#857a70;--line:#e6e0d7;
   --accent:#86664a;--primary:#3a2f28;--primary-text:#fbf8f3;--accent-text:#fbf8f3;--good:#5f8a5a;
   --note-bg:#f4eee6;--note-line:#e2d6c6;--btn:#f2eee8;--shadow:0 1px 2px rgba(45,38,33,.05),0 8px 24px rgba(45,38,33,.06);
-  --c-happened:#5b7fa3;--c-did:#9c7a5b;--c-why:#7d6fae;--bad:#b5614f;
+  --c-why:#7d6fae;--bad:#b5614f;
   --st-strong:#6f9a68;--st-shown:#a9c4a0;--st-started:#c9a581}
 :root[data-theme=dark]{--bg:#1b1917;--tile:#1b1917;--card:#24211e;--text:#f2ede6;--muted:#a59c92;--line:#36322d;
   --accent:#d6bf9f;--primary:#e9dcc8;--primary-text:#221d19;--accent-text:#221d19;--good:#9fc297;
   --note-bg:#2b2724;--note-line:#433c35;--btn:#2e2a26;--shadow:0 1px 2px rgba(0,0,0,.25),0 10px 28px rgba(0,0,0,.25);
-  --c-happened:#9bb7d4;--c-did:#d6bf9f;--c-why:#b9ace0;--bad:#e09484;
+  --c-why:#b9ace0;--bad:#e09484;
   --st-strong:#86b07e;--st-shown:#b8d0ae;--st-started:#cfae8a}
 *{box-sizing:border-box}
 body{background-color:var(--bg);color:var(--text);font:16px/1.5 -apple-system,system-ui,sans-serif;
@@ -46,8 +46,6 @@ h3{font-size:1.02rem;color:var(--muted);margin:1.4rem 0 .3rem;letter-spacing:.01
 .sub{color:var(--muted);margin:.2rem 0 0}
 .note{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.55rem .9rem;margin:1rem 0;font-size:.92rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.2rem 1.4rem;margin:1.4rem 0}
-.item{border-left:4px solid var(--line);padding:.3rem 0 .3rem .9rem;margin:.7rem 0}
-.item.happened{border-color:var(--c-happened)}.item.did{border-color:var(--c-did)}.item.why{border-color:var(--c-why)}
 .chip{display:inline-block;font-size:.76rem;border-radius:99px;padding:.05rem .6rem;margin-left:.4rem;
   background:var(--btn);color:var(--muted);vertical-align:middle}
 .chip.done{color:var(--good)}a.chip{text-decoration:none;margin-left:0}
@@ -152,7 +150,7 @@ p.sync.ok .dot{background:var(--st-strong)}p.sync.late .dot{background:var(--st-
     <input type="hidden" name="theme" value="{{ 'light' if theme == 'dark' else 'dark' }}">
     <button>{{ 'Switch to light' if theme == 'dark' else 'Switch to dark' }}</button></form>
 </div>
-{% set main_pages = [("/", "Today & this week"), ("/wins", "Wins"), ("/promo", "Promo map"), ("/sheet", "Intake Review Queue")] + ([] if personal else [("/releases", "Releases")]) %}
+{% set main_pages = [("/", "Today & this week"), ("/wins", "Wins"), ("/promo", "Promo map"), ("/sheet", "Intake Review Queue")] %}
 {% set ns = namespace(here='Search' if page == '/search' else '') %}
 {% for path, label in main_pages %}{% if path == page %}{% set ns.here = label %}{% endif %}{% endfor %}
 {% for path, tab in tabs.items() %}{% if path == page %}{% set ns.here = tab[1] %}{% endif %}{% endfor %}

@@ -4,19 +4,9 @@ Plain-language notes on running and testing the app. New questions and answers g
 
 ## Where things stand
 
-This section walks through the app on **made-up demo data**. The demo folder never syncs with Slack or Google. Your personal notebook can, through the Sync buttons (see the README for what Claude sees).
+Career OS is your work notebook. It pulls in your Google Calendar meetings, Google Tasks, and Slack tracker items, has Claude sort each one and link it to the DevOps leveling guide, and keeps your wins so the Promo map and promo case reflect what you've actually done. Everything is stored on this laptop. The only things that send anything out are the Sync buttons and the Claude review (see the README for what Claude sees).
 
-The demo story is a fake release called "October B": a spreadsheet row, some git merges, and a few traps. Here is what the app does with it:
-
-1. **Imports** evidence in a controlled way. It refuses unapproved sources and refuses files carrying fields that weren't pre-approved.
-2. **Connects** related items using explicit IDs like `DEMO-101`, never "it happened the same day". When an ID could belong to two releases, it only *suggests* a link and asks you.
-3. **Drafts accomplishment statements** as small structured claims. Each claim points at the exact piece of source text behind it.
-4. **Refuses to overclaim.** It blocks things like:
-   - turning "team deployed 12 changes" into "I deployed 12 changes"
-   - turning "target: 20%" into "achieved 20%"
-   - inventing impact. It leaves impact blank and asks you.
-5. **Waits for you.** Nothing counts until you click "Looks right". You then save it to your accomplishments, and it exports a Markdown file with a source reference on every claim.
-6. **Can delete a source completely**: database, leftover files, and exports. Tests prove it.
+There's also a **practice notebook** of made-up data, for trying things out without touching your real one.
 
 ## Start your notebook (the everyday way)
 
@@ -31,7 +21,7 @@ Open **http://127.0.0.1:8765** in a browser. Leave the terminal running. Press *
 
 Don't add `--data-dir` to this command. That flag points the app at a different folder, such as the practice demo below.
 
-## Start the practice demo (made-up data)
+## Start the practice notebook (made-up data)
 
 ```
 cd ~/Documents/career-os
@@ -39,7 +29,7 @@ uv run careeros demo seed --data-dir /tmp/cos-demo
 uv run careeros serve --data-dir /tmp/cos-demo
 ```
 
-`/tmp` is cleared when the Mac restarts. Just run `demo seed` again to rebuild the demo. To start fresh at any time, delete `/tmp/cos-demo` and seed again. Never put real notes here.
+It holds a week of made-up meetings, Slack items, tasks, and notes, two wins, and a tiny made-up leveling guide, so every page has something to show. It never syncs with Slack or Google. `/tmp` is cleared when the Mac restarts; just run `demo seed` again. Never put real notes here.
 
 ## Wins: your accomplishments for reviews, promotion, and your resume
 
@@ -133,53 +123,24 @@ At year end, pick the year on the Wins tab and click **Download as Markdown**. T
 
 ## What you should see
 
-The app has these pages, opened from the three-bar **Menu** at the top left (Today & this week, Wins, Promo map, Intake Review Queue, then Meetings, Conversations, Documents, Tasks, Other, plus Releases in the practice folder). The name of the page you're on sits next to the Menu button:
+The app has these pages, opened from the three-bar **Menu** at the top left (Today & this week, Wins, Promo map, Intake Review Queue, then Meetings, Conversations, Documents, Tasks, Other). The name of the page you're on sits next to the Menu button:
 
+- **Today & this week** (the home page): your daily notebook. Pick what kind of thing it was, type a few words, and click **Add**. Clicking into the row folds out tips and an optional **Paste notes, a link, or a transcript** box. Below it are the Sync buttons, then your entries grouped by day for the last 7 days, with a small tally at the bottom. Every entry can hold several pasted pieces (**Add more to this**), and **Remove** deletes an entry.
+- **Wins**, **Promo map**, and the **Intake Review Queue**: described in their own sections above.
 - **Meetings / Conversations / Documents / Tasks / Other**: one tab per kind of entry, newest first, with everything saved under it. On **Tasks**, anything still open is listed at the top, and finished tasks are grouped by the day you completed them.
 
+The page opens in **dark mode**; **Switch to light** (top right) changes it, and the app remembers your choice.
 
-- **Today & this week** (the home page): your daily notebook. Pick what kind of thing it was (a meeting, a conversation, a document, or something else), type a few words, and click **Add to notebook**. Entries are grouped by day for the last 7 days, with a small tally at the bottom. Under the line there is an optional **Paste notes, a link, or a transcript** box for long text (meeting notes, a Gemini transcript, a Slack canvas, a prompt you wrote, or a URL). Every entry can hold several of these, and **Add more to this** attaches another later. Use the date box to log something from an earlier day, and **Remove** to delete an entry. These are your own notes, so nothing needs approval and nothing is checked.
-- **Releases**: the release cards described below.
+## Testing steps (about 5 minutes, in the practice notebook)
 
-On the Releases page:
+1. Start the practice notebook (above) and open http://127.0.0.1:8765. A note at the top says it's a practice notebook.
+2. On **Today & this week**, add an entry ("Paired with Sam on the release", kind "Had a conversation") and check it appears under Today.
+3. Open **Wins**: two made-up wins are there. Use **Count this as a win** on your new entry, pick a size, and save; it asks which leveling guide items it shows.
+4. Open **Promo map**: the made-up guide shows a few experiences as started or shown.
+5. Open the **Intake Review Queue**, pick **Everything** in the first menu, and try **Looks right**, a type button, and **Remove** on a row. Rows update without the page reloading.
+6. Search for "rollback" with the box at the top.
 
-- A greeting ("Good morning") and a note saying this is a practice notebook with made-up data.
-- The page opens in **dark mode**. The **Switch to light** button (top right) changes it, and the app remembers your choice.
-- Two release cards: "October B release" and "October C release".
-- In the B card, under **Connected work**: two merges marked *connected*, plus a "Share deploy script" item marked *maybe related*. That means the app isn't sure and is asking you.
-- Three groups of notes:
-  - **What happened:** what the records show.
-  - **What I did:** your part in it.
-  - **Why it mattered:** in your words only.
-- Under every note, a collapsed **Where this came from** with the quote from the source. Open it to see it.
-- Under **Questions for you**: "Why did this matter? Add it in your own words. I won't guess."
-
-## Testing steps (about 10 minutes)
-
-Do these in order.
-
-1. Click **Looks right** on a few notes. They turn *confirmed*.
-2. In the box at the bottom, type why it mattered, for example "Fewer failed deployments reduced on-call load", and click **Add**. Then click **Looks right** on it. The app never writes this part for you.
-3. Click **Save to my accomplishments**. A "Saved as version 1 (current)" line appears.
-4. Click **This isn't part of it** on one of the merges. Notes drawn from it go away or show a "Needs your attention" message. This shows the app respects your correction.
-5. Simulate a source change. In a second Terminal window:
-   ```
-   cd ~/Documents/career-os
-   uv run careeros demo edit --data-dir /tmp/cos-demo
-   ```
-   Refresh the page. A "Heads up" message appears, because something you confirmed has changed.
-6. Export the result. In the seeded demo the "October B" release is number 5:
-   ```
-   uv run careeros export --anchor 5 --data-dir /tmp/cos-demo
-   ```
-   If you haven't saved yet, it tells you to do that first. Otherwise it prints the path of a Markdown file. Open it. Every note shows where its evidence came from.
-7. Test deletion:
-   ```
-   uv run careeros purge --source demo-sheet --reason test --data-dir /tmp/cos-demo
-   ```
-   It asks you to confirm. It then wipes everything that came from the demo spreadsheet, including derived notes and exports. The demo git data stays.
-
-If something looks wrong or confusing, note what you clicked and what you saw. That feedback matters most right now.
+If something looks wrong or confusing, note what you clicked and what you saw.
 
 ## Running the automated tests
 
@@ -188,7 +149,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `117 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `66 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -199,36 +160,21 @@ Your personal notebook is connected to Google Calendar, Google Tasks, and the Sl
    - Do the owners of the IRS-related channels and repos mind a personal tool keeping titles and short notes from them?
    - Is Claude, through Claude Code, approved for this kind of work content?
    - Is the notebook folder backed up (Time Machine) and kept out of synced folders (iCloud, Dropbox)?
-3. **Release schedule sheet and git repos** are still demo-only sources (the Releases page); connecting the real ones would add release outcomes.
+3. **More sources and automation** are planned in `PLAN.md` and `IMPLEMENTATION_PLAN.md`: daily automatic syncs, grouping duplicate records, impact counts, a Claude-written promo case, GitHub and Google Docs sources, kudos, and a weekly digest.
 4. **At year end,** download the promo case from the Promo map and your wins from the Wins tab.
 
-Keep real data out of `/tmp/cos-demo`; the demo folder never syncs with Slack or Google.
+Keep real data out of `/tmp/cos-demo`; the practice notebook never syncs with Slack or Google.
 
 ## Q&A
-
-**I ran `demo seed` and saw `duplicate: 3`. Is that an error?**
-No. It means the demo data was already loaded and the app recognized the files and skipped them. That is the "importing twice changes nothing" safety working.
 
 **Every button showed `{"error":"bad origin"}`. Was that expected?**
 No, it was a bug on my side. The page told the browser not to send any referrer, and Chrome then labels form submissions with an origin of "null", which the app's safety check rejects. I fixed it, and a real Chrome click-through now works. The app still rejects "null" and foreign origins on purpose, and a test guards both.
 
-**Why "What happened / What I did / Why it mattered" and not "Tasks I completed"?**
-The first layer includes things the records say about the team, such as "Team deployed 12 changes". Under "Tasks I completed" those would read as yours. Keeping them separate is how the app avoids overclaiming for you. The wording is meant to feel like a notebook, not a courtroom. Tell me if you want different words.
-
 **Is there a dark mode?**
 Yes, it is the default. Use the button at the top right to switch. The choice is stored in a cookie in your browser.
 
-**Where do meetings, Slack conversations, and documents I created show up?**
-Type them into the **Today & this week** page. That is built now. Automatic pulling from Google Calendar, Docs, and Slack comes later with their connectors, and those do need approvals. Your own typed notes do not.
-
-**Does the Today page need approvals?**
-No. It is only what you type, stored on your laptop. The approval step (Gate 0) is for data pulled in from work systems. Note that the app still only runs on a folder marked as demo for now, so the notes you enter in the practice notebook live in `/tmp/cos-demo`. Say the word when you want a real notebook folder for the daily page.
-
 **Can one entry hold several pieces, like a link plus notes plus a transcript?**
 Yes. An entry is the thing you did ("Rollout sync with Sam"). Under it you can attach any number of pieces, each with a type (meeting notes, transcript, link, Slack canvas, prompt, other text) and an optional name. Removing the entry removes its pieces. Pasted text is shown as plain text only, and links are never opened or fetched by the app. Each piece is limited to about 200,000 characters.
-
-**Is it okay to paste real meeting notes or transcripts?**
-Not into the practice folder for anything real, since that folder is for made-up data and lives in `/tmp`. Before real pasting, we need a permanent notebook folder with the right protections, and you should decide whether that content is allowed to sit on this laptop (some work content, like IRS-related material, has handling rules).
 
 **How do I start a real notebook?**
 Run this once (Terminal, in `~/Documents/career-os`):
@@ -236,7 +182,7 @@ Run this once (Terminal, in `~/Documents/career-os`):
 uv run careeros notebook init
 uv run careeros serve
 ```
-`init` creates `~/Library/Application Support/CareerOS` with owner-only permissions, tells Spotlight not to index it, and refuses any folder under iCloud, Dropbox, Google Drive, or OneDrive. After that, plain `uv run careeros serve` opens your real notebook (the practice one needs `--data-dir /tmp/cos-demo`). The real notebook is journal-only: no Releases tab, and importing work data stays switched off until a source is approved. It never mixes with demo data, and `demo seed` refuses to write into it.
+`init` creates `~/Library/Application Support/CareerOS` with owner-only permissions, tells Spotlight not to index it, and refuses any folder under iCloud, Dropbox, Google Drive, or OneDrive. After that, plain `uv run careeros serve` opens your real notebook (the practice one needs `--data-dir /tmp/cos-demo`). It never mixes with practice data, and `demo seed` refuses to write into it.
 
 **How do I search?**
 Use the search box at the top of any page. It looks through your entry headlines, pasted text, and names, and every word you type must appear somewhere in the entry. It is not case-sensitive and the match is highlighted. `%` and `_` are searched as ordinary characters.

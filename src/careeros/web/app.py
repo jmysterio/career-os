@@ -15,9 +15,7 @@ from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import delete, false, func, select
 from sqlalchemy.orm import Session
 
-from ..claims import service as svc
 from ..config import DataDir
-from ..correlate.engine import link, rebuild_episodes, unlink
 from ..export.csv_all import notebook_zip
 from ..export.promo import promo_markdown
 from ..export.wins import wins_markdown
@@ -30,10 +28,7 @@ from ..storage.sync_log import status as sync_status
 from . import syncs
 from .jobs import Jobs
 from ..storage.db import init_db, make_engine, make_session_factory
-from ..storage.models import (
-    AccomplishmentVersion, Activity, Claim, ClaimSupport, EpisodeMember, GuideItem, GuideLink, JournalAttachment,
-    JournalEntry, RemovedEntry, SourceObservation, Win,
-)
+from ..storage.models import GuideItem, GuideLink, JournalAttachment, JournalEntry, RemovedEntry, Win
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
 CSP = ("default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self'; img-src 'self'; "
@@ -45,33 +40,6 @@ PAGE_JS = (Path(__file__).parent / "static" / "page.js").read_text()
 IMG_DIR = Path(__file__).parent / "static" / "img"
 IMG_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
 _write_lock = threading.Lock()
-
-# Plain-language versions of the rule codes in claims/rules.py.
-FRIENDLY = {
-    "uncited": "I can't find where this came from.",
-    "contradicted": "Another record disagrees with this.",
-    "stale_evidence": "The record behind this has changed since it was written.",
-    "stale_link": "This relied on something you've since un-linked.",
-    "interpretation_not_user_authored": "Why it mattered should come from you, not from me.",
-    "no_completion_evidence": "The records don't say this was finished yet.",
-    "metric_not_in_evidence": "That number doesn't appear in the records.",
-    "metric_unit_not_in_evidence": "The records don't use that unit with that number.",
-    "metric_scope_mismatch": "That number comes from a different release.",
-    "metric_is_target": "The records call this a goal, not a result.",
-    "team_result_claimed_as_self": "That was a team result, not something recorded as yours.",
-    "role_not_supported": "The records don't show you in that role.",
-    "first_person_without_role": "The records don't show what your part was.",
-    "attribution_without_role": "The records don't show what your part was.",
-    "nothing_confirmed": "Nothing is confirmed yet. Mark at least one item as 'Looks right' first.",
-}
-STATE_LABEL = {"unverified": "needs a look", "rule_checked": "ready for you",
-               "human_approved": "confirmed", "rejected": "set aside"}
-SECTIONS = [
-    dict(layer="observation", title="What happened", hint="what the records show", css="happened"),
-    dict(layer="attribution", title="What I did", hint="your part in it", css="did"),
-    dict(layer="interpretation", title="Why it mattered", hint="in your words", css="why"),
-]
-
 
 KINDS = [("meeting", "Had a meeting"), ("conversation", "Had a conversation"),
          ("document", "Worked on a document"), ("task", "Finished a task"), ("note", "Something else")]
@@ -91,7 +59,7 @@ TABS = {  # path -> (kind, tab name, heading, what's on it)
     "/tasks": ("task", "Tasks", "Tasks", "Your Google Tasks and any you've noted yourself. What's still open is at the top, finished ones are grouped by the day you completed them."),
     "/other": ("note", "Other", "Something else", "Anything that didn't fit the other tabs."),
 }
-PAGES = {"/", "/releases", "/search", "/wins", "/promo", "/sheet", *TABS}
+PAGES = {"/", "/search", "/wins", "/promo", "/sheet", *TABS}
 SOURCE_LABEL = {"calendar": "Calendar", "tasks": "Google Tasks", "slack": "Slack", "": "Typed"}
 SHEET_KIND = [("meeting", "Meeting"), ("conversation", "Convo"), ("document", "Doc"), ("task", "Task"), ("note", "Other")]
 SHEET_SHOW = {"all": "Everything", "todo": "Not checked yet", "ai": "Changed by Claude", "linked": "Linked to the guide",
@@ -112,18 +80,9 @@ def day_label(d: date, today: date) -> str:
     return d.strftime("%A, %B ") + str(d.day)
 
 
-def friendly(violation: str) -> str:
-    return FRIENDLY.get(violation.split(":")[0].strip(), violation)
-
-
 def greeting(now: datetime | None = None) -> str:
     h = (now or datetime.now()).hour
     return "Good morning" if h < 12 else "Good afternoon" if h < 18 else "Good evening"
-
-
-def claim_text(c: Claim) -> str:
-    text = f"{c.subject[:1].upper() + c.subject[1:]} {c.action} {c.object}"
-    return text if c.status == "completed" else f"{text} ({c.status.replace('_', ' ')})"
 
 
 def _hostname(value: str) -> str:
@@ -189,16 +148,8 @@ def create_app(dd: DataDir) -> FastAPI:
     async def _forbidden(_r, _e):
         return JSONResponse({"error": "bad csrf token"}, status_code=403)
 
-    def back(msg: str | None = None, to: str = "/releases") -> RedirectResponse:
+    def back(msg: str | None = None, to: str = "/") -> RedirectResponse:
         return RedirectResponse(to + (f"?msg={quote(msg[:300])}" if msg else ""), status_code=303)
-
-    def guarded(fn):
-        try:
-            with _write_lock:
-                fn()
-        except svc.ClaimBlocked as exc:
-            return back("Not saved yet: " + " ".join(friendly(v) for v in exc.violations))
-        return back()
 
     def theme_of(request: Request) -> str:
         return "light" if request.cookies.get("theme") == "light" else "dark"
@@ -765,83 +716,12 @@ def create_app(dd: DataDir) -> FastAPI:
         return Response(notebook_zip(s), media_type="application/zip",
                         headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
-    @app.get("/releases", response_class=HTMLResponse)
-    def index(request: Request, msg: str | None = None, s: Session = Depends(db)):
-        if personal:
-            return HTMLResponse("Not found", status_code=404)
-        stale = svc.stale_versions(s)
-        episodes = []
-        for a in s.scalars(select(Activity).where(Activity.type == "release_row", Activity.state == "present")):
-            members = [dict(status=m.status, origin=m.origin, confidence=m.confidence, reason=m.reason,
-                            activity_id=m.activity_id, title=s.get(Activity, m.activity_id).title)
-                       for m in s.scalars(select(EpisodeMember).where(EpisodeMember.anchor_activity_id == a.id))]
-            claims = []
-            for c in s.scalars(select(Claim).where(Claim.anchor_activity_id == a.id)):
-                ev = []
-                for sup in s.scalars(select(ClaimSupport).where(ClaimSupport.claim_id == c.id)):
-                    obs = s.get(SourceObservation, sup.observation_id)
-                    act = s.scalar(select(Activity).where(Activity.source_record_id == obs.source_record_id))
-                    ev.append(dict(ref=svc.provenance_ref(sup), polarity=sup.polarity,
-                                   excerpt=svc.excerpt_text(s, sup), url=act.source_url if act else None))
-                claims.append(dict(id=c.id, layer=c.layer, text=claim_text(c), object=c.object,
-                                   verification_status=c.verification_status, authored_by=c.authored_by,
-                                   state_label=STATE_LABEL[c.verification_status], evidence=ev,
-                                   violations=[friendly(v) for v in svc.violations(s, c)]
-                                   if c.verification_status != "rejected" else []))
-            versions = list(s.scalars(select(AccomplishmentVersion).where(
-                AccomplishmentVersion.anchor_activity_id == a.id)))
-            episodes.append(dict(id=a.id, title=a.title.split(": ", 1)[-1], members=members, claims=claims, versions=versions,
-                                 unknowns=svc.unknowns_for(s, a.id),
-                                 stale=any(v.id in stale for v in versions)))
-        html = env.get_template("review.html").render(
-            episodes=episodes, csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(),
-            theme=theme_of(request), greeting=greeting(), sections=SECTIONS, page="/releases", tagline=TAGLINES[0], personal=personal, q="")
-        return HTMLResponse(html)
-
     @app.post("/theme", dependencies=[Depends(check_csrf)])
     def set_theme(theme: str = Form(...), next: str = Form("/")):
         resp = back(to=next if next in PAGES else "/")
         resp.set_cookie("theme", "light" if theme == "light" else "dark", max_age=31_536_000,
                         httponly=True, samesite="strict")
         return resp
-
-    @app.post("/claims/{cid}/approve", dependencies=[Depends(check_csrf)])
-    def approve(cid: int, s: Session = Depends(db)):
-        return guarded(lambda: svc.approve(s, cid))
-
-    @app.post("/claims/{cid}/reject", dependencies=[Depends(check_csrf)])
-    def reject(cid: int, s: Session = Depends(db)):
-        return guarded(lambda: svc.reject(s, cid))
-
-    @app.post("/claims/{cid}/edit", dependencies=[Depends(check_csrf)])
-    def edit(cid: int, object: str = Form(..., max_length=500), s: Session = Depends(db)):
-        return guarded(lambda: svc.edit_claim(s, cid, object=object))
-
-    @app.post("/episodes/{aid}/link", dependencies=[Depends(check_csrf)])
-    def do_link(aid: int, activity_id: int = Form(...), s: Session = Depends(db)):
-        return guarded(lambda: (link(s, activity_id, aid), svc.draft_episode(s, aid)))
-
-    @app.post("/episodes/{aid}/unlink", dependencies=[Depends(check_csrf)])
-    def do_unlink(aid: int, activity_id: int = Form(...), s: Session = Depends(db)):
-        return guarded(lambda: (unlink(s, activity_id, aid), svc.draft_episode(s, aid)))
-
-    @app.post("/episodes/{aid}/impact", dependencies=[Depends(check_csrf)])
-    def impact(aid: int, text: str = Form(..., min_length=1, max_length=1000), s: Session = Depends(db)):
-        return guarded(lambda: svc.add_impact_claim(s, aid, text))
-
-    @app.post("/episodes/{aid}/redraft", dependencies=[Depends(check_csrf)])
-    def redraft(aid: int, s: Session = Depends(db)):
-        return guarded(lambda: svc.draft_episode(s, aid))
-
-    @app.post("/episodes/{aid}/publish", dependencies=[Depends(check_csrf)])
-    def publish(aid: int, s: Session = Depends(db)):
-        def run():
-            ids = [c.id for c in s.scalars(select(Claim).where(
-                Claim.anchor_activity_id == aid, Claim.verification_status == "human_approved"))]
-            if not ids:
-                raise svc.ClaimBlocked(["nothing_confirmed"])
-            svc.publish(s, aid, ids)
-        return guarded(run)
 
     app.state.csrf_token = csrf_token
     return app
