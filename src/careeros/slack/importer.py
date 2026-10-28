@@ -27,6 +27,7 @@ def new_items(s: Session, items: list[SlackItem]) -> list[SlackItem]:
 def import_items(s: Session, items: list[SlackItem], classify: Callable[[list[SlackItem]], dict[str, str]]) -> dict:
     todo = new_items(s, items)
     kinds = classify(todo) if todo else {}
+    todo = new_items(s, todo)  # classify takes minutes; another sync may have saved some of these meanwhile
     counts = {k: 0 for k in ("meeting", "conversation", "document", "task", "note")}
     for it in todo:
         kind = kinds.get(it.key, "note")

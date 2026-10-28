@@ -34,6 +34,96 @@ def demo_seed(data_dir: Optional[str] = DataOpt) -> None:
                f"Start it with:  uv run careeros serve --data-dir {dd.root}")
 
 
+sync_app = typer.Typer(no_args_is_help=True, help="Pull in Slack and Google")
+app.add_typer(sync_app, name="sync")
+
+
+@sync_app.command("all")
+def sync_all_cmd(force: bool = typer.Option(False, "--force", help="Run even if already synced since the last "
+                                                                   "scheduled time (8 AM or 6 PM)"),
+                 data_dir: Optional[str] = DataOpt) -> None:
+    """Back up, then run the Slack and Google syncs (what the scheduled task runs). Logs go to logs/ in the notebook."""
+    from . import sync_all
+    os.umask(0o077)
+    dd = resolve(data_dir)
+    if not dd.is_personal:
+        typer.echo("Syncing only works with your personal notebook.")
+        raise typer.Exit(1)
+    code = sync_all.run(dd, force=force)
+    typer.echo("Synced." if code == 0 else "Another sync is already running." if code == sync_all.LOCKED
+               else "Something didn't sync; see the notification or logs/ in your notebook.")
+    raise typer.Exit(code)
+
+
+schedule_app = typer.Typer(no_args_is_help=True, help="Keep the app running and sync on a schedule (macOS)")
+app.add_typer(schedule_app, name="schedule")
+
+
+@schedule_app.command("install")
+def schedule_install(data_dir: Optional[str] = DataOpt) -> None:
+    """Start the app at login (restarting it if it stops) and sync at 8 AM, 6 PM, and login."""
+    from . import schedule
+    dd = resolve(data_dir)
+    if not dd.is_personal:
+        typer.echo("The schedule is only for your personal notebook.")
+        raise typer.Exit(1)
+    try:
+        installed = schedule.install(dd)
+    except RuntimeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    for p in installed:
+        typer.echo(f"Installed {p}")
+    typer.echo("If you started the app yourself in a Terminal, stop it (Ctrl+C); the scheduled one takes over.")
+
+
+@schedule_app.command("uninstall")
+def schedule_uninstall() -> None:
+    """Stop and remove both scheduled tasks. Nothing else is touched."""
+    from . import schedule
+    removed = schedule.uninstall()
+    typer.echo("\n".join(f"Removed {p}" for p in removed) or "Nothing was installed.")
+
+
+@schedule_app.command("status")
+def schedule_status(data_dir: Optional[str] = DataOpt) -> None:
+    """Whether each scheduled task is on, and the last sync log line."""
+    from . import schedule
+    typer.echo("\n".join(schedule.status(resolve(data_dir))))
+
+
+backup_app = typer.Typer(no_args_is_help=True, help="Daily copies of your notebook")
+app.add_typer(backup_app, name="backup")
+
+
+@backup_app.command("now")
+def backup_now(data_dir: Optional[str] = DataOpt) -> None:
+    """Copy the notebook into backups/ now (safe while the app is running), then drop copies past their keep date."""
+    from .backup import make_backup, prune
+    os.umask(0o077)
+    dd = resolve(data_dir)
+    try:
+        dd.require_known()
+    except NotDemoData as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    path = make_backup(dd)
+    n = prune(dd)
+    typer.echo(f"Backed up to {path}" + (f" (removed {n} older cop{'y' if n == 1 else 'ies'})" if n else ""))
+
+
+@backup_app.command("list")
+def backup_list(data_dir: Optional[str] = DataOpt) -> None:
+    """The copies in backups/, newest first."""
+    from .backup import backups
+    dd = resolve(data_dir)
+    found = backups(dd)
+    if not found:
+        typer.echo("No backups yet. Run: uv run careeros backup now")
+    for d, p in reversed(found):
+        typer.echo(f"{p.name}  {p.stat().st_size // 1024} KB")
+
+
 notebook_app = typer.Typer(no_args_is_help=True, help="Your personal notebook")
 app.add_typer(notebook_app, name="notebook")
 

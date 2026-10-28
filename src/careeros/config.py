@@ -23,6 +23,8 @@ class DataDir:
     @property
     def secret_file(self) -> Path: return self.root / ".secret"
     @property
+    def backups(self) -> Path: return self.root / "backups"
+    @property
     def demo_marker(self) -> Path: return self.root / ".demo"
 
     @property
