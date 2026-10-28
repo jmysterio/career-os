@@ -11,7 +11,7 @@ from careeros.google import calendar as gcal
 from careeros.guide import ai_review
 from careeros.guide.service import evidence, promo_map
 from careeros.storage.db import init_db, make_engine
-from careeros.storage.models import GuideLink, JournalEntry, Win
+from careeros.storage.models import GuideLink, JournalEntry, SyncRun, Win
 
 from test_guide import form, nb, session  # noqa: F401
 
@@ -274,6 +274,9 @@ def test_google_tasks_parse_and_merge(nb):
         rows = {e.text: e for e in s.scalars(select(JournalEntry).where(JournalEntry.source == "tasks"))}
         assert rows["deploy occ to uat"].status == "done" and rows["deploy occ to uat"].external_id == "gtask:T1"
         assert gtasks.merge(s, ts) == dict(added=0, updated=0)
+        runs = s.scalars(select(SyncRun).where(SyncRun.source == "tasks")).all()
+        gtasks.merge(s, ts, complete=False)  # a list failed: don't move the "last synced" mark forward
+        assert len(s.scalars(select(SyncRun).where(SyncRun.source == "tasks")).all()) == len(runs)
 
 
 def test_sync_google_runs_every_step(nb, monkeypatch):
