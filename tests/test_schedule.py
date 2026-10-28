@@ -160,3 +160,46 @@ def test_cli_sync_all_refuses_practice_notebook(tmp_path):
     d.init_demo()
     r = CliRunner().invoke(cli, ["sync", "all", "--data-dir", str(d.root)])
     assert r.exit_code == 1 and "personal notebook" in r.output
+
+
+def test_status_shows_the_dated_sync_log_not_the_launchd_one(dd, monkeypatch):
+    monkeypatch.setattr(schedule, "launchctl", lambda *a: 1)
+    logs = dd.root / "logs"
+    logs.mkdir()
+    (logs / "sync-2026-10-28.log").write_text("18:00:09  Google: Google synced\n")
+    (logs / "sync-agent.log").write_text("launchd noise\n")
+    assert "Google synced" in schedule.status(dd)[-1]
+
+
+def test_install_says_so_when_macos_refuses_to_load_an_agent(dd, tmp_path, monkeypatch):
+    monkeypatch.setattr(schedule, "launchctl", lambda *args: 1 if args[0] == "bootstrap" else 0)
+    with pytest.raises(RuntimeError, match="wouldn't load"):
+        schedule.install(dd, agents_dir=tmp_path / "LaunchAgents", uv="/opt/uv", repo=Path("/repo"))
+
+
+def test_a_crashing_sync_does_not_stop_the_other_and_notifies(dd, monkeypatch):
+    calls = fake_syncs(monkeypatch)
+
+    def crash(job, Session_, lock, *rest):
+        raise ValueError("canvas exploded")
+    monkeypatch.setattr(sync_all.syncs, "run_slack", crash)
+    notes = []
+    assert sync_all.run(dd, force=True, notify=lambda t, m: notes.append((t, m))) == 1
+    assert calls == ["google"] and len(notes) == 1 and "Slack" in notes[0][0]
+
+
+def test_a_second_sync_exits_while_one_is_running(dd, monkeypatch):
+    import fcntl
+    calls = fake_syncs(monkeypatch)
+    (dd.root / "logs").mkdir()
+    with (dd.root / "logs" / "sync.lock").open("w") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        assert sync_all.run(dd, force=True, notify=lambda *a: None) == 0
+    assert calls == []
+
+
+def test_a_stuck_notification_is_ignored(monkeypatch):
+    def hang(*a, **k):
+        raise sync_all.subprocess.TimeoutExpired("osascript", 10)
+    monkeypatch.setattr(sync_all.subprocess, "run", hang)
+    sync_all.mac_notify("t", "m")

@@ -53,7 +53,8 @@ def install(dd: DataDir, agents_dir: Path = AGENTS_DIR, uv: str | None = None, r
         path = agents_dir / f"{label}.plist"
         launchctl("bootout", f"{_domain()}/{label}")
         path.write_bytes(plistlib.dumps(spec))
-        launchctl("bootstrap", _domain(), str(path))
+        if launchctl("bootstrap", _domain(), str(path)) != 0:
+            raise RuntimeError(f"macOS wouldn't load {path.name}. Run `launchctl print {_domain()}/{label}` for details.")
         written.append(path)
     return written
 
@@ -75,7 +76,7 @@ def status(dd: DataDir, agents_dir: Path = AGENTS_DIR) -> list[str]:
         installed = (agents_dir / f"{label}.plist").exists()
         loaded = installed and launchctl("print", f"{_domain()}/{label}") == 0
         lines.append(f"{what}: {'on' if loaded else 'installed but not loaded' if installed else 'off'}")
-    logs = sorted((dd.root / "logs").glob("sync-*.log"))
+    logs = sorted((dd.root / "logs").glob("sync-2*.log"))
     if logs:
         last = [l for l in logs[-1].read_text().splitlines() if l.strip()]
         lines.append(f"Last sync log ({logs[-1].name}): {last[-1] if last else 'empty'}")

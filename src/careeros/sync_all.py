@@ -5,6 +5,7 @@ the latest scheduled time does nothing, so the login catch-up is cheap.
 """
 from __future__ import annotations
 
+import fcntl
 import subprocess
 import threading
 from datetime import datetime, time, timedelta
@@ -31,8 +32,11 @@ def last_scheduled(now: datetime) -> datetime:
 def mac_notify(title: str, message: str) -> None:
     def q(text: str) -> str:
         return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
-    subprocess.run(["osascript", "-e", f"display notification {q(message[:220])} with title {q(title[:80])}"],
-                   check=False, capture_output=True, timeout=10)
+    try:
+        subprocess.run(["osascript", "-e", f"display notification {q(message[:220])} with title {q(title[:80])}"],
+                       check=False, capture_output=True, timeout=10)
+    except subprocess.SubprocessError:  # a stuck notification shouldn't fail a finished sync
+        pass
 
 
 def _covered(Session_, since: datetime) -> bool:
@@ -50,6 +54,12 @@ def run(dd: DataDir, *, force: bool = False, now: datetime | None = None,
     engine = make_engine(dd.db)
     init_db(engine)
     Session_ = make_session_factory(engine)
+    lock_file = (logs / "sync.lock").open("w")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:  # another sync (login catch-up, or the 6 PM run) is still going
+        lock_file.close()
+        return 0
     log = (logs / f"sync-{now:%Y-%m-%d}.log").open("a")
 
     def say(line: str) -> None:
@@ -82,3 +92,4 @@ def run(dd: DataDir, *, force: bool = False, now: datetime | None = None,
         return 1 if failed else 0
     finally:
         log.close()
+        lock_file.close()
