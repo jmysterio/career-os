@@ -19,7 +19,7 @@ def _claude() -> str:
     return claude
 
 
-SAVED_DIRS = (Path.home() / ".claude", Path("/tmp/tool-responses").resolve())
+SAVED_DIRS = (Path.home() / ".claude" / "projects", Path("/tmp/tool-responses").resolve())
 SAVED = re.compile(r"saved to:?\s*(\S+\.(?:txt|json))", re.I)
 TOO_LARGE = re.compile(r"too large|saved to", re.I)
 
@@ -42,13 +42,12 @@ def _result_text(content: object) -> str:
     raw = content if isinstance(content, str) else "".join(
         part.get("text", "") for part in content if isinstance(part, dict))
     saved = SAVED.search(raw)
-    if not saved:
+    path = saved and Path(saved.group(1)).resolve()
+    # Only a path in Claude's own save folders counts; any other "saved to x.txt" is just words in the answer.
+    if not path or not any(path.is_relative_to(d) for d in SAVED_DIRS) or not path.is_file():
         if len(raw) < 400 and TOO_LARGE.search(raw):
             raise ClaudeError("The answer was too big to read back. Try again.")
         return _unwrap(raw)
-    path = Path(saved.group(1)).resolve()
-    if not any(path.is_relative_to(d) for d in SAVED_DIRS) or not path.is_file():
-        raise ClaudeError("Claude saved the answer somewhere unexpected; stopping.")
     return _unwrap(path.read_text())
 
 
@@ -57,7 +56,7 @@ def call_tools(prompt: str, tools: list[str], timeout: int = 240, max_turns: int
     Claude's own words are discarded."""
     try:
         run = subprocess.run(
-            [_claude(), "-p", prompt, "--allowedTools", *tools, "--output-format", "stream-json", "--verbose",
+            [_claude(), "-p", prompt, "--tools", "", "--allowedTools", *tools, "--output-format", "stream-json", "--verbose",
              "--max-turns", str(max_turns)], capture_output=True, text=True, timeout=timeout, cwd=Path.home())
     except subprocess.TimeoutExpired:
         raise ClaudeError("Claude took too long to answer. Try again.") from None
@@ -101,7 +100,7 @@ def call_tool(prompt: str, tool: str, timeout: int = 240) -> str:
 def ask(prompt: str, data: str, timeout: int = 240) -> str:
     """Claude's reply to `prompt` about `data` (sent on stdin), with no tools and a single turn."""
     try:
-        run = subprocess.run([_claude(), "-p", prompt, "--output-format", "json", "--max-turns", "1"],
+        run = subprocess.run([_claude(), "-p", prompt, "--tools", "", "--output-format", "json", "--max-turns", "1"],
                              input=data, capture_output=True, text=True, timeout=timeout, cwd=Path.home())
         out = json.loads(run.stdout)
     except subprocess.TimeoutExpired:

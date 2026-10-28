@@ -204,3 +204,9 @@ def test_saved_big_answers_are_read_back(tmp_path, monkeypatch):
         claude_cli._result_text("Result text too large. Full results saved to: /etc/passwd.txt")
     with pytest.raises(ClaudeError):
         claude_cli._result_text("Result text too large for inline response (276037 bytes).")
+
+
+def test_a_long_answer_that_mentions_saved_to_is_kept_as_is():
+    from careeros import claude_cli
+    text = "# Tracker\n" + "x" * 5000 + "\nExport saved to: notes.txt\n"
+    assert claude_cli._result_text(text) == text

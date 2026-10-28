@@ -11,7 +11,7 @@ from careeros.google import calendar as gcal
 from careeros.guide import ai_review
 from careeros.guide.service import evidence, promo_map
 from careeros.storage.db import init_db, make_engine
-from careeros.storage.models import GuideLink, JournalEntry, Win
+from careeros.storage.models import GuideLink, JournalEntry, SyncRun, Win
 
 from test_guide import form, nb, session  # noqa: F401
 
@@ -274,6 +274,9 @@ def test_google_tasks_parse_and_merge(nb):
         rows = {e.text: e for e in s.scalars(select(JournalEntry).where(JournalEntry.source == "tasks"))}
         assert rows["deploy occ to uat"].status == "done" and rows["deploy occ to uat"].external_id == "gtask:T1"
         assert gtasks.merge(s, ts) == dict(added=0, updated=0)
+        runs = s.scalars(select(SyncRun).where(SyncRun.source == "tasks")).all()
+        gtasks.merge(s, ts, complete=False)  # a list failed: don't move the "last synced" mark forward
+        assert len(s.scalars(select(SyncRun).where(SyncRun.source == "tasks")).all()) == len(runs)
 
 
 def test_sync_google_runs_every_step(nb, monkeypatch):
@@ -318,3 +321,24 @@ def test_sync_never_deletes_entries_you_built_on(nb):
         s.commit()
         assert gcal.sync(s, [], date(2026, 10, 19), date(2026, 10, 21))["removed"] == 0
         assert s.get(JournalEntry, e.id) is not None
+
+
+def test_review_skips_records_removed_or_edited_while_claude_reads(nb):
+    from careeros.storage.removal import remove_entry
+    dd, *_ = nb
+    with session(dd) as s:
+        gone, checked, retyped, plain = (add(s, t) for t in ("gone", "checked", "retyped", "plain"))
+
+        def reader(guide, themes, records):
+            with session(dd) as other:  # what you do in the queue while Claude is thinking
+                remove_entry(other, gone)
+                other.get(JournalEntry, checked).reviewed = True
+                other.get(JournalEntry, retyped).kind = "document"
+                other.commit()
+            return {r["id"]: dict(guide=["E1"], kind="task", win=None) for r in records}
+
+        r = ai_review.review(s, reader=reader)
+        assert r["read"] == 2 and r["failed"] == 0
+        assert s.get(JournalEntry, retyped).kind == "document"  # your choice wins over Claude's
+        assert s.get(JournalEntry, plain).kind == "task"
+        assert {l.entry_id for l in s.scalars(select(GuideLink))} == {retyped, plain}

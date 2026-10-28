@@ -110,9 +110,9 @@ def fetch(since: datetime) -> tuple[list[Task], int]:
     return tasks, len(set(lists) - ok)
 
 
-def merge(s: Session, tasks: list[Task]) -> dict[str, int]:
+def merge(s: Session, tasks: list[Task], complete: bool = True) -> dict[str, int]:
     """Adds new tasks and updates ones that changed (an open task that got done). Never deletes: a fetch only
-    covers recently changed lists."""
+    covers recently changed lists. An incomplete fetch isn't logged, so the next sync starts from the old mark."""
     from ..storage.removal import removed_ids
     mine = list(s.scalars(select(JournalEntry).where(JournalEntry.source == SOURCE)))
     by_key = {e.external_id: e for e in mine}
@@ -143,7 +143,8 @@ def merge(s: Session, tasks: list[Task]) -> dict[str, int]:
                 updated += 1
             e.external_id = ext
         by_key[ext] = e
-    from ..storage.sync_log import record
-    record(s, SOURCE, added)
+    if complete:
+        from ..storage.sync_log import record
+        record(s, SOURCE, added)
     s.commit()
     return dict(added=added, updated=updated)

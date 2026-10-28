@@ -147,3 +147,11 @@ def test_summaries_only_pending_for_meetings_with_a_notes_doc(s):
     s.add(JournalAttachment(entry_id=eid, kind="notes", title=summaries.AI_TITLE, body="x", created_at=datetime.now()))
     s.commit()
     assert summaries.pending(s, first, last) == {}
+
+
+@pytest.mark.parametrize("reply", ["MCP tool call failed: status 401", "Needs authentication", "Error: boom"])
+def test_failed_calendar_reply_is_an_error_not_an_empty_calendar(monkeypatch, reply):
+    from careeros.google import connector
+    monkeypatch.setattr(connector, "call_tool", lambda *a, **k: reply)
+    with pytest.raises(gcal.CalendarError):
+        connector.fetch(D, D)

@@ -132,6 +132,7 @@ def review(s: Session, *, redo: bool = False, limit: int | None = None,
     if not guide:
         raise ClaudeError("Load the leveling guide first.")
     ctx = _context(s, [e.id for e in todo])
+    kinds = {e.id: e.kind for e in todo}
     batches = [todo[i:i + BATCH] for i in range(0, len(todo), BATCH)]
 
     def records(b: list[JournalEntry]) -> list[dict]:
@@ -158,6 +159,12 @@ def review(s: Session, *, redo: bool = False, limit: int | None = None,
                     if r is None:
                         tot["failed"] += 1
                         continue
+                    sent_kind = kinds[e.id]
+                    e = s.get(JournalEntry, e.id, populate_existing=True)  # Claude took minutes; you may have acted
+                    if e is None or e.reviewed:
+                        continue
+                    if e.kind != sent_kind:
+                        r = {**r, "kind": None}
                     for k, v in _apply(s, e, r, ids, THEMES).items():
                         tot[k] += v
                     tot["read"] += 1

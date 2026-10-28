@@ -706,9 +706,8 @@ def create_app(dd: DataDir) -> FastAPI:
             return sheet_back(request, s, ret, msg="The Claude review only works with your personal notebook.")
         from ..claude_cli import ClaudeError
         from ..guide.ai_review import review
-        try:
-            with _write_lock:
-                r = review(s)
+        try:  # not under the write lock: Claude takes minutes, and review() re-checks each record before saving
+            r = review(s)
         except ClaudeError as exc:
             return sheet_back(request, s, ret, msg=f"Claude review didn't finish: {exc}")
         return sheet_back(request, s, ret, msg=f"Claude read {r['read']} records: {r['links']} guide links, {r['wins']} drafted "
