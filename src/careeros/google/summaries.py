@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
@@ -18,6 +17,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..claude_cli import ClaudeError, _claude
 from ..storage.models import JournalAttachment, JournalEntry
 from .calendar import SOURCE, CalendarError
 
@@ -48,15 +48,14 @@ def doc_ids(urls: list[str]) -> list[str]:
 
 
 def summarize(ids: list[str]) -> str:
-    claude = shutil.which("claude") or str(Path.home() / ".local/bin/claude")
-    if not Path(claude).exists():
-        raise CalendarError("Couldn't find the `claude` command on this computer.")
     try:
         run = subprocess.run(
-            [claude, "-p", PROMPT.format(ids=", ".join(ids)), "--allowedTools", TOOL, *READ_SAVED,
+            [_claude(), "-p", PROMPT.format(ids=", ".join(ids)), "--tools", "Read", "--allowedTools", TOOL, *READ_SAVED,
              "--output-format", "json", "--max-turns", str(len(ids) + 8)],
             capture_output=True, text=True, timeout=TIMEOUT_SECONDS, cwd=Path.home())
         out = json.loads(run.stdout)
+    except ClaudeError as exc:
+        raise CalendarError(str(exc)) from None
     except (subprocess.TimeoutExpired, ValueError):
         raise CalendarError("Claude didn't finish a summary.") from None
     text = str(out.get("result") or "").strip()
