@@ -50,7 +50,8 @@ def sync_all_cmd(force: bool = typer.Option(False, "--force", help="Run even if 
         typer.echo("Syncing only works with your personal notebook.")
         raise typer.Exit(1)
     code = sync_all.run(dd, force=force)
-    typer.echo("Synced." if code == 0 else "Something didn't sync; see the notification or logs/ in your notebook.")
+    typer.echo("Synced." if code == 0 else "Another sync is already running." if code == sync_all.LOCKED
+               else "Something didn't sync; see the notification or logs/ in your notebook.")
     raise typer.Exit(code)
 
 
@@ -66,7 +67,12 @@ def schedule_install(data_dir: Optional[str] = DataOpt) -> None:
     if not dd.is_personal:
         typer.echo("The schedule is only for your personal notebook.")
         raise typer.Exit(1)
-    for p in schedule.install(dd):
+    try:
+        installed = schedule.install(dd)
+    except RuntimeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    for p in installed:
         typer.echo(f"Installed {p}")
     typer.echo("If you started the app yourself in a Terminal, stop it (Ctrl+C); the scheduled one takes over.")
 

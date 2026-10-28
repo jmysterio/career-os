@@ -194,7 +194,7 @@ def test_a_second_sync_exits_while_one_is_running(dd, monkeypatch):
     (dd.root / "logs").mkdir()
     with (dd.root / "logs" / "sync.lock").open("w") as held:
         fcntl.flock(held, fcntl.LOCK_EX)
-        assert sync_all.run(dd, force=True, notify=lambda *a: None) == 0
+        assert sync_all.run(dd, force=True, notify=lambda *a: None) == sync_all.LOCKED
     assert calls == []
 
 
@@ -203,3 +203,11 @@ def test_a_stuck_notification_is_ignored(monkeypatch):
         raise sync_all.subprocess.TimeoutExpired("osascript", 10)
     monkeypatch.setattr(sync_all.subprocess, "run", hang)
     sync_all.mac_notify("t", "m")
+
+
+def test_cli_install_prints_the_error_instead_of_a_traceback(dd, monkeypatch):
+    def refuse(*a, **k):
+        raise RuntimeError("macOS wouldn't load it")
+    monkeypatch.setattr(schedule, "install", refuse)
+    r = CliRunner().invoke(cli, ["schedule", "install", "--data-dir", str(dd.root)])
+    assert r.exit_code == 1 and "wouldn't load" in r.output and "Traceback" not in r.output

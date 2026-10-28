@@ -22,6 +22,7 @@ from .web.jobs import Job
 
 TIMES = (time(8, 0), time(18, 0))
 SOURCES = ("slack", "calendar")  # each sync's sign of a successful pull
+LOCKED = 2  # exit code when another sync holds the lock
 
 
 def last_scheduled(now: datetime) -> datetime:
@@ -59,7 +60,7 @@ def run(dd: DataDir, *, force: bool = False, now: datetime | None = None,
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:  # another sync (login catch-up, or the 6 PM run) is still going
         lock_file.close()
-        return 0
+        return LOCKED
     log = (logs / f"sync-{now:%Y-%m-%d}.log").open("a")
 
     def say(line: str) -> None:
