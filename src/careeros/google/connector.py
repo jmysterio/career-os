@@ -7,13 +7,10 @@ the AI tool on the way, which is why this is a button you press, not something t
 """
 from __future__ import annotations
 
-import json
 import re
-import shutil
-import subprocess
 from datetime import date, datetime, time, timedelta
-from pathlib import Path
 
+from ..claude_cli import ClaudeError, call_tool, connector_error
 from .calendar import CalendarError
 
 TOOL = "mcp__plugin_google-workspace_google-workspace__get_events"
@@ -49,51 +46,19 @@ def parse_events_text(text: str, me: str | None = None) -> list[dict]:
     return items
 
 
-def _tool_result_text(content: object) -> str:
-    """The tool's answer, whether it came back inline or was saved to a file because it was large."""
-    from ..claude_cli import ClaudeError, _result_text
-    try:
-        return _result_text(content)
-    except ClaudeError as exc:
-        raise CalendarError(str(exc)) from None
-
-
 def fetch(first: date, last: date) -> list[dict]:
     """Meetings from `first` through the end of `last`, via a headless Claude Code run."""
     if (last - first).days > MAX_DAYS:
         raise CalendarError(f"Pick a window of {MAX_DAYS} days or fewer.")
-    claude = shutil.which("claude") or str(Path.home() / ".local/bin/claude")
-    if not Path(claude).exists():
-        raise CalendarError("Couldn't find the `claude` command on this computer.")
     tz = datetime.now().astimezone().tzinfo
     t0 = datetime.combine(first, time.min, tzinfo=tz).isoformat()
     t1 = datetime.combine(last + timedelta(days=1), time.min, tzinfo=tz).isoformat()
     prompt = (f"Call the get_events tool exactly once with calendar_id=primary, time_min={t0}, time_max={t1}, "
               "max_results=250, detailed=true, include_attachments=true. When it returns, reply with only DONE.")
     try:
-        run = subprocess.run(
-            [claude, "-p", prompt, "--allowedTools", TOOL, "--output-format", "stream-json", "--verbose",
-             "--max-turns", "5"],
-            capture_output=True, text=True, timeout=TIMEOUT_SECONDS, cwd=Path.home())
-    except subprocess.TimeoutExpired:
-        raise CalendarError("Claude took too long to answer. Try again.") from None
-    answer: str | None = None
-    wanted: set[str] = set()
-    for line in run.stdout.splitlines():
-        try:
-            msg = json.loads(line)
-        except ValueError:
-            continue
-        for part in (msg.get("message") or {}).get("content") or []:
-            if not isinstance(part, dict):
-                continue
-            if part.get("type") == "tool_use" and part.get("name") == TOOL:
-                wanted.add(part["id"])
-            elif part.get("type") == "tool_result" and part.get("tool_use_id") in wanted:
-                answer = _tool_result_text(part.get("content", ""))
-    if answer is None:
-        raise CalendarError("Claude didn't return any calendar data. Is Google Workspace connected in Claude Code?"
-                            + (f" ({run.stderr.strip()[:150]})" if run.stderr.strip() else ""))
-    if answer.startswith("Error"):
-        raise CalendarError(f"The calendar tool said: {answer[:200]}")
+        answer = call_tool(prompt, TOOL, TIMEOUT_SECONDS)
+    except ClaudeError as exc:
+        raise CalendarError(str(exc)) from None
+    if err := connector_error(answer, "Google"):  # a failure reply would otherwise look like an empty calendar
+        raise CalendarError(err)
     return parse_events_text(answer)
