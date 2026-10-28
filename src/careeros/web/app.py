@@ -28,7 +28,8 @@ from ..storage.sync_log import status as sync_status
 from . import syncs
 from .jobs import Jobs
 from ..storage.db import init_db, make_engine, make_session_factory
-from ..storage.models import GuideItem, GuideLink, JournalAttachment, JournalEntry, RemovedEntry, Win
+from ..guide import work
+from ..storage.models import GuideItem, GuideLink, JournalAttachment, JournalEntry, RemovedEntry, Win, WorkItem
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
 CSP = ("default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self'; img-src 'self'; "
@@ -579,10 +580,63 @@ def create_app(dd: DataDir) -> FastAPI:
         for a in s.scalars(select(JournalAttachment).where(JournalAttachment.entry_id.in_(ids),
                                                            JournalAttachment.kind == "notes")):
             notes.setdefault(a.entry_id, a.body[:1200])
+        nearby: list[WorkItem] = []
+        if rows:
+            span = timedelta(days=work.WINDOW_DAYS)
+            lo = (date.fromisoformat(min(e.day for e in rows)) - span).isoformat()
+            hi = (date.fromisoformat(max(e.day for e in rows)) + span).isoformat()
+            nearby = list(s.scalars(select(WorkItem).where(WorkItem.day >= lo, WorkItem.day <= hi)
+                                    .order_by(WorkItem.day.desc())))
+        members = dict(s.execute(select(JournalEntry.work_item_id, func.count()).where(
+            JournalEntry.work_item_id.in_([w.id for w in nearby])).group_by(JournalEntry.work_item_id)).all())
+        by_id = {w.id: w for w in nearby}
+        by_id.update({w.id: w for w in s.scalars(select(WorkItem).where(
+            WorkItem.id.in_({e.work_item_id for e in rows if e.work_item_id} - set(by_id))))})
+
+        def near(e) -> list[dict]:
+            d = date.fromisoformat(e.day)
+            return [dict(id=w.id, title=w.title, day=w.day) for w in nearby if w.id != e.work_item_id
+                    and abs((date.fromisoformat(w.day) - d).days) <= work.WINDOW_DAYS][:20]
+
         return [dict(id=e.id, day=e.day, source=SOURCE_LABEL.get(e.source, e.source), kind=e.kind,
                      kind_was=dict(SHEET_KIND).get(e.kind_was, ""),
                      text=e.text, reviewed=e.reviewed, ai_read=e.ai_read, links=links.get(e.id, []),
-                     win=wins.get(e.id), notes=notes.get(e.id, "")) for e in rows]
+                     win=wins.get(e.id), notes=notes.get(e.id, ""),
+                     work=(dict(id=w.id, title=w.title, ai=w.by_ai and not e.work_fixed, size=members.get(w.id, 1))
+                           if (w := by_id.get(e.work_item_id)) else None),
+                     near=near(e)) for e in rows]
+
+    @app.post("/sheet/{eid}/split", dependencies=[Depends(check_csrf)])
+    def sheet_split(request: Request, eid: int, ret: str = Form(""), s: Session = Depends(db)):
+        """Not the same work: take the record out of its group, and keep Claude from regrouping it."""
+        with _write_lock:
+            e = s.get(JournalEntry, eid)
+            if e:
+                e.work_item_id, e.work_fixed, e.grouped = None, True, True
+                s.flush()
+                work.drop_empty(s)
+                s.commit()
+        return sheet_back(request, s, ret, eid)
+
+    @app.post("/sheet/{eid}/group", dependencies=[Depends(check_csrf)])
+    def sheet_group(request: Request, eid: int, item: str = Form(""), title: str = Form("", max_length=200),
+                    ret: str = Form(""), s: Session = Depends(db)):
+        """Group with an existing piece of work, or start a new one with the given title."""
+        with _write_lock:
+            e = s.get(JournalEntry, eid)
+            target = s.get(WorkItem, int(item)) if item.isdigit() else None
+            if e and target is None and title.strip():
+                target = WorkItem(title=title.strip(), day=e.day, started=e.day, by_ai=False, created_at=datetime.now())
+                s.add(target)
+                s.flush()
+            if e and target:
+                e.work_item_id, e.work_fixed, e.grouped = target.id, True, True
+                target.day = max(target.day, e.day)
+                target.started = min(target.started or target.day, e.day)
+                s.flush()
+                work.drop_empty(s)
+                s.commit()
+        return sheet_back(request, s, ret, eid)
 
     @app.post("/sheet/{eid}/kind", dependencies=[Depends(check_csrf)])
     def sheet_kind(request: Request, eid: int, kind: str = Form(...), ret: str = Form(""), s: Session = Depends(db)):

@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 import os
+import sqlite3
+import tempfile
+from contextlib import closing
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -195,6 +199,49 @@ def guide_review(redo: bool = typer.Option(False, "--redo", help="Also re-read r
     typer.echo(f"Read {r['read']} records: {r['links']} guide links, {r['wins']} drafted wins, "
                f"{r['kinds']} type changes, all marked AI."
                + (f" {r['failed']} couldn't be read; run this again to retry them." if r["failed"] else ""))
+
+
+@guide_app.command("group")
+def guide_group(dry_run: bool = typer.Option(False, "--dry-run", help="Show the groups Claude would make; save nothing"),
+                redo: bool = typer.Option(False, "--redo", help="Also regroup records Claude already grouped "
+                                                                "(never ones you grouped or split yourself)"),
+                limit: Optional[int] = typer.Option(None, help="Only this many records (oldest first)"),
+                data_dir: Optional[str] = DataOpt) -> None:
+    """Group records that describe the same piece of work, so it counts once on the Promo map (marked AI)."""
+    from .claude_cli import ClaudeError
+    from .guide import work
+    dd, s = _open_personal(data_dir, "Grouping")
+    scratch = None
+    if dry_run:  # try it on a copy, so the app can keep saving to the real notebook for the minutes Claude takes
+        s.close()
+        scratch = tempfile.TemporaryDirectory()
+        with closing(sqlite3.connect(dd.db)) as src, closing(sqlite3.connect(Path(scratch.name) / "dry.db")) as dst:
+            src.backup(dst)
+        s = make_session_factory(make_engine(Path(scratch.name) / "dry.db"))()
+    n = len(work.pending(s, redo)[:limit])
+    if not n:
+        typer.echo("Nothing to group.")
+        return
+    typer.echo(f"Claude is grouping {n} records, oldest first. This takes a few minutes.")
+    try:
+        r = work.group(s, everything=redo, limit=limit, dry_run=dry_run,
+                       progress=lambda i, t: typer.echo(f"  batch {i} of {t} done"))
+    except ClaudeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    finally:
+        s.close()
+        if scratch:
+            scratch.cleanup()
+    if dry_run:
+        for title, texts in sorted(r.get("groups", {}).items(), key=lambda kv: -len(kv[1])):
+            typer.echo(f"\n{title} ({len(texts)} records)")
+            for t in texts:
+                typer.echo(f"  - {t[:100]}")
+        typer.echo("\nDry run: nothing was saved.")
+        return
+    typer.echo(f"Grouped {r['read']} records: {r['new']} pieces of work started, {r['joined']} records joined one, "
+               f"{r['alone']} on their own." + (f" {r['failed']} couldn't be read; run again." if r["failed"] else ""))
 
 
 slack_app = typer.Typer(no_args_is_help=True, help="Bring Slack canvases into your notebook (read-only)")

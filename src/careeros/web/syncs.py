@@ -24,21 +24,26 @@ def _tasks_since(s) -> datetime:
 
 
 def _link_new(job: Job, i: int, s) -> int:
+    from ..guide import work
     from ..guide.ai_review import pending, review
     from ..guide.service import has_guide
     if not has_guide(s):
         job.skip(i, "The leveling guide isn't loaded.")
         return 0
-    if not pending(s):
+    if not pending(s) and not work.pending(s):
         job.done(i, "Nothing new to link.")
         return 0
     job.start(i)
+    r = dict(read=0, links=0, wins=0, failed=0)
     try:
-        r = review(s, progress=job.sub)
+        if pending(s):
+            r = review(s, progress=job.sub)
+        g = work.group(s) if work.pending(s) else dict(new=0, joined=0)
     except ClaudeError as exc:
         job.fail(i, str(exc))
         return 0
-    job.done(i, f"{_plural(r['links'], 'guide link')}, {_plural(r['wins'], 'drafted win')}"
+    job.done(i, f"{_plural(r['links'], 'guide link')}, {_plural(r['wins'], 'drafted win')}, "
+             f"{_plural(g['joined'], 'record')} grouped with earlier work"
              + (f"; {r['failed']} couldn't be read" if r["failed"] else ""))
     return r["read"]
 

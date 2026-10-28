@@ -56,6 +56,9 @@ def remove_entry(s: Session, eid: int) -> bool:
             w.entry_id = None
     s.execute(delete(GuideLink).where(GuideLink.entry_id == eid))
     s.delete(e)
+    s.flush()
+    from ..guide.work import drop_empty
+    drop_empty(s)
     s.commit()
     return True
 
