@@ -1,8 +1,10 @@
 # Career OS
 
-A local, evidence-backed work journal. It gathers traces of your work, connects the related ones, and drafts accomplishment statements that you review and approve. It runs only on your laptop.
+A local, evidence-backed work journal. It gathers traces of your work, connects the related ones, and drafts accomplishment statements that you review and approve. The app and its database run only on your laptop (loopback address, no accounts).
 
-**Status:** milestone 1, a prototype that runs on synthetic demo data only. Every command refuses a data folder without a `.demo` marker. A real source needs a written approval record first.
+**Your data and Claude:** the Sync buttons and the Claude review run the `claude` command on your computer. That sends the text it reads (Slack tracker canvas, calendar events, meeting notes, tasks, your records) to Claude, with built-in tools turned off. Nothing is sent unless you press one of those buttons.
+
+**Status:** it works with your personal notebook through Google and Slack connectors. The demo data folder (marked `.demo`) stays offline, and a real source needs a written approval record first.
 
 To run it, test it, or read your notes on usage, see [INSTRUCTIONS.md](INSTRUCTIONS.md).
 

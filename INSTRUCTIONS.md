@@ -4,7 +4,7 @@ Plain-language notes on running and testing the app. New questions and answers g
 
 ## Where things stand
 
-The app runs on your laptop only and works on **made-up demo data**. It cannot read your real Slack, Google, or git yet, and that is deliberate. It refuses any data folder that isn't marked as demo.
+This section walks through the app on **made-up demo data**. The demo folder never syncs with Slack or Google. Your personal notebook can, through the Sync buttons (see the README for what Claude sees).
 
 The demo story is a fake release called "October B": a spreadsheet row, some git merges, and a few traps. Here is what the app does with it:
 
