@@ -62,11 +62,15 @@ def call_tools(prompt: str, tools: list[str], timeout: int = 240, max_turns: int
         raise ClaudeError("Claude took too long to answer. Try again.") from None
     calls: dict[str, tuple[str, dict]] = {}
     answers: list[tuple[str, dict, str]] = []
+    down: list[str] = []
     for line in run.stdout.splitlines():
         try:
             msg = json.loads(line)
         except ValueError:
             continue
+        if msg.get("type") == "system" and msg.get("subtype") == "init":
+            down = [s.get("name", "") for s in msg.get("mcp_servers") or []
+                    if s.get("status") != "connected" and any(_serves(s.get("name", ""), t) for t in tools)]
         for part in (msg.get("message") or {}).get("content") or []:
             if not isinstance(part, dict):
                 continue
@@ -75,10 +79,23 @@ def call_tools(prompt: str, tools: list[str], timeout: int = 240, max_turns: int
             elif part.get("type") == "tool_result" and part.get("tool_use_id") in calls:
                 name, args = calls[part["tool_use_id"]]
                 answers.append((name, args, _result_text(part.get("content", ""))))
+    if not answers and down:
+        raise ClaudeError(f"Claude Code's {_service(down[0])} connector isn't signed in. Open AI Suite > Settings > "
+                          "Connections, sign in again, then sync again.")
     if not answers:
         raise ClaudeError("Claude didn't get an answer from the connector. Is it signed in for Claude Code?"
                           + (f" ({run.stderr.strip()[:150]})" if run.stderr.strip() else ""))
     return answers
+
+
+def _serves(server: str, tool: str) -> bool:
+    """Claude Code names a connector's tools mcp__<server name with ':' as '_'>__<tool>."""
+    return bool(server) and tool.startswith("mcp__" + server.replace(":", "_") + "__")
+
+
+def _service(server: str) -> str:
+    name = server.split(":")[-1]
+    return {"google-workspace": "Google Workspace", "slack": "Slack"}.get(name, name)
 
 
 def connector_error(text: str, service: str) -> str | None:
