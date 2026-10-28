@@ -19,7 +19,7 @@ def _claude() -> str:
     return claude
 
 
-SAVED_DIRS = (Path.home() / ".claude", Path("/tmp/tool-responses").resolve())
+SAVED_DIRS = (Path.home() / ".claude" / "projects", Path("/tmp/tool-responses").resolve())
 SAVED = re.compile(r"saved to:?\s*(\S+\.(?:txt|json))", re.I)
 TOO_LARGE = re.compile(r"too large|saved to", re.I)
 
@@ -42,13 +42,12 @@ def _result_text(content: object) -> str:
     raw = content if isinstance(content, str) else "".join(
         part.get("text", "") for part in content if isinstance(part, dict))
     saved = SAVED.search(raw)
-    if not saved:
+    path = saved and Path(saved.group(1)).resolve()
+    # Only a path in Claude's own save folders counts; any other "saved to x.txt" is just words in the answer.
+    if not path or not any(path.is_relative_to(d) for d in SAVED_DIRS) or not path.is_file():
         if len(raw) < 400 and TOO_LARGE.search(raw):
             raise ClaudeError("The answer was too big to read back. Try again.")
         return _unwrap(raw)
-    path = Path(saved.group(1)).resolve()
-    if not any(path.is_relative_to(d) for d in SAVED_DIRS) or not path.is_file():
-        raise ClaudeError("Claude saved the answer somewhere unexpected; stopping.")
     return _unwrap(path.read_text())
 
 
