@@ -48,7 +48,7 @@
       <a href="/guide/link?entry={{ e.id }}&next={{ page|urlencode }}">Link to the leveling guide</a></p>
     {% elif e.guided %}<p class="help"><a href="/guide/link?entry={{ e.id }}&next={{ page|urlencode }}">Link to the leveling guide</a></p>{% endif %}
     {% if e.notes_state == "none" %}<p class="muted">No meeting notes or transcript attached.</p>
-    {% elif e.notes_state == "pending" %}<p class="muted">Notes found, but no summary yet. Press Sync calendar to write one.</p>{% endif %}
+    {% elif e.notes_state == "pending" %}<p class="muted">Notes found, but no summary yet. Press Sync Google to write one.</p>{% endif %}
     <details><summary>Add more to this</summary>
       <form method="post" action="/journal/{{ e.id }}/attach" class="stack">
         <input type="hidden" name="csrf" value="{{ csrf }}">{{ attach_fields() }}<div><button>Add</button></div></form>
