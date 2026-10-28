@@ -2,7 +2,7 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from typer.testing import CliRunner
 
 from careeros.claude_cli import ClaudeError
@@ -210,3 +210,15 @@ def test_a_long_answer_that_mentions_saved_to_is_kept_as_is():
     from careeros import claude_cli
     text = "# Tracker\n" + "x" * 5000 + "\nExport saved to: notes.txt\n"
     assert claude_cli._result_text(text) == text
+
+
+def test_import_skips_items_another_sync_saved_while_claude_sorted(tmp_path):
+    dd, Session = personal(tmp_path)
+    items = parse_canvas(TRACKER)
+    with Session() as s, Session() as other:
+        def classify_while_other_sync_saves(todo):
+            import_items(other, items[:1], lambda t: {})  # the scheduled sync finishes first
+            return {}
+        r = import_items(s, items, classify_while_other_sync_saves)
+        assert r["added"] == 2 and r["skipped"] == 1
+        assert s.scalar(select(func.count()).select_from(JournalEntry)) == 3
