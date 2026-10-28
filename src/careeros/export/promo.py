@@ -28,6 +28,11 @@ def promo_markdown(pm: dict, today: date | None = None) -> str:
         p = pm["progress"][gr]
         out.append(f"- Grade {gr}: {p['shown'] + p['strong']} of {p['total']} key experiences shown "
                    f"({p['strong']} strong), {p['started']} started, {p['gap']} not yet.")
+    if pm.get("impact"):
+        out += ["", "## By the numbers", "", "Times each was done: a piece of work counts once per day, however many records describe it.", "",
+                "| Activity | This half | This year | All time |", "|---|---:|---:|---:|"]
+        out += [f"| {c['label'][:1].upper()}{c['label'][1:]} | {c['half']} | {c['year']} | {c['all']} |"
+                for c in pm["impact"]]
     for gr in grades:
         out += ["", f"## Grade {gr} key experiences"]
         if pm["summaries"].get(gr):

@@ -30,6 +30,9 @@ class JournalEntry(Base):
     work_item_id: Mapped[int | None] = mapped_column(ForeignKey("work_item.id"), nullable=True, default=None)
     grouped: Mapped[bool] = mapped_column(Boolean, default=False)  # Claude has decided which work item it belongs to
     work_fixed: Mapped[bool] = mapped_column(Boolean, default=False)  # the user grouped or split it; Claude leaves it
+    activity: Mapped[str] = mapped_column(String, default="")  # one key from guide/activities.py, or "" for none
+    activity_read: Mapped[bool] = mapped_column(Boolean, default=False)  # Claude has tagged it
+    activity_fixed: Mapped[bool] = mapped_column(Boolean, default=False)  # the user set it; Claude leaves it
 
 
 class WorkItem(Base):
