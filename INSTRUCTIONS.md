@@ -23,7 +23,7 @@ Don't add `--data-dir` to this command. That flag points the app at a different 
 
 ## Let it run on its own (recommended)
 
-One command sets up two small macOS scheduled tasks, so you never start the app or press Sync yourself:
+One command sets up three small macOS scheduled tasks, so you never start the app or press Sync yourself:
 
 ```
 cd ~/Documents/career-os
@@ -33,9 +33,10 @@ uv run careeros schedule install
 - **The app** starts when you log in and restarts by itself if it ever stops. It's always at http://127.0.0.1:8765. If you'd started it yourself in a Terminal, stop that one (Ctrl+C) first.
 - **The sync** runs at 8:00 AM and 6:00 PM (after your 5 PM Slack automation), and once when you log in if a run was missed while the laptop was closed. Each run backs up the notebook first, then does exactly what the Sync Slack tracker and Sync Google buttons do, then pulls your GitHub pull requests. If nothing is due, it does nothing.
 - **If something fails**, for example a connector's sign-in expired, a macOS notification says which sync and what to do (usually: open AI Suite > Settings > Connections and sign in again). Nothing is shown when everything works; the **Last pulled in** box shows the times.
-- `uv run careeros schedule status` shows whether both are on and the last sync log line. Logs are in `logs/` in your notebook folder.
+- **The digest** shows a notification on Fridays at 12:00 PM (if the laptop was asleep, as soon as it wakes). See **Weekly digest** below.
+- `uv run careeros schedule status` shows whether each is on and the last sync log line. Logs are in `logs/` in your notebook folder.
 - `uv run careeros sync all --force` runs a sync right now from Terminal.
-- `uv run careeros schedule uninstall` removes both tasks and nothing else.
+- `uv run careeros schedule uninstall` removes the three tasks and nothing else.
 
 ## Start the practice notebook (made-up data)
 
@@ -148,6 +149,21 @@ uv run careeros slack connect <canvas link>
 
 **Importing a saved canvas** (for example one of your old Weekly Contributions canvases): save its text to a file, then run `uv run careeros slack import <file>`. The 2025 Weekly Contributions canvases are already imported.
 
+## Weekly digest
+
+**Weekly digest** in the Menu shows the last seven days: how many records came in (and from where), the wins and kudos, the leveling guide items that gained evidence, and the week's activity counts next to this half's totals. **Week before** and **Week after** step through earlier weeks.
+
+At the top are **nudges**, each with a link to where to act:
+
+- **Aim for next:** the top two suggestions from the Promo map.
+- **Big wins without "why it mattered":** medium and large wins with no impact sentence, which the promo case can't use well.
+- **Quiet areas:** a Promo map area with evidence before but nothing in the last 60 days (unless it's already an Aim for next).
+- **The queue:** 25 or more records in the Intake Review Queue not checked yet.
+
+When nothing needs you, it says so. The page is worked out when you open it, from the notebook only: no Claude, nothing stored.
+
+On Fridays at 12:00 PM the schedule shows a macOS notification like "This week: 13 wins, 54 records, 3 nudges. Open http://127.0.0.1:8765/digest". macOS doesn't open links from these notifications, so open the page from the Menu. To see it now: `uv run careeros digest notify`.
+
 ## Kudos: recognition from other people
 
 **Sync Slack tracker** (and the scheduled sync) also looks for kudos: messages that mention you and recognize your work, in your **public and private Slack channels**. **DMs and group DMs are never searched.**
@@ -249,7 +265,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `140 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `145 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

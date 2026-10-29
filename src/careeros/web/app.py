@@ -63,7 +63,7 @@ TABS = {  # path -> (kind, tab name, heading, what's on it)
     "/recognition": ("recognition", "Kudos", "Kudos", "Recognition from other people: shout-outs and thanks found in public Slack channels, and anything you marked as recognition. Each counts like a medium win on the Promo map."),
     "/other": ("note", "Other", "Something else", "Anything that didn't fit the other tabs."),
 }
-PAGES = {"/", "/search", "/wins", "/promo", "/sheet", *TABS}
+PAGES = {"/", "/search", "/wins", "/promo", "/sheet", "/digest", *TABS}
 SOURCE_LABEL = {"calendar": "Calendar", "tasks": "Google Tasks", "slack": "Slack", "docs": "Google Docs", "github": "GitHub",
                 "kudos": "Slack kudos", "": "Typed"}
 SHEET_KIND = [("meeting", "Meeting"), ("conversation", "Convo"), ("document", "Doc"), ("task", "Task"), ("recognition", "Kudos"),
@@ -754,6 +754,23 @@ def create_app(dd: DataDir) -> FastAPI:
             pm=gsvc.promo_map(s) if guided else None, hints=hints, ai=gsvc.ai_counts(s), csrf=csrf_token, msg=msg,
             sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
             page="/promo", personal=personal, q="")
+        return HTMLResponse(html)
+
+    @app.get("/digest", response_class=HTMLResponse)
+    def digest_page(request: Request, week: str = "", s: Session = Depends(db)):
+        """The week ending on `week` (default today): what it added, and nudges."""
+        from .. import digest
+        try:
+            end = min(date.fromisoformat(week), date.today()) if week else date.today()
+        except ValueError:
+            end = date.today()
+        prev, nxt = end - timedelta(days=7), end + timedelta(days=7)
+        weeks = [dict(iso=prev.isoformat(), label="Week before")] + (
+            [dict(iso=nxt.isoformat(), label="Week after")] if nxt <= date.today() else [])
+        html = env.get_template("digest.html").render(
+            d=digest.build(s, end), weeks=weeks, size_label=SIZE_LABEL, csrf=csrf_token, msg=None,
+            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
+            page="/digest", personal=personal, q="")
         return HTMLResponse(html)
 
     @app.get("/impact/{key}", response_class=HTMLResponse)

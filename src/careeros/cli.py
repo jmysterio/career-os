@@ -65,7 +65,7 @@ app.add_typer(schedule_app, name="schedule")
 
 @schedule_app.command("install")
 def schedule_install(data_dir: Optional[str] = DataOpt) -> None:
-    """Start the app at login (restarting it if it stops) and sync at 8 AM, 6 PM, and login."""
+    """Start the app at login (restarting it if it stops), sync at 8 AM, 6 PM, and login, and show the digest Fridays at noon."""
     from . import schedule
     dd = resolve(data_dir)
     if not dd.is_personal:
@@ -83,7 +83,7 @@ def schedule_install(data_dir: Optional[str] = DataOpt) -> None:
 
 @schedule_app.command("uninstall")
 def schedule_uninstall() -> None:
-    """Stop and remove both scheduled tasks. Nothing else is touched."""
+    """Stop and remove the scheduled tasks. Nothing else is touched."""
     from . import schedule
     removed = schedule.uninstall()
     typer.echo("\n".join(f"Removed {p}" for p in removed) or "Nothing was installed.")
@@ -549,6 +549,21 @@ def docs_unskip(text: str = typer.Argument(..., help="The rule's text, as listed
     from .storage.removal import drop_skip_rule
     dd, s = _open_personal(data_dir, "Docs rules")
     typer.echo("Rule removed." if drop_skip_rule(s, text, "docs") else "No rule with that text.")
+
+
+digest_app = typer.Typer(no_args_is_help=True, help="Your weekly digest")
+app.add_typer(digest_app, name="digest")
+
+
+@digest_app.command("notify")
+def digest_notify(data_dir: Optional[str] = DataOpt) -> None:
+    """Show this week's digest as a macOS notification (what the Friday noon schedule runs)."""
+    from . import digest
+    from .sync_all import mac_notify
+    dd, s = _open_personal(data_dir, "The digest")
+    line = digest.summary(digest.build(s))
+    mac_notify("Career OS: your week", line)
+    typer.echo(line)
 
 
 @app.command("serve")
