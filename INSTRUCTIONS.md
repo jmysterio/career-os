@@ -148,6 +148,18 @@ uv run careeros slack connect <canvas link>
 
 **Importing a saved canvas** (for example one of your old Weekly Contributions canvases): save its text to a file, then run `uv run careeros slack import <file>`. The 2025 Weekly Contributions canvases are already imported.
 
+## Kudos: recognition from other people
+
+**Sync Slack tracker** (and the scheduled sync) also looks for kudos: messages in **public** Slack channels that mention you and recognize your work. It searches your @-mentions a month at a time (the first pull goes back a year), leaves out your own messages and bots, and has Claude keep only real recognition: praise, a shout-out, or thanks that says what you did. A bare "thanks!", thanks for an invite, requests, FYIs, and announcements that just list you among many people are dropped. When unsure, Claude drops it.
+
+Each kept message becomes a **Kudos** record with a short **word-for-word quote** and who said it, like `Pat Lee: "Huge shout-out to @Jordan Tetzel for getting the 3.4 release out the door"`, with a link to the message. If Claude's quote isn't exactly in the message, the message's own words are used instead. On the Promo map, a kudos record **counts like a medium win**, and the promo case quotes it exactly.
+
+You can also mark any record as kudos yourself: press **Kudos** in its row of the Intake Review Queue. Everything recognition-related is on the **Kudos** tab.
+
+What to expect: in your first real pull, a year of public channels had 68 messages mentioning you and none of them were kudos. Most were GitHub-access request replies. Your recognition probably lives in private channels and DMs, which this doesn't read (your choice in the plan). Marking records by hand covers those.
+
+Your Slack user id is looked up once and saved in `slack_user.json` in the notebook folder. Kudos' last pull shows as the **Kudos** pill on Today and in **Last pulled in**.
+
 ## Google Docs, Sheets and Slides you wrote
 
 **Sync Google** (and the scheduled sync) also brings in the Google Docs, Sheets and Slides you worked on:
@@ -233,11 +245,11 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `127 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `138 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
-Your personal notebook is connected to Google Calendar, Google Tasks, Google Docs, the Slack tracker canvas, and GitHub, and Claude links what comes in to the leveling guide. Ideas still open:
+Your personal notebook is connected to Google Calendar, Google Tasks, Google Docs, the Slack tracker canvas, Slack kudos, and GitHub, and Claude links what comes in to the leveling guide. Ideas still open:
 
 1. **Fill in older history.** The notebook mostly covers July to October 2026. Older Google Calendar history needs a little setup: the Claude connector reaches back 14 days at most (`uv run careeros calendar pull --days 14`), while connecting the calendar's private iCal address (`calendar connect`) lets `calendar sync --days 60` go back two months at a time. Older Slack work could be found by searching your messages, then read by Claude like everything else.
 2. **Keep the approvals questions in mind:**

@@ -90,6 +90,16 @@ def build(s: Session, start: str, end: str) -> tuple[list[dict], dict[str, list[
             + (["behaviors"] if any(x.kind == "skill" for x in g) or {e.activity for e in recs} & SKILL_ACTIVITIES else [])
         add("work", text, recs[-1].day, [dict(entry=e.id) for e in recs], into)
 
+    # recognition from other people, quoted as stored
+    praised = [e for e in sorted(entries.values(), key=lambda e: e.day, reverse=True)
+               if e.kind == "recognition" and e.id not in won_entries]
+    for e in praised[:20]:
+        g = shows.get(("entry", e.id), [])
+        add("recognition", f"Recognition ({e.day}), quoted exactly: {e.text[:400]}"
+            + (f" Shows: {', '.join(_label(x) for x in g)}." if g else ""), e.day, [dict(entry=e.id)],
+            ["summary", "impact", "behaviors"])
+    won_entries |= {e.id for e in praised}
+
     # single linked records that aren't part of a piece of work or a win
     singles = [e for e in sorted(entries.values(), key=lambda e: e.day, reverse=True)
                if not e.work_item_id and e.id not in won_entries and (shows.get(("entry", e.id)) or e.activity)]

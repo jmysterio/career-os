@@ -230,6 +230,8 @@ All three add records with `source` set to `github`, `docs` or `releases`, an `e
 
 **Tests:** fake search results containing a real kudos and "thanks for the invite": only the first is kept; rerun adds nothing; manual marking works.
 
+**Changed when built:** searching your mention together with a praise word fuzzy-matches the name ("Tetzel" finds "Wetzel"), so the search is your mention alone, a month at a time, following extra pages (cursor) up to 5 per month. Your own messages and bots are dropped before Claude. Quotes show mentions as @Name and must appear word for word in the message, or the message's own words are used. It runs as a step of the Slack sync (not a separate `sync all` step). Real run: 68 mentions in a year of public channels, 0 kudos.
+
 **Risks:** the Slack search tool's output format is unknown, so capture a real sample first, as in 7b. DM search sends private messages to Claude; that is why it's your decision, and the default is public only.
 
 ---

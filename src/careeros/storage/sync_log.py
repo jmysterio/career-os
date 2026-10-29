@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from .models import JournalEntry, SyncRun
 
-SOURCES = {"slack": "Slack tracker", "calendar": "Google Calendar", "tasks": "Google Tasks", "docs": "Google Docs you wrote", "github": "GitHub pull requests"}
+SOURCES = {"slack": "Slack tracker", "calendar": "Google Calendar", "tasks": "Google Tasks", "docs": "Google Docs you wrote", "github": "GitHub pull requests", "kudos": "Slack kudos"}
 SLACK_READY = time(17, 30)  # the Slack tracker automation runs at 5 PM; give it time to finish
 
 

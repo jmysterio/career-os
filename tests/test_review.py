@@ -100,6 +100,17 @@ def test_review_failure_changes_nothing(nb):
         assert not s.scalar(select(JournalEntry)).ai_read
 
 
+def test_mark_as_recognition_from_the_sheet(nb):
+    dd, c, token, _ = nb
+    with session(dd) as s:
+        a = add(s, "Pat said the 3.4 release went smoothly thanks to me")
+    assert 'value="recognition"' in c.get("/sheet").text
+    form(c, f"/sheet/{a}/kind", token, kind="recognition", ret="")
+    with session(dd) as s:
+        assert s.get(JournalEntry, a).kind == "recognition"
+    assert "Pat said the 3.4 release" in c.get("/recognition").text
+
+
 def test_sheet_one_click_actions(nb):
     dd, c, token, _ = nb
     with session(dd) as s:

@@ -43,10 +43,12 @@ IMG_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", "
 _write_lock = threading.Lock()
 
 KINDS = [("meeting", "Had a meeting"), ("conversation", "Had a conversation"),
-         ("document", "Worked on a document"), ("task", "Finished a task"), ("note", "Something else")]
+         ("document", "Worked on a document"), ("task", "Finished a task"), ("recognition", "Got recognition"),
+         ("note", "Something else")]
 KIND_LABEL = dict(KINDS)
 KIND_PLURAL = {"meeting": ("meeting", "meetings"), "conversation": ("conversation", "conversations"),
-               "document": ("document", "documents"), "task": ("task", "tasks"), "note": ("other note", "other notes")}
+               "document": ("document", "documents"), "task": ("task", "tasks"),
+               "recognition": ("kudos", "kudos"), "note": ("other note", "other notes")}
 ATTACH_KINDS = [("notes", "Meeting notes"), ("transcript", "Transcript"), ("link", "Link"),
                 ("canvas", "Slack canvas"), ("prompt", "A prompt I wrote"), ("other", "Other text")]
 ATTACH_LABEL = dict(ATTACH_KINDS)
@@ -58,11 +60,14 @@ TABS = {  # path -> (kind, tab name, heading, what's on it)
     "/conversations": ("conversation", "Conversations", "Conversations", "Chats and calls you've noted, newest first."),
     "/documents": ("document", "Documents", "Documents", "Documents you've worked on, newest first."),
     "/tasks": ("task", "Tasks", "Tasks", "Your Google Tasks and any you've noted yourself. What's still open is at the top, finished ones are grouped by the day you completed them."),
+    "/recognition": ("recognition", "Kudos", "Kudos", "Recognition from other people: shout-outs and thanks found in public Slack channels, and anything you marked as recognition. Each counts like a medium win on the Promo map."),
     "/other": ("note", "Other", "Something else", "Anything that didn't fit the other tabs."),
 }
 PAGES = {"/", "/search", "/wins", "/promo", "/sheet", *TABS}
-SOURCE_LABEL = {"calendar": "Calendar", "tasks": "Google Tasks", "slack": "Slack", "": "Typed"}
-SHEET_KIND = [("meeting", "Meeting"), ("conversation", "Convo"), ("document", "Doc"), ("task", "Task"), ("note", "Other")]
+SOURCE_LABEL = {"calendar": "Calendar", "tasks": "Google Tasks", "slack": "Slack", "docs": "Google Docs", "github": "GitHub",
+                "kudos": "Slack kudos", "": "Typed"}
+SHEET_KIND = [("meeting", "Meeting"), ("conversation", "Convo"), ("document", "Doc"), ("task", "Task"), ("recognition", "Kudos"),
+              ("note", "Other")]
 SHEET_SHOW = {"all": "Everything", "todo": "Not checked yet", "ai": "Changed by Claude", "linked": "Linked to the guide",
               "unlinked": "Not linked", "wins": "Wins", "checked": "Checked", "removed": "Removed"}
 SHEET_PAGE = 100

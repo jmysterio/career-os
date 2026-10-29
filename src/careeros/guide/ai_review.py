@@ -18,7 +18,7 @@ from ..storage.models import GuideLink, JournalAttachment, JournalEntry, Win
 from .service import experiences, skills
 
 KINDS = ("meeting", "conversation", "document", "task", "note")
-FIXED_KIND = {"calendar": "meeting", "tasks": "task", "github": "task", "docs": "document"}  # these sources are what they say they are
+FIXED_KIND = {"calendar": "meeting", "tasks": "task", "github": "task", "docs": "document", "kudos": "recognition"}  # these sources are what they say they are
 SIZES = ("small", "medium", "large")
 BATCH = 20
 WORKERS = 3
