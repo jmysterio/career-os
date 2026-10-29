@@ -7,7 +7,7 @@
   <p class="muted">Scan each row and fix what's off with one click: its type, the leveling guide items it shows, and whether it's a win. Purple <span class="chip ai">AI</span> marks are Claude's picks. They already count on the Promo map. <b>Looks right</b> makes a row's picks yours and moves it out of the "Not checked yet" list. <b>Remove</b> takes a record out for good, for example a meeting you didn't attend; syncs won't bring it back, and you can restore it from "Removed" in the first menu.</p>
   {% if personal %}{% from "_sync.html" import sync_line %}
   <div class="note" style="margin:.6rem 0"><b>Last pulled in</b>
-    {{ sync_line(sync.slack) }}{{ sync_line(sync.calendar) }}{{ sync_line(sync.tasks) }}
+    {{ sync_line(sync.slack) }}{{ sync_line(sync.calendar) }}{{ sync_line(sync.tasks) }}{{ sync_line(sync.github) }}
     {% if not (sync.slack.ok and sync.calendar.ok) %}<p class="help">Use the Sync buttons on <a href="/">Today &amp; this week</a> to catch up.</p>{% endif %}</div>{% endif %}
   <p class="tally">{{ counts.total }} records. Claude has read {{ counts.read }}, and you've checked {{ counts.checked }}. {{ counts.links }} guide link{{ '' if counts.links == 1 else 's' }} and {{ counts.wins }} win{{ '' if counts.wins == 1 else 's' }} picked by Claude are waiting for a check.</p>
   {% if personal and guided and counts.unread %}

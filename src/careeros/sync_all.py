@@ -1,4 +1,4 @@
-"""`careeros sync all`: back up, then run the same Slack and Google syncs as the buttons, with a log.
+"""`careeros sync all`: back up, then run the same Slack and Google syncs as the buttons, then GitHub, with a log.
 
 Run by the scheduled task at 8 AM and 6 PM and at login. A run that's already covered by an earlier one since
 the latest scheduled time does nothing, so the login catch-up is cheap.
@@ -75,7 +75,8 @@ def run(dd: DataDir, *, force: bool = False, now: datetime | None = None,
         lock = threading.Lock()
         failed = []
         for name, steps, fn in (("Slack", syncs.SLACK_STEPS, lambda j: syncs.run_slack(j, Session_, lock, dd)),
-                                ("Google", syncs.GOOGLE_STEPS, lambda j: syncs.run_google(j, Session_, lock))):
+                                ("Google", syncs.GOOGLE_STEPS, lambda j: syncs.run_google(j, Session_, lock)),
+                                ("GitHub", syncs.GITHUB_STEPS, lambda j: syncs.run_github(j, Session_, lock))):
             job = Job(steps)
             try:
                 fn(job)

@@ -31,7 +31,7 @@ uv run careeros schedule install
 ```
 
 - **The app** starts when you log in and restarts by itself if it ever stops. It's always at http://127.0.0.1:8765. If you'd started it yourself in a Terminal, stop that one (Ctrl+C) first.
-- **The sync** runs at 8:00 AM and 6:00 PM (after your 5 PM Slack automation), and once when you log in if a run was missed while the laptop was closed. Each run backs up the notebook first, then does exactly what the Sync Slack tracker and Sync Google buttons do. If nothing is due, it does nothing.
+- **The sync** runs at 8:00 AM and 6:00 PM (after your 5 PM Slack automation), and once when you log in if a run was missed while the laptop was closed. Each run backs up the notebook first, then does exactly what the Sync Slack tracker and Sync Google buttons do, then pulls your GitHub pull requests. If nothing is due, it does nothing.
 - **If something fails**, for example a connector's sign-in expired, a macOS notification says which sync and what to do (usually: open AI Suite > Settings > Connections and sign in again). Nothing is shown when everything works; the **Last pulled in** box shows the times.
 - `uv run careeros schedule status` shows whether both are on and the last sync log line. Logs are in `logs/` in your notebook folder.
 - `uv run careeros sync all --force` runs a sync right now from Terminal.
@@ -148,6 +148,34 @@ uv run careeros slack connect <canvas link>
 
 **Importing a saved canvas** (for example one of your old Weekly Contributions canvases): save its text to a file, then run `uv run careeros slack import <file>`. The 2025 Weekly Contributions canvases are already imported.
 
+## GitHub: pull requests you merged or reviewed
+
+The scheduled sync (8 AM and 6 PM) also reads your GitHub pull requests on github.com, through the `gh` command already signed in as `jtetzelSFDC`. No Claude is involved in reading them; only the title, repo, date, and link are kept.
+
+- **PRs you wrote and merged** come in one record each, like "Merged PR: Add Cherry-Pick Report (irs-github-automations#12)", with a link to the PR.
+- **PRs you reviewed** come in as **one record per repo per week**, like "Reviewed 31 pull requests in ccirsgov-org, week of Oct 19", with the list of PRs attached. You review close to a thousand a year, nearly all routine branch PRs, so one record each would bury the Intake Review Queue. A week's record grows as more reviews arrive.
+- The **first pull goes back a year**; after that each pull starts two days before the last one. Nothing is ever deleted by a sync.
+- Then Claude links the new records to the leveling guide, like every other source. GitHub's last pull shows in the Intake Review Queue's **Last pulled in** box.
+
+To pull right away instead of waiting for the schedule:
+
+```
+cd ~/Documents/career-os
+uv run careeros github sync
+```
+
+To keep a repo (or any title text) out, for example this app's own PRs:
+
+```
+uv run careeros github skip jmysterio/career-os
+uv run careeros github skip                    # list the rules
+uv run careeros github unskip jmysterio/career-os
+```
+
+Adding a rule also removes the matching records already in the notebook. **Remove** in the Intake Review Queue works too, and a removed week stays removed.
+
+If `gh` isn't signed in, the sync says so; run `gh auth login`.
+
 ## Year-end exports
 
 At year end, pick the year on the Wins tab and click **Download as Markdown**. The file opens with your large wins as highlights, then lists everything by theme with its date and why it mattered. Paste it into a promotion doc or use it to pick resume bullets. Removing a notebook entry never removes a win made from it.
@@ -180,18 +208,18 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `113 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `120 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
-Your personal notebook is connected to Google Calendar, Google Tasks, and the Slack tracker canvas, and Claude links what comes in to the leveling guide. Ideas still open:
+Your personal notebook is connected to Google Calendar, Google Tasks, the Slack tracker canvas, and GitHub, and Claude links what comes in to the leveling guide. Ideas still open:
 
 1. **Fill in older history.** The notebook mostly covers July to October 2026. Older Google Calendar history needs a little setup: the Claude connector reaches back 14 days at most (`uv run careeros calendar pull --days 14`), while connecting the calendar's private iCal address (`calendar connect`) lets `calendar sync --days 60` go back two months at a time. Older Slack work could be found by searching your messages, then read by Claude like everything else.
 2. **Keep the approvals questions in mind:**
    - Do the owners of the IRS-related channels and repos mind a personal tool keeping titles and short notes from them?
    - Is Claude, through Claude Code, approved for this kind of work content?
    - Is the notebook folder backed up (Time Machine) and kept out of synced folders (iCloud, Dropbox)?
-3. **More sources and automation** are planned in `PLAN.md` and `IMPLEMENTATION_PLAN.md`: daily automatic syncs, grouping duplicate records, impact counts, a Claude-written promo case, GitHub and Google Docs sources, kudos, and a weekly digest.
+3. **More sources and automation** are planned in `PLAN.md` and `IMPLEMENTATION_PLAN.md`: daily automatic syncs, grouping duplicate records, impact counts, a Claude-written promo case, GitHub, Google Docs as a source, kudos, and a weekly digest.
 4. **At year end,** download the promo case from the Promo map and your wins from the Wins tab.
 
 Keep real data out of `/tmp/cos-demo`; the practice notebook never syncs with Slack or Google.
