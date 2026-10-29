@@ -270,6 +270,38 @@ def guide_activities(redo: bool = typer.Option(False, "--redo", help="Also re-ta
         typer.echo(f"  {c['all']:>4} {c['label']} ({c['year']} this year)")
 
 
+promo_app = typer.Typer(no_args_is_help=True, help="Your promotion case")
+app.add_typer(promo_app, name="promo")
+
+
+@promo_app.command("write")
+def promo_write_cmd(start: Optional[str] = typer.Option(None, help="First day, YYYY-MM-DD (default: a year ago)"),
+                    end: Optional[str] = typer.Option(None, help="Last day, YYYY-MM-DD (default: today)"),
+                    name: Optional[str] = typer.Option(None, help="Who it's about (default: the saved name)"),
+                    data_dir: Optional[str] = DataOpt) -> None:
+    """Have Claude draft the promotion case from your notebook; open it at /promo/case."""
+    from .claude_cli import ClaudeError
+    from .promo import write as pw
+    dd, s = _open_personal(data_dir, "Writing the case")
+    lo, hi = pw.default_window()
+    who = name or pw.load_name(dd) or "the candidate"
+    if name:
+        pw.save_name(dd, name)
+    typer.echo(f"Claude is writing the case about {who}, from {start or lo} to {end or hi}. A minute or two.")
+    try:
+        v = pw.write_case(s, start=start or lo, end=end or hi, name=who,
+                          on_section=lambda k, d: typer.echo(f"  {k}: {d}"))
+    except ClaudeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    from sqlalchemy import select
+    from .storage.models import PromoSection
+    secs = list(s.scalars(select(PromoSection).where(PromoSection.version_id == v.id)))
+    flagged = sum(1 for sec in secs for x in sec.sentences if not x["valid"])
+    typer.echo(f"Draft {v.id} saved" + (f", {flagged} sentences to check" if flagged else ", every sentence sourced")
+               + f". Open http://127.0.0.1:8765/promo/case/{v.id}")
+
+
 slack_app = typer.Typer(no_args_is_help=True, help="Bring Slack canvases into your notebook (read-only)")
 app.add_typer(slack_app, name="slack")
 

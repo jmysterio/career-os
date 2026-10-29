@@ -85,7 +85,9 @@ Links you've made are kept. Anything the new guide drops leaves the map but stay
 
 Colors come from points. A linked entry is worth 1, and a small, medium, or large win is worth 2, 3, or 4. One point makes an item Started, 3 make it Shown, and 6 make it Strong. So one large win shows an experience, and a large win plus a medium one makes it strong. An entry and the win made from it only count once.
 
-**Download promo case** writes a Markdown draft grouped by grade and topic. Each guide item lists the wins and entries behind it, with dates and why they mattered, and a **Not shown yet** list at the end shows what to aim for before you submit.
+**Write my promo case** (on the Promo map, or at http://127.0.0.1:8765/promo/case) has Claude draft the case itself. Pick who it's about (your first name, remembered for next time) and the window (the last 12 months by default), then press the button; it takes a minute or two, with progress per section. The draft has five sections: **Summary, Key accomplishments, Impact, Behaviors & values, Growth areas**, written in the third person. Claude writes them only from your notebook: wins and why they mattered, pieces of work, linked records, the impact numbers, and the Promo map's gaps and next steps, all dated inside the window. Every sentence ends with small [numbers] that jump to its sources, listed at the bottom as they were when the draft was written. The app then checks each sentence itself: one with no source, or with a number that doesn't appear in its evidence, is marked **Check this** with the reason. The check catches invented numbers and missing sources, not every wrong word, so read the draft before you use it. Every draft is kept; earlier ones are linked at the top. From Terminal: `uv run careeros promo write` (with `--start`, `--end`, `--name`). Editing drafts in place and comparing versions come next.
+
+**Download evidence (Markdown)** writes the evidence behind the Promo map grouped by grade and topic. Each guide item lists the wins and entries behind it, with dates and why they mattered, and a **Not shown yet** list at the end shows what to aim for before you submit.
 
 ## Intake Review Queue: sorting everything that comes in
 
@@ -174,7 +176,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `102 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `106 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

@@ -102,6 +102,33 @@ class Win(Base):
     by_ai: Mapped[bool] = mapped_column(Boolean, default=False)  # drafted by Claude, not yet edited or confirmed
 
 
+class PromoVersion(Base):
+    """One drafted promotion case. It keeps the numbered evidence it was written from, so its sources still make
+    sense after the notebook changes."""
+    __tablename__ = "promo_version"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    window_start: Mapped[str] = mapped_column(String)
+    window_end: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String)
+    voice: Mapped[str] = mapped_column(String, default="third")
+    evidence: Mapped[list] = mapped_column(JSON, default=list)  # [{n, kind, text, day, refs}]
+    google_doc_url: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+
+
+class PromoSection(Base):
+    """One heading of a draft. `sentences` is [{text, sources: [n], valid, reason}]."""
+    __tablename__ = "promo_section"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    version_id: Mapped[int] = mapped_column(ForeignKey("promo_version.id"), index=True)
+    key: Mapped[str] = mapped_column(String)
+    heading: Mapped[str] = mapped_column(String)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    sentences: Mapped[list] = mapped_column(JSON, default=list)
+    edited: Mapped[bool] = mapped_column(Boolean, default=False)
+    error: Mapped[str] = mapped_column(String, default="")
+
+
 class GuideItem(Base):
     """One line of the leveling guide: a grade's role summary, a key experience, or a rated skill."""
     __tablename__ = "guide_item"

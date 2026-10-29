@@ -91,6 +91,34 @@ def run_google(job: Job, Session_, lock) -> None:
     job.finish(("Google synced: " + " and ".join(new) + " new.") if new else "Google sync couldn't read anything.")
 
 
+def run_promo(job: Job, Session_, start: str, end: str, name: str) -> None:
+    """Write a promo case draft: one step per section, ticked as each comes back."""
+    from ..promo import write as pw
+    keys = [k for k, *_ in pw.SECTIONS]
+    for i in range(len(keys)):
+        job.start(i)
+
+    def on_section(key: str, detail: str) -> None:
+        i = keys.index(key)
+        if detail.endswith(" sentences"):
+            job.done(i, detail)
+        elif detail.startswith("No evidence"):
+            job.skip(i, detail)
+        else:
+            job.fail(i, detail)
+
+    with Session_() as s:
+        try:
+            v = pw.write_case(s, start=start, end=end, name=name, on_section=on_section)
+        except ClaudeError as exc:
+            for i, st in enumerate(job.steps):
+                if st["state"] == "running":
+                    job.fail(i, str(exc))
+            job.finish("No draft was saved.")
+            return
+    job.finish(f"Draft {v.id} is ready.")
+
+
 def run_slack(job: Job, Session_, lock, dd: DataDir) -> None:
     from ..slack.classify import classify
     from ..slack.connector import fetch_canvas
