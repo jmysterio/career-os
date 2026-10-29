@@ -9,7 +9,8 @@ from .jobs import Job
 
 GOOGLE_STEPS = ["Read Google Calendar (yesterday and today)", "Read Google Tasks", "Summarize meeting notes",
                 "Read Google Docs you wrote or edited", "Link new records to the leveling guide"]
-SLACK_STEPS = ["Read your Slack tracker canvas", "Sort the new items", "Link new records to the leveling guide"]
+SLACK_STEPS = ["Read your Slack tracker canvas", "Sort the new items", "Look for kudos in your Slack channels",
+               "Link new records to the leveling guide"]
 TASKS_LOOKBACK = timedelta(days=14)
 
 
@@ -215,8 +216,8 @@ def run_slack(job: Job, Session_, lock, dd: DataDir) -> None:
         cid = load_canvas_id(dd)
         if not cid:
             job.fail(0, "No Slack canvas connected yet. In Terminal run: uv run careeros slack connect <canvas link>")
-            job.skip(1)
-            job.skip(2)
+            for i in (1, 2, 3):
+                job.skip(i)
             job.finish("Slack sync couldn't start.")
             return
         job.start(0)
@@ -224,8 +225,8 @@ def run_slack(job: Job, Session_, lock, dd: DataDir) -> None:
             items = parse_canvas(fetch_canvas(cid))
         except (ClaudeError, CanvasFormatError) as exc:
             job.fail(0, str(exc))
-            job.skip(1)
-            job.skip(2)
+            for i in (1, 2, 3):
+                job.skip(i)
             job.finish("Slack sync couldn't read the tracker, so nothing changed.")
             return
         todo = new_items(s, items)
@@ -236,9 +237,30 @@ def run_slack(job: Job, Session_, lock, dd: DataDir) -> None:
         except ClaudeError as exc:
             job.fail(1, str(exc))
             job.skip(2)
+            job.skip(3)
             job.finish("Slack sync read the tracker but couldn't sort the new items, so nothing was saved.")
             return
         job.done(1, f"{r['meeting']} meetings, {r['conversation']} conversations, {r['document']} documents, "
                     f"{r['task']} tasks, {r['note']} other" if r["added"] else "Nothing new since the last pull.")
-        _link_new(job, 2, s)
-    job.finish(f"Slack synced: {_plural(r['added'], 'new item')}.")
+        praised = _kudos(job, 2, s, lock, dd)
+        _link_new(job, 3, s)
+    job.finish(f"Slack synced: {_plural(r['added'], 'new item')}" + (f" and {praised} kudos." if praised else "."))
+
+
+def _kudos(job: Job, i: int, s, lock, dd: DataDir) -> int:
+    from ..slack import kudos
+    job.start(i)
+    try:
+        uid, name = kudos.user(dd)
+        msgs, full = kudos.fetch(uid, kudos.since(s))
+        todo = kudos.new(s, msgs)
+        kept = kudos.choose(todo, uid, name, progress=job.sub)
+        with lock:
+            n = kudos.merge(s, kept)
+    except ClaudeError as exc:
+        job.fail(i, str(exc))
+        return 0
+    job.done(i, f"{_plural(len(todo), 'new mention')} read, {n} kept as kudos"
+             + (f"; {_plural(full, 'week')} had more mentions than could be read, so the oldest there were skipped"
+                if full else ""))
+    return n

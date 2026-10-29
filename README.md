@@ -20,7 +20,7 @@ You go back to doing the job. Which, conveniently, is also the best evidence for
 
 ## What it does
 
-1. **Collects, so you don't have to.** Twice a day it pulls in your Google Calendar meetings (once they've happened, with their Gemini notes), your Google Tasks, the Docs, Sheets and Slides you wrote (each with a two-line summary, so future-you remembers what "Untitled document (3)" was), your Slack activity tracker, and your GitHub pull requests (the ones you merged, plus a weekly tally of the ones you reviewed, because a thousand individual "Approved" clicks is a cry for help, not evidence). You don't press anything. You don't fill in a form. You don't "log time."
+1. **Collects, so you don't have to.** Twice a day it pulls in your Google Calendar meetings (once they've happened, with their Gemini notes), your Google Tasks, the Docs, Sheets and Slides you wrote (each with a two-line summary, so future-you remembers what "Untitled document (3)" was), your Slack activity tracker, kudos people post about you in your Slack channels (never DMs) (word for word, with who said it, because "Pat said I was great" is hearsay and a quote is evidence), and your GitHub pull requests (the ones you merged, plus a weekly tally of the ones you reviewed, because a thousand individual "Approved" clicks is a cry for help, not evidence). You don't press anything. You don't fill in a form. You don't "log time."
 2. **Sorts.** Claude reads each record and decides what it is (meeting, conversation, doc, task), which parts of the leveling guide it shows, and whether it's a win worth keeping.
 3. **Counts once.** A deployment that shows up as a meeting, a Slack thread, *and* a task is one deployment, not three. Nobody likes a padded case, least of all the promotion committee.
 4. **Shows the map.** The Promo map lays the leveling guide next to your evidence: what you've shown, what's strong, what's still a gap, and how many times you actually did the thing.
@@ -88,7 +88,7 @@ Because nobody ever wrote a good promotion case under fluorescent lights.
 
 ## What's next
 
-The roadmap lives in [PLAN.md](PLAN.md) (what and why) and [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) (how). Coming up: capturing kudos, and a Friday digest.
+The roadmap lives in [PLAN.md](PLAN.md) (what and why) and [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) (how). Coming up: a Friday digest.
 
 For day-to-day details (every button, every command, every "wait, why did it do that"), see [INSTRUCTIONS.md](INSTRUCTIONS.md).
 

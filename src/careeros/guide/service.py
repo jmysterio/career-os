@@ -14,6 +14,7 @@ from .topics import suggest
 CURRENT_GRADE = 5
 TARGET_GRADES = (6, 7)
 POINTS = {"entry": 1, "small": 2, "medium": 3, "large": 4}
+RECOGNITION_SIZE = "medium"  # kudos from someone else count like a medium win
 STATUSES = [(6, "strong", "Strong"), (3, "shown", "Shown"), (1, "started", "Started"), (0, "gap", "Not yet")]
 
 
@@ -98,7 +99,7 @@ def evidence(s: Session) -> dict[int, dict]:
             groups[k] = max(groups.get(k, 0), POINTS.get(w.size, 2))
         for e in ev["entries"]:
             k = work_key(e)
-            groups[k] = max(groups.get(k, 0), POINTS["entry"])
+            groups[k] = max(groups.get(k, 0), POINTS[RECOGNITION_SIZE if e.kind == "recognition" else "entry"])
         ev["points"] = sum(groups.values())
     return out
 

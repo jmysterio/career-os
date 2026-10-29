@@ -38,7 +38,7 @@
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="primary" data-label="Sync Slack tracker" {{ 'disabled' if not slack_canvas }}>Sync Slack tracker</button>
       </form>
-      <div class="pills">{{ sync_pill(sync.slack, "Slack") }}</div>
+      <div class="pills">{{ sync_pill(sync.slack, "Slack") }}{{ sync_pill(sync.kudos, "Kudos") }}</div>
       <div class="job" data-job="slack" hidden></div>
     </div>
   </div>
@@ -50,7 +50,7 @@
       </div>
       <div>
         <p class="help">{% if slack_canvas %}Reads your Slack Work Activity Tracker canvas, has Claude sort each new item into a meeting, conversation, document, task, or other, then links them to the leveling guide. Items already here are skipped, and each is tagged &ldquo;from Slack&rdquo;. The canvas text passes through the AI tool.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</p>
-        {{ sync_line(sync.slack) }}
+        {{ sync_line(sync.slack) }}{{ sync_line(sync.kudos) }}
       </div>
     </div>
   </div></div>

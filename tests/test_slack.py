@@ -168,9 +168,12 @@ def test_web_sync_and_cards(tmp_path, monkeypatch):
     save_canvas_id(dd, "F0C2ZF10L02")
     monkeypatch.setattr(connector, "call_tool", lambda prompt, tool: json.dumps({"markdown_content": TRACKER}))
     monkeypatch.setattr(cls, "ask", lambda p, d: '{"i0": "task", "i1": "document", "i2": "conversation"}')
+    from careeros.slack import kudos
+    kudos.save_user(dd, "U1", "Jordan")
+    monkeypatch.setattr(kudos, "fetch", lambda uid, since: ([], 0))
     job = run_sync(c, token, "slack")
     assert job["message"] == "Slack synced: 3 new items." and job["pct"] == 100
-    assert [st["state"] for st in job["steps"]] == ["done", "done", "skipped"]  # no leveling guide loaded
+    assert [st["state"] for st in job["steps"]] == ["done", "done", "done", "skipped"]  # no leveling guide loaded
     tasks = c.get("/tasks").text
     assert "from Slack" in tasks and "suggested win" in tasks and "Stopped the error spike before the weekend." in tasks
     assert "Written by Slack" in tasks
