@@ -1,11 +1,13 @@
-"""Kudos: public Slack messages that mention you and recognize your work, kept as a short exact quote with who said it.
+"""Kudos: Slack messages that mention you and recognize your work, kept as a short exact quote with who said it.
 
-Slack search finds messages mentioning you in public channels, a month at a time. Your own messages and bots are
-dropped, then Claude (no tools) keeps only real recognition and picks the quote; a quote that isn't word for word
-in the message is cut back to the message's own opening words.
+Slack search finds messages mentioning you in public and private channels (never DMs or group DMs), a week at a
+time. Your own messages, bots, and messages without a word of praise are dropped before Claude sees anything; then
+Claude (no tools) keeps only real recognition and picks the quote. A quote that isn't word for word in the message
+is replaced by the message's own words.
 """
 from __future__ import annotations
 
+import html
 import json
 import re
 from dataclasses import dataclass
@@ -17,18 +19,24 @@ from sqlalchemy.orm import Session
 from ..storage.models import JournalAttachment, JournalEntry
 
 SOURCE = "kudos"
-SEARCH_TOOL = "mcp__plugin_slack_slack__slack_search_public"
+SEARCH_TOOL = "mcp__plugin_slack_slack__slack_search_public_and_private"
+CHANNEL_TYPES = "public_channel,private_channel"  # never im (DMs) or mpim (group DMs)
 PROFILE_TOOL = "mcp__plugin_slack_slack__slack_read_user_profile"
 USER_FILE = "slack_user.json"
 FIRST_LOOKBACK = timedelta(days=365)
-CHUNK = timedelta(days=30)
+CHUNK = timedelta(days=6)  # a week per search: busy private channels mention you a lot
 LIMIT = 20  # the search tool's maximum per page
-MAX_PAGES = 5
+MAX_PAGES = 10  # 200 mentions in a week; busy release weeks go past 100
+BATCH = 40  # messages per Claude read
+WORKERS = 3
+PRAISE = re.compile(r"thank|thx|ty\b|great|awesome|amazing|kudos|shout|props|appreciat|congrat|well done|nice work|"
+                    r"good work|excellent|fantastic|incredible|grateful|hero|rock|star|helpful|lifesaver|saved|"
+                    r"means so much|impress|love", re.I)
 MAX_QUOTE = 240
 USER_ID = re.compile(r"User ID: (\w+)")
 RESULT = re.compile(r"^### Result \d+ of \d+\n(.*?)(?=^---$)", re.M | re.S)
 
-FILTER_PROMPT = """On stdin is JSON with Slack messages from public channels that mention {name} (shown as \
+FILTER_PROMPT = """On stdin is JSON with Slack messages from work channels that mention {name} (shown as \
 @{full}). Keep only messages where someone recognizes {name}'s work: praise, a shout-out, kudos, credit \
 for a result, or thanks that names what {name} did and why it helped. Drop requests, status updates, notices, \
 FYIs, a bare "thank you" or "thanks!" that doesn't say for what, thanks for an invite or for adding someone, and \
@@ -114,7 +122,7 @@ def parse(raw: str) -> tuple[list[Message], str]:
 
 def fetch(uid: str, since: date, today: date | None = None) -> tuple[list[Message], int]:
     """Messages mentioning you, from people (not you, not bots), a month per search, following extra pages.
-    Returns (messages, searches that didn't come back or still had more pages)."""
+    Returns (messages, weeks not fully read: a search that didn't come back, or more than MAX_PAGES pages)."""
     from ..claude_cli import ClaudeError, call_tools, connector_error
     today = today or date.today()
     todo, start = [], since
@@ -127,8 +135,9 @@ def fetch(uid: str, since: date, today: date | None = None) -> tuple[list[Messag
         if not todo:
             break
         lines = [f"{i + 1}. filters={w!r}" + (f", cursor={c!r}" if c else "") for i, (w, c) in enumerate(todo)]
-        prompt = (f'Call the slack_search_public tool once for each line below, each with keywords=["<@{uid}>"], '
-                  f"limit={LIMIT}, sort=timestamp, include_context=false, response_format=detailed, plus the filters "
+        prompt = (f'Call the slack_search_public_and_private tool once for each line below, each with '
+                  f'keywords=["<@{uid}>"], channel_types="{CHANNEL_TYPES}", limit={LIMIT}, sort=timestamp, '
+                  "include_context=false, response_format=detailed, plus the filters "
                   "(and cursor, when given) on that line, and nothing else. When they have all returned, reply with "
                   "only DONE.\n" + "\n".join(lines))
         asked, todo = set(todo), []
@@ -143,27 +152,24 @@ def fetch(uid: str, since: date, today: date | None = None) -> tuple[list[Messag
             if nxt:
                 todo.append((key[0], nxt))
             for m in got:
-                if m.who_id != uid and not m.bot and m.day >= since:
+                if m.who_id != uid and not m.bot and m.channel.startswith("#") and m.day >= since:
                     msgs.setdefault(m.key, m)
         todo += sorted(asked)  # didn't come back: asked again next round
-    return list(msgs.values()), len(todo)
+    return list(msgs.values()), len({w for w, _ in todo})
 
 
 MENTION = re.compile(r"<@\w+\|([^>]+)>")
 
 
 def _norm(text: str) -> str:
-    """Slack's <@U123|Pat Lee> shown as @Pat Lee, with whitespace squeezed."""
-    return " ".join(MENTION.sub(r"@\1", text).split())
+    """Slack's <@U123|Pat Lee> shown as @Pat Lee, &amp; as &, with whitespace squeezed."""
+    return " ".join(html.unescape(MENTION.sub(r"@\1", text)).split())
 
 
-def choose(msgs: list[Message], uid: str, name: str) -> list[tuple[Message, str]]:
-    """The messages that are real recognition, each with an exact quote."""
+def _read(batch: list[Message], name: str) -> list[tuple[Message, str]]:
     from ..claude_cli import ClaudeError, ask
-    if not msgs:
-        return []
     data = json.dumps({"messages": [dict(id=f"m{i}", from_=m.who, channel=m.channel, text=_norm(m.text)[:1500])
-                                    for i, m in enumerate(msgs)]}).replace('"from_"', '"from"')
+                                    for i, m in enumerate(batch)]}).replace('"from_"', '"from"')
     raw = ask(FILTER_PROMPT.format(name=(name.split() or ["the user"])[0], full=name or "the user"), data, timeout=300)
     try:
         got = json.loads(raw[raw.index("{"):raw.rindex("}") + 1])["results"]
@@ -172,12 +178,27 @@ def choose(msgs: list[Message], uid: str, name: str) -> list[tuple[Message, str]
     out = []
     for r in got if isinstance(got, list) else []:
         i = str(r.get("id", ""))[1:]
-        if not (r.get("keep") is True and i.isdigit() and int(i) < len(msgs)):
+        if not (r.get("keep") is True and i.isdigit() and int(i) < len(batch)):
             continue
-        m, quote = msgs[int(i)], _norm(str(r.get("quote") or ""))
+        m, quote = batch[int(i)], _norm(str(r.get("quote") or ""))
         if not quote or quote not in _norm(m.text):
             quote = _norm(m.text)
         out.append((m, quote[:MAX_QUOTE].rstrip() + ("…" if len(quote) > MAX_QUOTE else "")))
+    return out
+
+
+def choose(msgs: list[Message], uid: str, name: str, progress=None) -> list[tuple[Message, str]]:
+    """The messages that are real recognition, each with an exact quote. Only messages with a word of praise are
+    sent to Claude, in batches."""
+    from concurrent.futures import ThreadPoolExecutor
+    todo = [m for m in msgs if PRAISE.search(MENTION.sub("", m.text))]
+    batches = [todo[i:i + BATCH] for i in range(0, len(todo), BATCH)]
+    out: list[tuple[Message, str]] = []
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        for done, got in enumerate(pool.map(lambda b: _read(b, name), batches), 1):
+            out += got
+            if progress:
+                progress(done, len(batches))
     return out
 
 
@@ -194,7 +215,8 @@ def new(s: Session, msgs: list[Message]) -> list[Message]:
     return [m for m in msgs if m.key not in have and m.key not in gone]
 
 
-def merge(s: Session, kept: list[tuple[Message, str]], complete: bool = True) -> int:
+def merge(s: Session, kept: list[tuple[Message, str]]) -> int:
+    """Always logged as a pull, even when some weeks weren't fully read, so the next sync doesn't redo the year."""
     today = date.today()
     for m, quote in kept:
         e = JournalEntry(day=min(m.day, today).isoformat(), kind="recognition", text=f'{m.who}: "{quote}"'[:500],
@@ -203,8 +225,7 @@ def merge(s: Session, kept: list[tuple[Message, str]], complete: bool = True) ->
         s.flush()
         s.add(JournalAttachment(entry_id=e.id, kind="link", title=f"Slack message in {m.channel}", body=m.link,
                                 created_at=datetime.now()))
-    if complete:
-        from ..storage.sync_log import record
-        record(s, SOURCE, len(kept))
+    from ..storage.sync_log import record
+    record(s, SOURCE, len(kept))
     s.commit()
     return len(kept)

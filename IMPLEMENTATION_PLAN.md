@@ -215,7 +215,7 @@ All three add records with `source` set to `github`, `docs` or `releases`, an `e
 ## 8. Capture kudos and recognition (M) — `feature/08-recognition`
 
 **Answer first**
-- Public channels only, or DMs too? **Answer: public channels only.**
+- Public channels only, or DMs too? **Answer: public channels only.** **Changed after the first real run:** public channels had 0 kudos in a year, so: public and private channels, never DMs or group DMs.
 - Quote word for word or paraphrase in the case? **Answer: short word-for-word quotes, with who said it.**
 - Weight on the Promo map? (Suggestion: same as a medium win.) **Answer: same as a medium win.**
 
@@ -230,7 +230,7 @@ All three add records with `source` set to `github`, `docs` or `releases`, an `e
 
 **Tests:** fake search results containing a real kudos and "thanks for the invite": only the first is kept; rerun adds nothing; manual marking works.
 
-**Changed when built:** searching your mention together with a praise word fuzzy-matches the name ("Tetzel" finds "Wetzel"), so the search is your mention alone, a month at a time, following extra pages (cursor) up to 5 per month. Your own messages and bots are dropped before Claude. Quotes show mentions as @Name and must appear word for word in the message, or the message's own words are used. It runs as a step of the Slack sync (not a separate `sync all` step). Real run: 68 mentions in a year of public channels, 0 kudos.
+**Changed when built:** searching your mention together with a praise word fuzzy-matches the name ("Tetzel" finds "Wetzel"), so the search is your mention alone (`slack_search_public_and_private` with `channel_types=public_channel,private_channel`), a week at a time, following extra pages (cursor) up to 10 per week. Your own messages, bots, and messages with no praise word are dropped before Claude; Claude reads the rest in batches of 40. A pull is always logged, even when a very busy week had more than 200 mentions, so the year isn't redone each sync. Quotes show mentions as @Name and must appear word for word in the message, or the message's own words are used. It runs as a step of the Slack sync (not a separate `sync all` step). Real runs: public only, 68 mentions and 0 kudos in a year; with private channels, 2,155 mentions and 38 kudos (10 drafted wins) in about 10 minutes.
 
 **Risks:** the Slack search tool's output format is unknown, so capture a real sample first, as in 7b. DM search sends private messages to Claude; that is why it's your decision, and the default is public only.
 

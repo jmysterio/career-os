@@ -9,7 +9,7 @@ from .jobs import Job
 
 GOOGLE_STEPS = ["Read Google Calendar (yesterday and today)", "Read Google Tasks", "Summarize meeting notes",
                 "Read Google Docs you wrote or edited", "Link new records to the leveling guide"]
-SLACK_STEPS = ["Read your Slack tracker canvas", "Sort the new items", "Look for kudos in public channels",
+SLACK_STEPS = ["Read your Slack tracker canvas", "Sort the new items", "Look for kudos in your Slack channels",
                "Link new records to the leveling guide"]
 TASKS_LOOKBACK = timedelta(days=14)
 
@@ -254,15 +254,13 @@ def _kudos(job: Job, i: int, s, lock, dd: DataDir) -> int:
         uid, name = kudos.user(dd)
         msgs, full = kudos.fetch(uid, kudos.since(s))
         todo = kudos.new(s, msgs)
-        kept = kudos.choose(todo, uid, name)
+        kept = kudos.choose(todo, uid, name, progress=job.sub)
         with lock:
-            n = kudos.merge(s, kept, complete=not full)
+            n = kudos.merge(s, kept)
     except ClaudeError as exc:
         job.fail(i, str(exc))
         return 0
-    detail = f"{_plural(len(todo), 'new mention')} read, {n} kept as kudos"
-    if full:
-        job.fail(i, detail + f"; {_plural(full, 'search')} didn't fully come back. Press Sync Slack tracker again.")
-    else:
-        job.done(i, detail)
+    job.done(i, f"{_plural(len(todo), 'new mention')} read, {n} kept as kudos"
+             + (f"; {_plural(full, 'week')} had more mentions than could be read, so the oldest there were skipped"
+                if full else ""))
     return n

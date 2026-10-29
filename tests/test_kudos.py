@@ -82,15 +82,23 @@ def test_a_made_up_quote_falls_back_to_the_message_itself(session, monkeypatch):
     assert quote == "Huge shout-out to @Jordan Tetzel for getting the 3.4 release out the door on a Friday night. Saved us!"
 
 
+def test_quotes_show_mentions_and_symbols_as_people_read_them():
+    assert kudos._norm("Thanks <@U1|Pat Lee> for finding &amp;\n fixing it") == "Thanks @Pat Lee for finding & fixing it"
+
+
 def test_unreadable_filter_answer_is_an_error(monkeypatch):
     monkeypatch.setattr("careeros.claude_cli.ask", lambda p, d, timeout=0: "sorry")
     with pytest.raises(ClaudeError):
         kudos.choose(kudos.parse(SEARCH)[0][:1], ME, "Jordan")
 
 
-def test_a_year_is_searched_a_month_at_a_time(slack):
+def test_a_year_is_searched_a_week_at_a_time_in_channels_never_dms(slack, monkeypatch):
+    prompts = []
+    real = __import__("careeros.claude_cli", fromlist=["x"]).call_tools
+    monkeypatch.setattr("careeros.claude_cli.call_tools", lambda p, *a, **k: prompts.append(p) or real(p, *a, **k))
     kudos.fetch(ME, date(2025, 10, 29), date(2026, 10, 29))
-    assert len(slack[0]) == 12 and slack[0][0] == {"filters": "after:2025-10-28 before:2025-11-29"}
+    assert len(slack[0]) == 53 and slack[0][0] == {"filters": "after:2025-10-28 before:2025-11-05"}
+    assert 'channel_types="public_channel,private_channel"' in prompts[0] and "slack_search_public_and_private" in prompts[0]
 
 
 def test_extra_pages_are_followed(monkeypatch):
@@ -101,14 +109,27 @@ def test_extra_pages_are_followed(monkeypatch):
         rounds.append(lines)
         return [("t", args, SEARCH if "cursor" in args else PAGED) for args in lines]
     monkeypatch.setattr("careeros.claude_cli.call_tools", search)
-    msgs, short = kudos.fetch(ME, date(2026, 10, 1), date(2026, 10, 29))
-    assert short == 0 and len(rounds) == 2 and rounds[1] == [dict(filters="after:2026-09-30 before:2026-10-30",
+    msgs, short = kudos.fetch(ME, date(2026, 10, 24), date(2026, 10, 29))
+    assert short == 0 and len(rounds) == 2 and rounds[1] == [dict(filters="after:2026-10-23 before:2026-10-30",
                                                                     cursor="Q1VSUkVOVF9QQUdFOjI=")]
 
 
 def test_a_search_that_never_comes_back_is_counted(monkeypatch):
     monkeypatch.setattr("careeros.claude_cli.call_tools", lambda *a, **k: [("t", {"filters": "other"}, SEARCH)])
-    assert kudos.fetch(ME, date(2026, 10, 1), date(2026, 10, 29)) == ([], 1)
+    assert kudos.fetch(ME, date(2026, 10, 24), date(2026, 10, 29)) == ([], 1)
+
+
+def test_dms_and_messages_without_praise_never_reach_claude(monkeypatch):
+    dm = SEARCH.replace("Channel: #release-team", "Channel: Pat Lee", 1)
+    monkeypatch.setattr("careeros.claude_cli.call_tools", lambda prompt, *a, **k: [
+        ("t", dict(re.findall(r"(\w+)='([^']*)'", line)), dm) for line in prompt.splitlines() if line[:1].isdigit()])
+    msgs, _ = kudos.fetch(ME, date(2026, 10, 20), date(2026, 10, 29))
+    assert [m.who for m in msgs] == ["Sam Roe"]  # the DM-looking result is dropped
+    seen = []
+    monkeypatch.setattr("careeros.claude_cli.ask", lambda p, d, timeout=0: seen.append(d) or '{"results": []}')
+    plain = kudos.Message("https://x/p1", "#c", "Kim", "U9", False, date(2026, 10, 1), f"<@{ME}|Jordan> can you look?")
+    kudos.choose(msgs + [plain], ME, "Jordan Tetzel")
+    assert len(seen) == 1 and "can you look" not in seen[0] and "Thanks for the invite" in seen[0]
 
 
 def test_user_id_is_asked_once_and_kept(tmp_path, monkeypatch):
