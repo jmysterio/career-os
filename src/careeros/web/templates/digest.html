@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="card">
+  <h2>Your week: {{ d.first.strftime('%b') }} {{ d.first.day }} to {{ d.last.strftime('%b') }} {{ d.last.day }}</h2>
+  <p class="muted">{{ d.records }} record{{ '' if d.records == 1 else 's' }}{% if d.sources %}: {% for name, n in d.sources %}{{ n }} {{ name }}{{ ', ' if not loop.last }}{% endfor %}{% endif %}.
+    {% for w in weeks %} <a class="chip" href="/digest?week={{ w.iso }}">{{ w.label }}</a>{% endfor %}</p>
+</section>
+
+<section class="card">
+  <h3>Nudges</h3>
+  {% for n in d.nudges %}<div class="exp">{{ n.text }} <a href="{{ n.link }}">{{ n.act }}</a></div>
+  {% else %}<p class="muted">Nothing needs you this week. Enjoy the coffee.</p>{% endfor %}
+</section>
+
+<section class="card">
+  <h3>Wins ({{ d.wins|length }})</h3>
+  {% for w in d.wins %}<div class="exp"><b>{{ w.title }}</b> <span class="muted">{{ w.day }} &middot; {{ size_label.get(w.size, w.size) }}</span>{% if w.impact %}<br>{{ w.impact }}{% endif %}</div>
+  {% else %}<p class="muted">No wins this week. Look through the <a href="/sheet?show=todo">Intake Review Queue</a> for one worth keeping.</p>{% endfor %}
+  {% if d.kudos %}<h3>Kudos ({{ d.kudos|length }})</h3>
+  {% for e in d.kudos %}<div class="exp">{{ e.text }} <span class="muted">{{ e.day }}</span></div>{% endfor %}{% endif %}
+</section>
+
+{% if d.has_guide %}
+<section class="card">
+  <h3>Leveling guide items with new evidence</h3>
+  {% for g in d.gained %}<div class="exp">{{ g.name }} <span class="muted">{{ g.topic }} &middot; {{ g.n }} new link{{ '' if g.n == 1 else 's' }}</span></div>
+  {% else %}<p class="muted">No new guide links this week.</p>{% endfor %}
+  <h3>Counts this week</h3>
+  {% for c in d.activity %}<div class="exp"><a href="/impact/{{ c.key }}?window=half">{{ c.label }}</a>: {{ c.n }} this week <span class="muted">({{ c.half }} this half)</span></div>
+  {% else %}<p class="muted">Nothing counted this week.</p>{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

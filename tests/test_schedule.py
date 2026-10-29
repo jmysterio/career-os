@@ -132,7 +132,10 @@ def test_install_and_uninstall_write_and_remove_only_their_files(dd, tmp_path, m
     monkeypatch.setattr(schedule, "launchctl", lambda *args: ran.append(args) or 0)
     schedule.install(dd, agents_dir=agents_dir, uv="/opt/uv", repo=Path("/repo"))
     files = sorted(p.name for p in agents_dir.glob("com.careeros.*.plist"))
-    assert files == ["com.careeros.app.plist", "com.careeros.sync.plist"]
+    assert files == ["com.careeros.app.plist", "com.careeros.digest.plist", "com.careeros.sync.plist"]
+    digest = plistlib.loads((agents_dir / "com.careeros.digest.plist").read_bytes())
+    assert digest["StartCalendarInterval"] == [{"Weekday": 5, "Hour": 12, "Minute": 0}] and "RunAtLoad" not in digest
+    assert digest["ProgramArguments"][-2:] == ["digest", "notify"]
     assert plistlib.loads((agents_dir / "com.careeros.sync.plist").read_bytes())["Label"] == "com.careeros.sync"
     assert any(a[0] == "bootstrap" for a in ran)
     schedule.uninstall(agents_dir=agents_dir)
@@ -167,8 +170,8 @@ def test_reinstall_waits_for_the_old_copy_to_stop(dd, tmp_path, monkeypatch):
         return 0
     monkeypatch.setattr(schedule, "launchctl", launchctl)
     monkeypatch.setattr(schedule, "pause", lambda s: None)
-    assert len(schedule.install(dd, agents_dir=agents_dir, uv="/opt/uv", repo=Path("/repo"))) == 2
-    assert len(tries) == 4  # two refusals, then the app agent loads, then the sync agent
+    assert len(schedule.install(dd, agents_dir=agents_dir, uv="/opt/uv", repo=Path("/repo"))) == 3
+    assert len(tries) == 5  # two refusals, then the app, sync and digest agents load
     monkeypatch.setattr(schedule, "launchctl", lambda *a: 5 if a[0] == "bootstrap" else 0)
     with pytest.raises(RuntimeError, match="wouldn't load"):
         schedule.install(dd, agents_dir=agents_dir, uv="/opt/uv", repo=Path("/repo"))

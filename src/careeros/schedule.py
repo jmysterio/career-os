@@ -1,4 +1,5 @@
-"""Two macOS launch agents: one keeps the app running, one runs `careeros sync all` at 8 AM, 6 PM, and login."""
+"""Three macOS launch agents: one keeps the app running, one runs `careeros sync all` at 8 AM, 6 PM, and login,
+and one shows the weekly digest notification on Fridays at noon."""
 from __future__ import annotations
 
 import os
@@ -10,7 +11,8 @@ from pathlib import Path
 
 from .config import DataDir
 
-APP, SYNC = "com.careeros.app", "com.careeros.sync"
+APP, SYNC, DIGEST = "com.careeros.app", "com.careeros.sync", "com.careeros.digest"
+DIGEST_AT = {"Weekday": 5, "Hour": 12, "Minute": 0}  # Friday 12:00 PM; a missed one runs on wake
 AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
 REPO = Path(__file__).resolve().parents[2]
 PATH = ":".join([str(Path.home() / ".local/bin"), "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"])
@@ -43,6 +45,9 @@ def plists(dd: DataDir, uv: str, repo: Path = REPO) -> dict[str, dict]:
                    RunAtLoad=True, StartCalendarInterval=[{"Hour": 8, "Minute": 0}, {"Hour": 18, "Minute": 0}],
                    EnvironmentVariables=env, StandardOutPath=str(logs / "sync-agent.log"),
                    StandardErrorPath=str(logs / "sync-agent.log")),
+        DIGEST: dict(Label=DIGEST, ProgramArguments=[uv, *base, "digest", "notify"], WorkingDirectory=str(repo),
+                     StartCalendarInterval=[DIGEST_AT], EnvironmentVariables=env,
+                     StandardOutPath=str(logs / "digest-agent.log"), StandardErrorPath=str(logs / "digest-agent.log")),
     }
 
 
@@ -71,7 +76,7 @@ def install(dd: DataDir, agents_dir: Path = AGENTS_DIR, uv: str | None = None, r
 
 def uninstall(agents_dir: Path = AGENTS_DIR) -> list[Path]:
     removed = []
-    for label in (APP, SYNC):
+    for label in (APP, SYNC, DIGEST):
         launchctl("bootout", f"{_domain()}/{label}")
         path = agents_dir / f"{label}.plist"
         if path.exists():
@@ -82,7 +87,8 @@ def uninstall(agents_dir: Path = AGENTS_DIR) -> list[Path]:
 
 def status(dd: DataDir, agents_dir: Path = AGENTS_DIR) -> list[str]:
     lines = []
-    for label, what in ((APP, "Keeps the app running"), (SYNC, "Syncs at 8 AM, 6 PM, and login")):
+    for label, what in ((APP, "Keeps the app running"), (SYNC, "Syncs at 8 AM, 6 PM, and login"),
+                        (DIGEST, "Weekly digest on Fridays at noon")):
         installed = (agents_dir / f"{label}.plist").exists()
         loaded = installed and launchctl("print", f"{_domain()}/{label}") == 0
         lines.append(f"{what}: {'on' if loaded else 'installed but not loaded' if installed else 'off'}")

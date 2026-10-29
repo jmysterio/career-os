@@ -249,6 +249,8 @@ All three add records with `source` set to `github`, `docs` or `releases`, an `e
 
 **Tests:** a fixture week gives the expected counts and nudges; no nudges when nothing is wrong; every nudge link resolves to a real route.
 
+**Changed when built:** the week is the seven days ending today (or `?week=`), and the page steps back and forth a week at a time. The quiet-area check skips areas already named in Aim for next, so the same area isn't nudged twice. An `osascript` notification can't open a link when clicked, so it names the address; the page is in the Menu. The third launch agent `com.careeros.digest` runs `careeros digest notify` Fridays at 12:00 (no run at login). This item made it version 1.0.0.
+
 **Risks:** the page depends on item 4's data; if 4 isn't merged, leave that section out.
 
 ---
