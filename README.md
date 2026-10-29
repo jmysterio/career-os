@@ -24,6 +24,7 @@ You go back to doing the job. Which, conveniently, is also the best evidence for
 2. **Sorts.** Claude reads each record and decides what it is (meeting, conversation, doc, task), which parts of the leveling guide it shows, and whether it's a win worth keeping.
 3. **Counts once.** A deployment that shows up as a meeting, a Slack thread, *and* a task is one deployment, not three. Nobody likes a padded case, least of all the promotion committee.
 4. **Shows the map.** The Promo map lays the leveling guide next to your evidence: what you've shown, what's strong, what's still a gap, and how many times you actually did the thing.
+5. **Writes the case.** Press **Write my promo case** and Claude drafts it (Summary, Key accomplishments, Impact, Behaviors & values, Growth areas) from your own evidence, with a little [3] after every sentence pointing to where it came from. The app double-checks each sentence: no source, or a number that isn't in your data, and it's flagged **Check this**. Your manager can't fact-check you harder than this.
 
 <p align="center">
   <img src="docs/img/promo-map.jpg" width="880" alt="The Promo map: progress bars for Grade 6 and Grade 7 key experiences, and a By the numbers table counting deployments, sandbox refreshes, PR reviews, documents, mentoring sessions, and hotfixes.">
@@ -62,7 +63,7 @@ There isn't one. That's the point. But if you're the type who likes to check:
 
 - **Morning:** glance at the **Intake Review Queue**. Green dots mean everything's in. Click **Looks right** on what's right, fix what isn't, **Remove** the meeting you didn't actually attend.
 - **When something big happens:** **Count this as a win**, and write one sentence on why it mattered while you still remember.
-- **Promotion season:** open the Promo map, click **Download promo case**, and enjoy the unfamiliar feeling of being early.
+- **Promotion season:** open the Promo map, click **Write my promo case**, read what comes back, fix the bits marked **Check this**, and enjoy the unfamiliar feeling of being early.
 
 ## Your data and Claude
 
@@ -87,7 +88,7 @@ Because nobody ever wrote a good promotion case under fluorescent lights.
 
 ## What's next
 
-The roadmap lives in [PLAN.md](PLAN.md) (what and why) and [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) (how). Coming up: Claude writes the promotion case itself (with a source on every sentence), export to Google Docs, GitHub and Google Docs as sources, capturing kudos, and a Friday digest.
+The roadmap lives in [PLAN.md](PLAN.md) (what and why) and [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) (how). Coming up: editing drafts in place with saved versions to compare, export to Google Docs, GitHub and Google Docs as sources, capturing kudos, and a Friday digest.
 
 For day-to-day details (every button, every command, every "wait, why did it do that"), see [INSTRUCTIONS.md](INSTRUCTIONS.md).
 
@@ -100,7 +101,8 @@ For day-to-day details (every button, every command, every "wait, why did it do 
 | `google/` | Google Calendar, Google Tasks, and meeting-note summaries through Claude Code's Google Workspace connector |
 | `slack/` | Reading the Slack tracker canvas, sorting its items, and importing them |
 | `guide/` | The leveling guide, links from your work to it, grouping records into pieces of work, impact counts, the Promo map, and Claude's read-through |
-| `export/` | Downloads: wins and promo case as Markdown, and everything as CSV |
+| `promo/` | The promotion-case writer: the numbered evidence it's written from, and the checks on every sentence |
+| `export/` | Downloads: wins and the evidence behind the Promo map as Markdown, and everything as CSV |
 | `claude_cli.py` | Runs Claude Code headless for one narrow job, with built-in tools off |
 | `sync_all.py`, `schedule.py`, `backup.py` | The scheduled sync, the two macOS launch agents, and daily backups |
 | `fixtures/` | The practice notebook's made-up records, wins, and leveling guide |

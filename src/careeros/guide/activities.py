@@ -134,6 +134,14 @@ def counts(s: Session, today: date | None = None) -> list[dict]:
     return sorted(out, key=lambda r: -r["all"])
 
 
+def counts_between(s: Session, lo: str, hi: str) -> list[dict]:
+    """Per activity, how many times it was done from `lo` through `hi` (same counting rule as the Promo map)."""
+    rows = list(s.scalars(select(JournalEntry).where(JournalEntry.activity != "", JournalEntry.status != "open",
+                                                     JournalEntry.day >= lo, JournalEntry.day <= hi)))
+    out = [dict(key=k, label=label, n=len({unit(e) for e in rows if e.activity == k})) for k, label, _ in ACTIVITIES]
+    return sorted((c for c in out if c["n"]), key=lambda c: -c["n"])
+
+
 def records(s: Session, key: str, window: str, today: date | None = None) -> list[dict]:
     """The records behind one count, grouped by piece of work (newest first); each group says how many it counts."""
     from ..storage.models import WorkItem

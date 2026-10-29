@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="card slim fold" tabindex="-1" aria-label="Write a promo case">
+  <form method="post" action="/promo/write" data-sync="promo" class="quick">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="help" for="pc-name">About</label>
+    <input id="pc-name" name="name" value="{{ name }}" maxlength="80" placeholder="Your first name" style="max-width:10rem">
+    <label class="help" for="pc-start">from</label><input id="pc-start" type="date" name="start" value="{{ start }}">
+    <label class="help" for="pc-end">to</label><input id="pc-end" type="date" name="end" value="{{ end }}">
+    <button class="primary" data-label="Write my promo case" {{ 'disabled' if not (personal and guided) }}>Write my promo case</button>
+  </form>
+  <div class="job" data-job="promo" hidden></div>
+  <div class="reveal"><div>
+    <p class="help">Claude writes each section (Summary, Key accomplishments, Impact, Behaviors &amp; values, Growth areas) from your own wins, pieces of work, linked records, and impact numbers in that window, and nothing else. Every sentence cites its sources. The app then checks each sentence: one with no source, or with a number that isn't in your evidence, is marked <span class="check">Check this</span> so nothing invented slips through. It takes a minute or two. The evidence text passes through the AI tool. {% if not guided %}Load the leveling guide first.{% endif %}</p>
+  </div></div>
+</section>
+
+{% if not v %}
+<section class="card"><p class="muted">No draft yet. Pick the window above (the last 12 months by default) and press <b>Write my promo case</b>.</p></section>
+{% else %}
+<section class="card">
+  <h2>Promotion case: {{ v.name }}</h2>
+  <p class="muted">Draft {{ v.id }}, written {{ v.created_at.strftime('%b %-d, %Y at %-I:%M %p') }} from work between {{ v.window_start }} and {{ v.window_end }}.
+    {% if flagged %}<b>{{ flagged }} sentence{{ '' if flagged == 1 else 's' }} to check</b> before you use it.{% else %}Every sentence has a source.{% endif %}
+    It's a draft: read it, fix it, and make it yours.</p>
+  {% if versions|length > 1 %}<p class="help">Earlier drafts: {% for x in versions if x.id != v.id %}<a href="/promo/case/{{ x.id }}">{{ x.id }} ({{ x.created_at.strftime('%b %-d') }})</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+</section>
+{% for sec in sections %}
+<section class="card">
+  <h2>{{ sec.heading }}</h2>
+  {% if sec.error %}<p class="muted">{{ sec.error }}</p>{% endif %}
+  <p class="case">{% for x in sec.sentences %}<span class="{{ '' if x.valid else 'check' }}"{% if not x.valid %} title="Check this: {{ x.reason }}"{% endif %}>{% if not x.valid %}<b class="check-tag">Check this ({{ x.reason }}):</b> {% endif %}{{ x.text }}{% for n in x.sources %}<a class="cite" href="#src-{{ n }}">[{{ n }}]</a>{% endfor %}</span> {% endfor %}</p>
+</section>
+{% endfor %}
+<section class="card">
+  <h2>Sources</h2>
+  <p class="help">What each [number] in the draft points to, as it was when the draft was written.</p>
+  <ol class="sources">{% for p in sources %}<li id="src-{{ p.n }}" value="{{ p.n }}">{{ p.text }}</li>{% endfor %}</ol>
+</section>
+{% endif %}
+<script src="/static/sync.js" defer></script>
+{% endblock %}

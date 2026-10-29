@@ -775,6 +775,48 @@ def create_app(dd: DataDir) -> FastAPI:
                 s.commit()
         return sheet_back(request, s, ret, eid)
 
+    @app.post("/promo/write", dependencies=[Depends(check_csrf)])
+    def promo_write(request: Request, start: str = Form(""), end: str = Form(""), name: str = Form("", max_length=80)):
+        """Start writing a draft in the background; the page shows progress per section."""
+        from ..promo import write as pw
+        if not personal:
+            return back("Writing the case only works with your personal notebook.", "/promo/case")
+        lo, hi = pw.default_window()
+        try:
+            start, end = date.fromisoformat(start or lo).isoformat(), date.fromisoformat(end or hi).isoformat()
+        except ValueError:
+            return back("Those dates don't look right; use the date pickers.", "/promo/case")
+        name = " ".join(name.split()) or pw.load_name(dd) or "the candidate"
+        pw.save_name(dd, name)
+        labels = [f"Write {h}" for _k, h, *_r in pw.SECTIONS]
+        started = jobs.start("promo", labels, lambda j: syncs.run_promo(j, Session_, start, end, name))
+        if request.headers.get("x-sync") == "1":
+            return JSONResponse({"started": started})
+        return back("Writing your promo case. This takes a minute or two; refresh to see it." if started
+                    else "A draft is already being written.", "/promo/case")
+
+    @app.get("/promo/case", response_class=HTMLResponse)
+    @app.get("/promo/case/{vid}", response_class=HTMLResponse)
+    def promo_case(request: Request, vid: int | None = None, msg: str | None = None, s: Session = Depends(db)):
+        from ..promo import write as pw
+        from ..storage.models import PromoSection, PromoVersion
+        versions = list(s.scalars(select(PromoVersion).order_by(PromoVersion.id.desc())))
+        v = s.get(PromoVersion, vid) if vid else (versions[0] if versions else None)
+        if vid and v is None:
+            return HTMLResponse("Not found", status_code=404)
+        sections = list(s.scalars(select(PromoSection).where(PromoSection.version_id == v.id)
+                                  .order_by(PromoSection.position))) if v else []
+        cited = sorted({n for sec in sections for x in sec.sentences for n in x["sources"]})
+        by_n = {p["n"]: p for p in (v.evidence if v else [])}
+        lo, hi = pw.default_window()
+        html = env.get_template("promo_case.html").render(
+            v=v, versions=versions, sections=sections, sources=[by_n[n] for n in cited if n in by_n],
+            flagged=sum(1 for sec in sections for x in sec.sentences if not x["valid"]),
+            start=lo, end=hi, name=pw.load_name(dd), guided=gsvc.has_guide(s), csrf=csrf_token, msg=msg,
+            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
+            page="/promo", personal=personal, q="")
+        return HTMLResponse(html)
+
     @app.get("/promo/export")
     def promo_export(s: Session = Depends(db)):
         if not gsvc.has_guide(s):

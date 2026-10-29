@@ -18,7 +18,8 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
 <section class="card">
   <div class="row" style="justify-content:space-between">
     <h2>Promo map: Grade {{ pm.current }} to {{ pm.grades[0] }}, aiming at {{ pm.grades[-1] }}</h2>
-    <form method="get" action="/promo/export"><button class="primary">Download promo case</button></form>
+    <div class="row"><a class="chip" href="/promo/case" style="font-size:.9rem;padding:.3rem .9rem">Write my promo case</a>
+      <form method="get" action="/promo/export"><button>Download evidence (Markdown)</button></form></div>
   </div>
   <p class="muted">Each key experience from the leveling guide, colored by how much of your own logged work backs it up. Link wins and entries to the guide to fill it in. Wins count more than plain entries, and bigger wins count more.</p>
   {% if ai.links or ai.wins %}<p class="note">{{ ai.links }} guide link{{ '' if ai.links == 1 else 's' }} and {{ ai.wins }} win{{ '' if ai.wins == 1 else 's' }} on this map were picked by Claude and not checked yet. They count already. <a href="/sheet?show=ai">Check them in the Intake Review Queue</a>.</p>{% endif %}
