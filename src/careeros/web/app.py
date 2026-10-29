@@ -830,6 +830,20 @@ def create_app(dd: DataDir) -> FastAPI:
         return back("Rewriting it now; refresh in a minute." if started else "A draft is already being written.",
                     "/promo/case")
 
+    @app.post("/promo/case/{vid}/gdoc", dependencies=[Depends(check_csrf)])
+    def promo_gdoc(request: Request, vid: int, s: Session = Depends(db)):
+        """Send this draft to Google Docs in My Drive: a copy with sources, and a clean one for sharing."""
+        from ..storage.models import PromoVersion
+        if not personal:
+            return back("Sending to Google Docs only works with your personal notebook.", "/promo/case")
+        if s.get(PromoVersion, vid) is None:
+            return back("That draft is gone.", "/promo/case")
+        started = jobs.start("promo", syncs.GDOC_STEPS, lambda j: syncs.run_gdoc(j, Session_, dd, vid))
+        if request.headers.get("x-sync") == "1":
+            return JSONResponse({"started": started})
+        return back("Sending it to Google Docs; refresh in a minute." if started else "Something is already running.",
+                    f"/promo/case/{vid}")
+
     @app.get("/promo/compare", response_class=HTMLResponse)
     def promo_compare(request: Request, a: int = 0, b: int = 0, s: Session = Depends(db)):
         """Two drafts side by side, section by section: what was removed and what was added."""

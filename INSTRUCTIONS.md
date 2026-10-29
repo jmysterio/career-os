@@ -89,6 +89,8 @@ Colors come from points. A linked entry is worth 1, and a small, medium, or larg
 
 **Editing and rewriting a draft.** Under each section, **Edit** opens it as plain text, one sentence per line, with its sources as [numbers] at the end of the line: keep a number to keep that source, and your wording is checked the same way as Claude's. **Rewrite this section** has Claude redo just that section from the same evidence; if you've edited it, tick **Replace my edits** first. Either way the result is saved as a **new draft**, so nothing is ever overwritten. **All drafts and compare** lists every draft with what changed ("Edited Impact", "Rewrote Growth areas") and shows any two side by side: struck-through sentences are only in the first, underlined ones only in the second. Viewing an older draft shows a link to the newest.
 
+**Sending a draft to Google Docs.** On a draft, **Send to Google Docs** makes two Docs in My Drive: one with the [numbers], the **Check this** notes, and a Sources list (for you), and a clean copy without them (for sharing). Fix any **Check this** sentences first if you're sharing, since the clean copy includes them without the warning. The draft passes through the AI tool on its way to Google (the Google connector can't read files on this laptop), so the app reads each new Doc back and compares its words with the draft: a step that doesn't match shows an error, and its link is still saved so you can look. Links to both Docs appear on the draft, and a copy of what was sent is kept in `exports/` in the notebook folder.
+
 **Download evidence (Markdown)** writes the evidence behind the Promo map grouped by grade and topic. Each guide item lists the wins and entries behind it, with dates and why they mattered, and a **Not shown yet** list at the end shows what to aim for before you submit.
 
 ## Intake Review Queue: sorting everything that comes in
@@ -178,7 +180,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `110 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `113 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

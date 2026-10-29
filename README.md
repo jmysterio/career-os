@@ -24,7 +24,7 @@ You go back to doing the job. Which, conveniently, is also the best evidence for
 2. **Sorts.** Claude reads each record and decides what it is (meeting, conversation, doc, task), which parts of the leveling guide it shows, and whether it's a win worth keeping.
 3. **Counts once.** A deployment that shows up as a meeting, a Slack thread, *and* a task is one deployment, not three. Nobody likes a padded case, least of all the promotion committee.
 4. **Shows the map.** The Promo map lays the leveling guide next to your evidence: what you've shown, what's strong, what's still a gap, and how many times you actually did the thing.
-5. **Writes the case.** Press **Write my promo case** and Claude drafts it (Summary, Key accomplishments, Impact, Behaviors & values, Growth areas) from your own evidence, with a little [3] after every sentence pointing to where it came from. The app double-checks each sentence: no source, or a number that isn't in your data, and it's flagged **Check this**. Your manager can't fact-check you harder than this. Then edit it in place or have Claude rewrite one section; every change is a new draft you can compare.
+5. **Writes the case.** Press **Write my promo case** and Claude drafts it (Summary, Key accomplishments, Impact, Behaviors & values, Growth areas) from your own evidence, with a little [3] after every sentence pointing to where it came from. The app double-checks each sentence: no source, or a number that isn't in your data, and it's flagged **Check this**. Your manager can't fact-check you harder than this. Then edit it in place or have Claude rewrite one section; every change is a new draft you can compare. When it's ready, **Send to Google Docs** makes a copy with sources for you and a clean one for your manager.
 
 <p align="center">
   <img src="docs/img/promo-map.jpg" width="880" alt="The Promo map: progress bars for Grade 6 and Grade 7 key experiences, and a By the numbers table counting deployments, sandbox refreshes, PR reviews, documents, mentoring sessions, and hotfixes.">
@@ -88,7 +88,7 @@ Because nobody ever wrote a good promotion case under fluorescent lights.
 
 ## What's next
 
-The roadmap lives in [PLAN.md](PLAN.md) (what and why) and [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) (how). Coming up: export to Google Docs, GitHub and Google Docs as sources, capturing kudos, and a Friday digest.
+The roadmap lives in [PLAN.md](PLAN.md) (what and why) and [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) (how). Coming up: GitHub and Google Docs as sources, capturing kudos, and a Friday digest.
 
 For day-to-day details (every button, every command, every "wait, why did it do that"), see [INSTRUCTIONS.md](INSTRUCTIONS.md).
 
