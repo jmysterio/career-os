@@ -162,10 +162,19 @@ def events_from_items(items: list[dict], local=None) -> tuple[list[Event], dict[
     return sorted(events.values(), key=lambda e: e.start), links
 
 
-def import_events(s: Session, items: list[dict], first: date, last: date) -> dict[str, int]:
-    """Like sync(), for connector data; also attaches each meeting's file links (notes, recordings) once."""
+def import_events(s: Session, items: list[dict], first: date, last: date,
+                  now: datetime | None = None) -> dict[str, int]:
+    """Like sync(), for connector data; also attaches each meeting's file links (notes, recordings) once.
+
+    Only meetings that have ended come in, so a meeting is recorded once it happened, by which time its Gemini
+    notes are usually attached. A meeting imported early (before this rule) and not built on drops out until then.
+    """
     events, links = events_from_items(items)
-    counts = sync(s, events, first, last)
+    now = now or datetime.now().astimezone()
+    ended = [e for e in events if (e.end or e.start) <= now]
+    later = len(events) - len(ended)
+    links = {uid: pairs for uid, pairs in links.items() if uid in {e.uid for e in ended}}
+    counts = sync(s, ended, first, last)
     rows = {e.external_id: e for e in s.scalars(select(JournalEntry).where(
         JournalEntry.source == SOURCE, JournalEntry.external_id.in_(list(links))))}
     linked = 0
@@ -181,4 +190,4 @@ def import_events(s: Session, items: list[dict], first: date, last: date) -> dic
                 have.add(url)
                 linked += 1
     s.commit()
-    return dict(counts, links=linked)
+    return dict(counts, links=linked, later=later)
