@@ -136,6 +136,37 @@ def run_rewrite(job: Job, Session_, vid: int, key: str) -> None:
     job.finish(f"Draft {new.id} is ready: open the newest draft to see it.")
 
 
+GDOC_STEPS = ["Send the copy with sources", "Send the clean copy for sharing"]
+
+
+def run_gdoc(job: Job, Session_, dd: DataDir, vid: int) -> None:
+    """Send a draft to Google Docs twice (with sources, and clean), reading each back to check every word arrived."""
+    from sqlalchemy import select
+    from ..google import docs_export
+    from ..storage.models import PromoSection, PromoVersion
+    with Session_() as s:
+        v = s.get(PromoVersion, vid)
+        sections = list(s.scalars(select(PromoSection).where(PromoSection.version_id == vid)
+                                  .order_by(PromoSection.position)))
+        for i, sourced in enumerate((True, False)):
+            job.start(i)
+            try:
+                link, same = docs_export.send(dd, v, sections, sourced)
+            except ClaudeError as exc:
+                job.fail(i, str(exc))
+                continue
+            if sourced:
+                v.google_doc_url = link
+            else:
+                v.google_doc_clean_url = link
+            s.commit()
+            if same:
+                job.done(i, "Created in My Drive; every word checked")
+            else:
+                job.fail(i, "Created, but its words don't fully match the draft; open the Doc and check it")
+    job.finish("Sent to Google Docs. The links are on the draft.")
+
+
 def run_slack(job: Job, Session_, lock, dd: DataDir) -> None:
     from ..slack.classify import classify
     from ..slack.connector import fetch_canvas

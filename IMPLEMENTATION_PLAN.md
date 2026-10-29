@@ -168,6 +168,7 @@ If it gets too big, split it into 5a (generate and show a draft with citations) 
 
 **Change**
 - `google/docs_export.py`: formats a version as Markdown/plain text with a sources table at the end (title, date, link per cited record), then calls `claude_cli.call_tools` allowing only `mcp__plugin_google-workspace_google-workspace__create_doc` (the folder is passed in the prompt). Parse the Doc link from the tool's answer; fail with a clear message if there isn't one. Save it in `PromoVersion.google_doc_url`.
+- **Changed when built:** the Google connector can't read local files (`file_path` returns "Path does not exist" for any path on this laptop), so the Markdown goes to Claude on stdin and into `import_to_google_doc`'s `content`; the app then reads the Doc back with `get_doc_as_markdown` and compares words (98% must match) to catch any change on the way.
 - Long text: `call_tools` currently takes the prompt as a command-line argument, and macOS limits that to about 1 MB total. Add an optional `stdin` argument to `call_tools` (`ask` already does this) so a long draft doesn't hit the limit.
 - Button on the draft page: **Send to Google Docs**; shows the link afterwards.
 - Run it behind the same "personal notebook only" check as the syncs.

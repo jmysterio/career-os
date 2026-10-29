@@ -24,6 +24,15 @@
   <p class="muted">Draft {{ v.id }}{% if v.note %} ({{ v.note|lower }}){% endif %}, {{ v.created_at.strftime('%b %-d, %Y at %-I:%M %p') }}, from work between {{ v.window_start }} and {{ v.window_end }}.
     {% if flagged %}<b>{{ flagged }} sentence{{ '' if flagged == 1 else 's' }} to check</b> before you use it.{% else %}Every sentence has a source.{% endif %}
     It's a draft: read it, fix it, and make it yours. Every edit or rewrite saves a new draft, so nothing is lost.</p>
+  {% if personal %}<form method="post" action="/promo/case/{{ v.id }}/gdoc" data-sync="promo" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button data-label="Send to Google Docs">Send to Google Docs</button>
+    <span class="help">Makes two Docs in My Drive: one with the [numbers] and sources (for you), one clean copy for sharing. {% if flagged %}<b>The {{ flagged }} sentence{{ '' if flagged == 1 else 's' }} marked Check this go too</b>; fix {{ 'it' if flagged == 1 else 'them' }} first if you're sharing. {% endif %}The draft text passes through the AI tool on the way to Google, and the app reads each Doc back to check every word arrived.</span>
+  </form>{% endif %}
+  {% if v.google_doc_url or v.google_doc_clean_url %}<p class="help">In Google Docs:
+    {% if v.google_doc_url %}<a href="{{ v.google_doc_url }}" target="_blank" rel="noreferrer noopener">with sources</a>{% endif %}
+    {% if v.google_doc_url and v.google_doc_clean_url %} &middot; {% endif %}
+    {% if v.google_doc_clean_url %}<a href="{{ v.google_doc_clean_url }}" target="_blank" rel="noreferrer noopener">clean copy</a>{% endif %}</p>{% endif %}
   {% if versions|length > 1 %}
   <details><summary>All drafts ({{ versions|length }}) and compare</summary>
     <ul>{% for x in versions %}<li>{% if x.id == v.id %}<b>Draft {{ x.id }}</b>{% else %}<a href="/promo/case/{{ x.id }}">Draft {{ x.id }}</a>{% endif %} <span class="muted">{{ x.created_at.strftime('%b %-d, %-I:%M %p') }}{% if x.note %} &middot; {{ x.note }}{% endif %}</span></li>{% endfor %}</ul>

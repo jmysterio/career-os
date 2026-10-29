@@ -36,7 +36,8 @@ def init_db(engine: Engine) -> None:
                           ("activity_read", "BOOLEAN NOT NULL DEFAULT 0"),
                           ("activity_fixed", "BOOLEAN NOT NULL DEFAULT 0")],
         "win": [("by_ai", "BOOLEAN NOT NULL DEFAULT 0")],
-        "promo_version": [("slices", "JSON NOT NULL DEFAULT '{}'"), ("note", "VARCHAR NOT NULL DEFAULT ''")],
+        "promo_version": [("slices", "JSON NOT NULL DEFAULT '{}'"), ("note", "VARCHAR NOT NULL DEFAULT ''"),
+                          ("google_doc_clean_url", "VARCHAR")],
         "guide_link": [("by_ai", "BOOLEAN NOT NULL DEFAULT 0")],
     }
     with engine.begin() as c:

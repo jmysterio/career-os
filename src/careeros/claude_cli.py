@@ -51,13 +51,15 @@ def _result_text(content: object) -> str:
     return _unwrap(path.read_text())
 
 
-def call_tools(prompt: str, tools: list[str], timeout: int = 240, max_turns: int = 5) -> list[tuple[str, dict, str]]:
+def call_tools(prompt: str, tools: list[str], timeout: int = 240, max_turns: int = 5,
+               stdin: str | None = None) -> list[tuple[str, dict, str]]:
     """(tool, input, raw answer) for every call Claude made to `tools`, the only tools it may use.
-    Claude's own words are discarded."""
+    Claude's own words are discarded. Long text goes on `stdin`, so it never hits the command-line size limit."""
     try:
         run = subprocess.run(
             [_claude(), "-p", prompt, "--tools", "", "--allowedTools", *tools, "--output-format", "stream-json", "--verbose",
-             "--max-turns", str(max_turns)], capture_output=True, text=True, timeout=timeout, cwd=Path.home())
+             "--max-turns", str(max_turns)], input=stdin, capture_output=True, text=True, timeout=timeout,
+            cwd=Path.home())
     except subprocess.TimeoutExpired:
         raise ClaudeError("Claude took too long to answer. Try again.") from None
     calls: dict[str, tuple[str, dict]] = {}
@@ -109,9 +111,9 @@ def connector_error(text: str, service: str) -> str | None:
     return None
 
 
-def call_tool(prompt: str, tool: str, timeout: int = 240) -> str:
+def call_tool(prompt: str, tool: str, timeout: int = 240, stdin: str | None = None) -> str:
     """The raw answer of `tool`, the only tool Claude may use."""
-    return call_tools(prompt, [tool], timeout)[-1][2]
+    return call_tools(prompt, [tool], timeout, stdin=stdin)[-1][2]
 
 
 def ask(prompt: str, data: str, timeout: int = 240) -> str:
