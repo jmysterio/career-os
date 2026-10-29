@@ -524,6 +524,33 @@ def github_unskip(text: str = typer.Argument(..., help="The rule's text, as list
     typer.echo("Rule removed." if drop_skip_rule(s, text, "github") else "No rule with that text.")
 
 
+docs_app = typer.Typer(no_args_is_help=True, help="Google Docs, Sheets and Slides you wrote (pulled by Sync Google)")
+app.add_typer(docs_app, name="docs")
+
+
+@docs_app.command("skip")
+def docs_skip(text: Optional[str] = typer.Argument(None, help="Title text to skip, e.g. \"Untitled\""),
+              data_dir: Optional[str] = DataOpt) -> None:
+    """Never bring in files whose title contains TEXT, and remove the ones already here. No TEXT lists the rules."""
+    from .storage.removal import add_skip_rule, skip_patterns
+    dd, s = _open_personal(data_dir, "Docs rules")
+    if not text:
+        typer.echo("\n".join(f"Skipping files titled with: {p}" for p in skip_patterns(s, "docs")) or "No skip rules yet.")
+        return
+    n = add_skip_rule(s, text, "docs")
+    typer.echo(f"Sync Google will skip files whose title contains \"{' '.join(text.split())}\". "
+               f"Removed {n} already in the notebook (see Removed in the Intake Review Queue).")
+
+
+@docs_app.command("unskip")
+def docs_unskip(text: str = typer.Argument(..., help="The rule's text, as listed by `docs skip`"),
+                data_dir: Optional[str] = DataOpt) -> None:
+    """Stop skipping files with this title text. Removed files stay removed until you restore them."""
+    from .storage.removal import drop_skip_rule
+    dd, s = _open_personal(data_dir, "Docs rules")
+    typer.echo("Rule removed." if drop_skip_rule(s, text, "docs") else "No rule with that text.")
+
+
 @app.command("serve")
 def serve(port: int = 8765, data_dir: Optional[str] = DataOpt) -> None:
     """Serve the review UI on loopback only (host is not configurable)."""

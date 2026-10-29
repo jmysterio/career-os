@@ -30,7 +30,7 @@
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="primary" data-label="Sync Google">Sync Google</button>
       </form>
-      <div class="pills">{{ sync_pill(sync.calendar, "Calendar") }}{{ sync_pill(sync.tasks, "Tasks") }}</div>
+      <div class="pills">{{ sync_pill(sync.calendar, "Calendar") }}{{ sync_pill(sync.tasks, "Tasks") }}{{ sync_pill(sync.docs, "Docs") }}</div>
       <div class="job" data-job="google" hidden></div>
     </div>
     <div class="sync-col">
@@ -46,7 +46,7 @@
     <div class="sync-grid">
       <div>
         <p class="help">Pulls yesterday's and today's meetings, your recently changed Google Tasks, and summaries of any meeting notes, then has Claude link the new records to the leveling guide. Usually a minute or two. Meeting titles, times, task titles, and the text of meeting notes pass through the AI tool.</p>
-        {{ sync_line(sync.calendar) }}{{ sync_line(sync.tasks) }}
+        {{ sync_line(sync.calendar) }}{{ sync_line(sync.tasks) }}{{ sync_line(sync.docs) }}
       </div>
       <div>
         <p class="help">{% if slack_canvas %}Reads your Slack Work Activity Tracker canvas, has Claude sort each new item into a meeting, conversation, document, task, or other, then links them to the leveling guide. Items already here are skipped, and each is tagged &ldquo;from Slack&rdquo;. The canvas text passes through the AI tool.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</p>

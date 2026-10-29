@@ -148,6 +148,31 @@ uv run careeros slack connect <canvas link>
 
 **Importing a saved canvas** (for example one of your old Weekly Contributions canvases): save its text to a file, then run `uv run careeros slack import <file>`. The 2025 Weekly Contributions canvases are already imported.
 
+## Google Docs, Sheets and Slides you wrote
+
+**Sync Google** (and the scheduled sync) also brings in the Google Docs, Sheets and Slides you worked on:
+
+- **Files you own** that changed since the last pull.
+- **Files someone else owns** where you were the **last person to edit** when the sync looked. Google Drive doesn't say how much each person edited, only who edited last, so this is the stand-in for "edited heavily". Since the sync runs twice a day, it catches most of your editing sessions.
+- **Gemini meeting notes are left out**, and so is any file already linked to a meeting: those come in with the meeting.
+
+Each file comes in as a **document** record like "Wrote doc: Release Manager Runbook" (or "Edited sheet: ..." for someone else's file), with a link, and Claude adds a two-line **AI summary** of what the file is and what it covers. If the same file changes again in a later week, a short "Updated doc: ..." record is added, which Claude groups with the first. A summary that fails is retried on the next sync, and the record stays meanwhile.
+
+The **first pull goes back a year**, which took about 12 minutes on your Drive (96 files). After that it's quick. Docs' last pull shows as the **Docs** pill on Today and in the **Last pulled in** box.
+
+To keep files out by title (Drive's search doesn't show folders, so skipping is by title text):
+
+```
+cd ~/Documents/career-os
+uv run careeros docs skip "Untitled"
+uv run careeros docs skip               # list the rules
+uv run careeros docs unskip "Untitled"
+```
+
+Adding a rule also removes matching records already in the notebook, and **Remove** in the Intake Review Queue keeps a file out for good, including later updates.
+
+The file's text passes through Claude Code to write the summary. Claude has no tools while it summarizes, and only the two lines are saved, not the file.
+
 ## GitHub: pull requests you merged or reviewed
 
 The scheduled sync (8 AM and 6 PM) also reads your GitHub pull requests on github.com, through the `gh` command already signed in as `jtetzelSFDC`. No Claude is involved in reading them; only the title, repo, date, and link are kept.
@@ -208,11 +233,11 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `120 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `127 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
-Your personal notebook is connected to Google Calendar, Google Tasks, the Slack tracker canvas, and GitHub, and Claude links what comes in to the leveling guide. Ideas still open:
+Your personal notebook is connected to Google Calendar, Google Tasks, Google Docs, the Slack tracker canvas, and GitHub, and Claude links what comes in to the leveling guide. Ideas still open:
 
 1. **Fill in older history.** The notebook mostly covers July to October 2026. Older Google Calendar history needs a little setup: the Claude connector reaches back 14 days at most (`uv run careeros calendar pull --days 14`), while connecting the calendar's private iCal address (`calendar connect`) lets `calendar sync --days 60` go back two months at a time. Older Slack work could be found by searching your messages, then read by Claude like everything else.
 2. **Keep the approvals questions in mind:**
@@ -267,7 +292,7 @@ Meetings show on the Today page as "Had a meeting" with a "from calendar" tag. O
 Before using it on a work calendar, check that titles of meetings (which can name other people or IRS-related topics) are okay to keep on this laptop. This iCal route isn't part of the scheduled sync; the scheduled sync uses the Sync Google route below.
 
 **Can I sync my calendar without the secret iCal address?**
-Yes. On the Today page, press **Sync Google** (or run `uv run careeros calendar pull` for the calendar part only). Sync Google does Calendar, Google Tasks (from the task lists changed since the last pull; a task you finished in Google is marked done here, and a task list that couldn't be read is reported, never treated as deleted; the pull then isn't counted, so the next Sync Google looks back to the same point and picks up what was missed), and meeting-note summaries in one go, then has Claude link the new records to the leveling guide. Only meetings that have ended come in: a meeting later today shows up on the first sync after it's over, by which time its Gemini notes are usually attached (the 8 AM sync then catches notes that arrived overnight). A progress bar under the button ticks through each step and shows any error in plain words; you can keep using the app while it runs. If the calendar connector answers with an error (for example an expired Google sign-in), that step stops with the message instead of reading it as an empty calendar, so no meetings are removed. For the calendar part, it starts Claude Code in the background with permission to use only the calendar tool, fetches yesterday's and today's meetings through the Google Workspace connector, and saves title, time, and Google file links (Gemini notes, recordings). Declined meetings and all-day items are skipped. It then reads the Google Docs attached to each meeting (Gemini notes, shared notes) and saves a short "AI summary" under the meeting, with the notes linked beside it; meetings without notes say so. Expect a few minutes when there are many meetings. Nothing duplicates, and a failed summary is retried the next time you press the button. Recordings and chat files aren't read. Meeting titles, times, and attendee details pass through the AI tool on the way, so it only runs when you press it or when the schedule you installed runs it. It needs Claude Code installed and the Google Workspace connector signed in. `careeros calendar pull --days 7` reaches further back (max 14).
+Yes. On the Today page, press **Sync Google** (or run `uv run careeros calendar pull` for the calendar part only). Sync Google does Calendar, the Google Docs you wrote (see that section), Google Tasks (from the task lists changed since the last pull; a task you finished in Google is marked done here, and a task list that couldn't be read is reported, never treated as deleted; the pull then isn't counted, so the next Sync Google looks back to the same point and picks up what was missed), and meeting-note summaries in one go, then has Claude link the new records to the leveling guide. Only meetings that have ended come in: a meeting later today shows up on the first sync after it's over, by which time its Gemini notes are usually attached (the 8 AM sync then catches notes that arrived overnight). A progress bar under the button ticks through each step and shows any error in plain words; you can keep using the app while it runs. If the calendar connector answers with an error (for example an expired Google sign-in), that step stops with the message instead of reading it as an empty calendar, so no meetings are removed. For the calendar part, it starts Claude Code in the background with permission to use only the calendar tool, fetches yesterday's and today's meetings through the Google Workspace connector, and saves title, time, and Google file links (Gemini notes, recordings). Declined meetings and all-day items are skipped. It then reads the Google Docs attached to each meeting (Gemini notes, shared notes) and saves a short "AI summary" under the meeting, with the notes linked beside it; meetings without notes say so. Expect a few minutes when there are many meetings. Nothing duplicates, and a failed summary is retried the next time you press the button. Recordings and chat files aren't read. Meeting titles, times, and attendee details pass through the AI tool on the way, so it only runs when you press it or when the schedule you installed runs it. It needs Claude Code installed and the Google Workspace connector signed in. `careeros calendar pull --days 7` reaches further back (max 14).
 
 **How were my calendar and tasks pulled in?**
 Through the Google Workspace connector in a Claude Code session, not by a script on its own. Meeting titles/times, the files attached to each meeting (Gemini notes, recordings, chat), and task titles and notes pass through the AI tool on the way in. Asking Claude to refresh pulls new ones without duplicating. Meetings you declined are dropped, and so are ones that vanished from the calendar, unless you attached your own notes. Open tasks stay off the Today page and live on the Tasks tab. Links to Google files are only links: the app never opens or reads the file. You need to be signed in to Google to open them.
