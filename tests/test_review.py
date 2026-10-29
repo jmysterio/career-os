@@ -239,13 +239,17 @@ def test_last_pulled_status(nb):
         st = status(s, now=datetime(2026, 10, 28, 8, 30))
         assert st["slack"]["ok"] and st["slack"]["added"] == 4 and st["slack"]["newest"] == "Mon, Oct 26"
         assert st["calendar"]["ok"] and st["calendar"]["at_text"] == "today at 8:01 AM"
+        assert (st["calendar"]["short"], st["slack"]["short"], st["tasks"]["short"]) == ("8:01 AM", "Yesterday", "Never")
+        assert status(s, now=datetime(2026, 10, 30, 9))["calendar"]["short"] == "Oct 28"
         assert status(s, now=datetime(2026, 10, 28, 18))["slack"]["ok"] is False  # tonight's log is ready now
         assert status(s, now=datetime(2026, 10, 29, 9))["calendar"]["ok"] is False
         gcal.sync(s, [], date(2026, 10, 28), date(2026, 10, 28))
         assert s.scalar(select(SyncRun).where(SyncRun.source == "calendar").order_by(SyncRun.id.desc())).added == 0
     html = c.get("/").text
-    assert "Google Calendar</b> last pulled today" in html and "Slack tracker</b> last pulled" in html
-    assert "Last pulled in" in c.get("/sheet").text
+    assert 'class="chip-sync ok" title="Google Calendar: last pulled today at' in html and "Slack tracker: last pulled" in html
+    assert "last pulled" not in html.split('title="')[0]  # no long status lines, only chips with tooltips
+    sheet = c.get("/sheet").text
+    assert sheet.count('class="chip-sync') == 6 and "GitHub pull requests: last pulled never" in sheet
 
 
 TASKS_TEXT = """Tasks in list L1 for me@example.com:

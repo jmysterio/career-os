@@ -24,6 +24,15 @@ def when(d: datetime | date, now: datetime) -> str:
     return f"{label} at {d:%I:%M %p}".replace(" 0", " ") if isinstance(d, datetime) else label
 
 
+def short(d: datetime, now: datetime) -> str:
+    """A glanceable time: 6:10 PM today, Yesterday, or Oct 27."""
+    if d.date() == now.date():
+        return f"{d:%I:%M %p}".lstrip("0")
+    if d.date() == now.date() - timedelta(days=1):
+        return "Yesterday"
+    return f"{d:%b} {d.day}"
+
+
 def status(s: Session, now: datetime | None = None) -> dict[str, dict]:
     now = now or datetime.now()
     out = {}
@@ -42,6 +51,7 @@ def status(s: Session, now: datetime | None = None) -> dict[str, dict]:
             ok = bool(last and last.date() == now.date())
             hint = "" if ok else "Not synced today yet."
         out[src] = dict(label=label, at=last, at_text=when(last, now) if last else "never",
+                        short=short(last, now) if last else "Never",
                         added=run.added if run else None, estimated=bool(last and not run),
                         newest=when(date.fromisoformat(newest), now) if newest else "", ok=ok, hint=hint)
     return out
