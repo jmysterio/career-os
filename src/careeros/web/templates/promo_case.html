@@ -18,18 +18,37 @@
 {% if not v %}
 <section class="card"><p class="muted">No draft yet. Pick the window above (the last 12 months by default) and press <b>Write my promo case</b>.</p></section>
 {% else %}
+{% if v.id != latest %}<div class="note">You're looking at draft {{ v.id }}. <a href="/promo/case/{{ latest }}">The newest is draft {{ latest }}</a>.</div>{% endif %}
 <section class="card">
   <h2>Promotion case: {{ v.name }}</h2>
-  <p class="muted">Draft {{ v.id }}, written {{ v.created_at.strftime('%b %-d, %Y at %-I:%M %p') }} from work between {{ v.window_start }} and {{ v.window_end }}.
+  <p class="muted">Draft {{ v.id }}{% if v.note %} ({{ v.note|lower }}){% endif %}, {{ v.created_at.strftime('%b %-d, %Y at %-I:%M %p') }}, from work between {{ v.window_start }} and {{ v.window_end }}.
     {% if flagged %}<b>{{ flagged }} sentence{{ '' if flagged == 1 else 's' }} to check</b> before you use it.{% else %}Every sentence has a source.{% endif %}
-    It's a draft: read it, fix it, and make it yours.</p>
-  {% if versions|length > 1 %}<p class="help">Earlier drafts: {% for x in versions if x.id != v.id %}<a href="/promo/case/{{ x.id }}">{{ x.id }} ({{ x.created_at.strftime('%b %-d') }})</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    It's a draft: read it, fix it, and make it yours. Every edit or rewrite saves a new draft, so nothing is lost.</p>
+  {% if versions|length > 1 %}
+  <details><summary>All drafts ({{ versions|length }}) and compare</summary>
+    <ul>{% for x in versions %}<li>{% if x.id == v.id %}<b>Draft {{ x.id }}</b>{% else %}<a href="/promo/case/{{ x.id }}">Draft {{ x.id }}</a>{% endif %} <span class="muted">{{ x.created_at.strftime('%b %-d, %-I:%M %p') }}{% if x.note %} &middot; {{ x.note }}{% endif %}</span></li>{% endfor %}</ul>
+    <form method="get" action="/promo/compare" class="row">
+      <label class="help" for="cmp-a">Compare draft</label><select id="cmp-a" name="a">{% for x in versions %}<option value="{{ x.id }}" {{ 'selected' if loop.index == 2 }}>{{ x.id }}</option>{% endfor %}</select>
+      <label class="help" for="cmp-b">with</label><select id="cmp-b" name="b">{% for x in versions %}<option value="{{ x.id }}" {{ 'selected' if x.id == v.id }}>{{ x.id }}</option>{% endfor %}</select>
+      <button>Compare</button></form>
+  </details>{% endif %}
 </section>
 {% for sec in sections %}
-<section class="card">
-  <h2>{{ sec.heading }}</h2>
+<section class="card" id="sec-{{ sec.key }}">
+  <h2>{{ sec.heading }}{% if sec.edited %} <span class="chip guide">edited by you</span>{% endif %}</h2>
   {% if sec.error %}<p class="muted">{{ sec.error }}</p>{% endif %}
   <p class="case">{% for x in sec.sentences %}<span class="{{ '' if x.valid else 'check' }}"{% if not x.valid %} title="Check this: {{ x.reason }}"{% endif %}>{% if not x.valid %}<b class="check-tag">Check this ({{ x.reason }}):</b> {% endif %}{{ x.text }}{% for n in x.sources %}<a class="cite" href="#src-{{ n }}">[{{ n }}]</a>{% endfor %}</span> {% endfor %}</p>
+  <details><summary>Edit</summary>
+    <form method="post" action="/promo/case/{{ v.id }}/edit/{{ sec.key }}" class="stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <p class="help">One sentence per line. Keep the [numbers] at the end of a line to keep its sources; your wording is checked the same way as Claude's. Saving makes a new draft.</p>
+      <textarea name="text" maxlength="20000" aria-label="Edit {{ sec.heading }}">{{ texts[sec.key] }}</textarea>
+      <div><button class="primary">Save as a new draft</button></div></form>
+  </details>
+  {% if personal %}<form method="post" action="/promo/case/{{ v.id }}/rewrite/{{ sec.key }}" data-sync="promo" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% if sec.edited %}<label class="help"><input type="checkbox" name="confirm" value="yes"> Replace my edits</label>{% endif %}
+    <button data-label="Rewrite this section">Rewrite this section</button></form>{% endif %}
 </section>
 {% endfor %}
 <section class="card">

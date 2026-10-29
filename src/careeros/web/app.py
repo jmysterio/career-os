@@ -795,6 +795,60 @@ def create_app(dd: DataDir) -> FastAPI:
         return back("Writing your promo case. This takes a minute or two; refresh to see it." if started
                     else "A draft is already being written.", "/promo/case")
 
+    @app.post("/promo/case/{vid}/edit/{key}", dependencies=[Depends(check_csrf)])
+    def promo_edit(vid: int, key: str, text: str = Form("", max_length=20_000), s: Session = Depends(db)):
+        """Save your wording of one section as a new draft (one sentence per line; [n] keeps its sources)."""
+        from ..promo import write as pw
+        from ..storage.models import PromoVersion
+        v = s.get(PromoVersion, vid)
+        if v is None:
+            return back("That draft is gone.", "/promo/case")
+        with _write_lock:
+            try:
+                new = pw.edit_section(s, v, key, text)
+            except KeyError:
+                return back("That section isn't in this draft.", f"/promo/case/{vid}")
+        return RedirectResponse(f"/promo/case/{new.id}#sec-{key}", status_code=303)
+
+    @app.post("/promo/case/{vid}/rewrite/{key}", dependencies=[Depends(check_csrf)])
+    def promo_rewrite(request: Request, vid: int, key: str, confirm: str = Form(""), s: Session = Depends(db)):
+        """Have Claude redo one section, in the background; your edited sections need a confirm first."""
+        from ..storage.models import PromoSection
+        if not personal:
+            return back("Writing the case only works with your personal notebook.", "/promo/case")
+        sec = s.scalar(select(PromoSection).where(PromoSection.version_id == vid, PromoSection.key == key))
+        if sec is None:
+            return back("That section isn't in this draft.", f"/promo/case/{vid}")
+        if sec.edited and confirm != "yes":
+            msg = f"You've edited {sec.heading}. Tick “Replace my edits” to have Claude rewrite it anyway."
+            if request.headers.get("x-sync") == "1":
+                return JSONResponse({"started": False, "message": msg}, status_code=409)
+            return back(msg, f"/promo/case/{vid}")
+        started = jobs.start("promo", [f"Rewrite {sec.heading}"], lambda j: syncs.run_rewrite(j, Session_, vid, key))
+        if request.headers.get("x-sync") == "1":
+            return JSONResponse({"started": started})
+        return back("Rewriting it now; refresh in a minute." if started else "A draft is already being written.",
+                    "/promo/case")
+
+    @app.get("/promo/compare", response_class=HTMLResponse)
+    def promo_compare(request: Request, a: int = 0, b: int = 0, s: Session = Depends(db)):
+        """Two drafts side by side, section by section: what was removed and what was added."""
+        from ..promo import write as pw
+        from ..storage.models import PromoSection, PromoVersion
+        va, vb = s.get(PromoVersion, a), s.get(PromoVersion, b)
+        if va is None or vb is None:
+            return back("Pick two drafts to compare.", "/promo/case")
+        secs = {v.id: {x.key: x for x in s.scalars(select(PromoSection).where(PromoSection.version_id == v.id))}
+                for v in (va, vb)}
+        rows = []
+        for key, heading, *_ in pw.SECTIONS:
+            sa, sb = secs[va.id].get(key), secs[vb.id].get(key)
+            rows.append(dict(heading=heading, diff=pw.compare(sa.sentences if sa else [], sb.sentences if sb else [])))
+        html = env.get_template("promo_compare.html").render(
+            a=va, b=vb, rows=rows, csrf=csrf_token, msg=None, sync_warning=dd.sync_warning(), theme=theme_of(request),
+            greeting=greeting(), tagline=TAGLINES[0], page="/promo", personal=personal, q="")
+        return HTMLResponse(html)
+
     @app.get("/promo/case", response_class=HTMLResponse)
     @app.get("/promo/case/{vid}", response_class=HTMLResponse)
     def promo_case(request: Request, vid: int | None = None, msg: str | None = None, s: Session = Depends(db)):
@@ -811,6 +865,7 @@ def create_app(dd: DataDir) -> FastAPI:
         lo, hi = pw.default_window()
         html = env.get_template("promo_case.html").render(
             v=v, versions=versions, sections=sections, sources=[by_n[n] for n in cited if n in by_n],
+            latest=versions[0].id if versions else None, texts={x.key: pw.to_text(x.sentences) for x in sections},
             flagged=sum(1 for sec in sections for x in sec.sentences if not x["valid"]),
             start=lo, end=hi, name=pw.load_name(dd), guided=gsvc.has_guide(s), csrf=csrf_token, msg=msg,
             sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],

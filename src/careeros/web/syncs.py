@@ -119,6 +119,23 @@ def run_promo(job: Job, Session_, start: str, end: str, name: str) -> None:
     job.finish(f"Draft {v.id} is ready.")
 
 
+def run_rewrite(job: Job, Session_, vid: int, key: str) -> None:
+    """Claude redoes one section of a draft; the result is saved as a new draft."""
+    from ..promo import write as pw
+    from ..storage.models import PromoVersion
+    job.start(0)
+    with Session_() as s:
+        v = s.get(PromoVersion, vid)
+        try:
+            new = pw.rewrite_section(s, v, key)
+        except (ClaudeError, KeyError) as exc:
+            job.fail(0, str(exc) if isinstance(exc, ClaudeError) else "That section isn't in this draft.")
+            job.finish("Nothing changed.")
+            return
+    job.done(0, f"Saved as draft {new.id}")
+    job.finish(f"Draft {new.id} is ready: open the newest draft to see it.")
+
+
 def run_slack(job: Job, Session_, lock, dd: DataDir) -> None:
     from ..slack.classify import classify
     from ..slack.connector import fetch_canvas

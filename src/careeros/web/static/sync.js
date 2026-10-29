@@ -72,16 +72,21 @@ document.addEventListener("submit", async (ev) => {
   const button = form.querySelector("button");
   button.disabled = true;
   button.textContent = "Starting…";
+  let why = "Couldn't start it. Is the app still running? Refresh and try again.";
   try {
     const resp = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { "X-Sync": "1" } });
-    if (!resp.ok) throw new Error(resp.status);
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      if (body.message) why = body.message;
+      throw new Error(resp.status);
+    }
   } catch (e) {
     button.disabled = false;
     button.textContent = button.dataset.label;
     const box = document.querySelector(`.job[data-job="${form.dataset.sync}"]`);
     box.hidden = false;
     box.className = "job error";
-    box.replaceChildren(el("p", "jmsg", "Couldn't start the sync. Is the app still running? Refresh and try again."));
+    box.replaceChildren(el("p", "jmsg", why));
     return;
   }
   poll();

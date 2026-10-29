@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="card">
+  <h2>Draft {{ a.id }} compared with draft {{ b.id }}</h2>
+  <p class="muted"><span class="diff-removed">Struck-through</span> sentences are only in draft {{ a.id }}{% if a.note %} ({{ a.note|lower }}){% endif %}; <span class="diff-added">underlined</span> ones are only in draft {{ b.id }}{% if b.note %} ({{ b.note|lower }}){% endif %}. <a href="/promo/case/{{ b.id }}">Back to draft {{ b.id }}</a>.</p>
+</section>
+{% for r in rows %}
+<section class="card">
+  <h2>{{ r.heading }}</h2>
+  {% if r.diff|selectattr('op', 'ne', 'same')|list %}
+  <ul class="diff">{% for d in r.diff %}<li class="diff-{{ d.op }}">{% if d.op == 'removed' %}<span class="sr">Removed: </span>{% elif d.op == 'added' %}<span class="sr">Added: </span>{% endif %}{{ d.text }}</li>{% endfor %}</ul>
+  {% else %}<p class="muted">The same in both drafts.</p>{% endif %}
+</section>
+{% endfor %}
+{% endblock %}
