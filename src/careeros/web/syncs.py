@@ -60,7 +60,8 @@ def run_google(job: Job, Session_, lock) -> None:
             items = connector.fetch(first, last)
             with lock:
                 r = gcal.import_events(s, items, first, last)
-            job.done(0, f"{_plural(r['added'], 'new meeting')}, {r['updated']} changed, {r['removed']} gone")
+            job.done(0, f"{_plural(r['added'], 'new meeting')}, {r['updated']} changed, {r['removed']} gone"
+                        + (f"; {r['later']} later today come in once they've ended" if r.get("later") else ""))
             new.append(_plural(r["added"], "meeting"))
         except (gcal.CalendarError, ClaudeError) as exc:
             job.fail(0, f"{exc} Is Google Workspace signed in for Claude Code?")

@@ -129,9 +129,35 @@ def test_import_events_dedupes_links_and_removes_vanished(s):
     first, last = date(2026, 10, 22), date(2026, 10, 23)
     r = gcal.import_events(s, items, first, last)
     assert (r["added"], r["links"]) == (1, 1)
-    assert gcal.import_events(s, items, first, last) == dict(added=0, updated=0, removed=0, links=0)
+    assert gcal.import_events(s, items, first, last) == dict(added=0, updated=0, removed=0, links=0, later=0)
     assert [a.body for a in s.scalars(select(JournalAttachment))] == ["https://docs.google.com/document/d/abc/edit"]
     assert gcal.import_events(s, [], first, last)["removed"] == 0  # has a link attached, so it is kept
+
+
+def test_meetings_come_in_only_once_they_have_ended(s):
+    from datetime import timezone
+    day, first = date(2026, 10, 29), date(2026, 10, 28)
+    items = [dict(id="done", title="Standup review", start="2026-10-29T08:00:00-04:00", end="2026-10-29T08:30:00-04:00",
+                  links=[]),
+             dict(id="now", title="Running long", start="2026-10-29T09:00:00-04:00", end="2026-10-29T10:00:00-04:00",
+                  links=[dict(title="Notes by Gemini", url="https://docs.google.com/document/d/n/edit")]),
+             dict(id="later", title="Release prep", start="2026-10-29T14:30:00-04:00", end="2026-10-29T15:00:00-04:00",
+                  links=[])]
+    at = lambda h, m: datetime(2026, 10, 29, h, m, tzinfo=timezone(timedelta(hours=-4)))  # noqa: E731
+    r = gcal.import_events(s, items, first, day, now=at(9, 18))
+    assert (r["added"], r["later"]) == (1, 2)
+    assert [e.text for e in s.scalars(select(JournalEntry))] == ["8:00 AM–8:30 AM  Standup review"]
+    assert not list(s.scalars(select(JournalAttachment)))  # no links for meetings that haven't ended
+    r = gcal.import_events(s, items, first, day, now=at(18, 0))
+    assert (r["added"], r["later"], r["links"]) == (2, 0, 1)
+    # a meeting pulled in early (before this rule) and not built on drops out until it has ended
+    s.add(JournalEntry(day="2026-10-29", kind="meeting", text="4:00 PM–4:30 PM  Too early", created_at=datetime.now(),
+                       source="calendar", external_id="early"))
+    s.commit()
+    items.append(dict(id="early", title="Too early", start="2026-10-29T16:00:00-04:00",
+                      end="2026-10-29T16:30:00-04:00", links=[]))
+    assert gcal.import_events(s, items, first, day, now=at(9, 18))["removed"] >= 1
+    assert s.scalar(select(JournalEntry).where(JournalEntry.external_id == "early")) is None
 
 
 def test_summaries_only_pending_for_meetings_with_a_notes_doc(s):

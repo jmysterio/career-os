@@ -284,10 +284,11 @@ def test_sync_google_runs_every_step(nb, monkeypatch):
     import time
     from careeros.google import connector, summaries, tasks as gtasks
     dd, c, token, _ = nb
-    today = date.today().isoformat()
+    from datetime import timedelta
+    yesterday = (date.today() - timedelta(days=1)).isoformat()  # a meeting that has already happened
     monkeypatch.setattr(connector, "fetch", lambda first, last: [
-        {"id": "ev1", "title": "Release go/no-go", "start": f"{today}T09:00:00-04:00", "end": f"{today}T09:30:00-04:00",
-         "links": []}])
+        {"id": "ev1", "title": "Release go/no-go", "start": f"{yesterday}T09:00:00-04:00",
+         "end": f"{yesterday}T09:30:00-04:00", "links": []}])
     monkeypatch.setattr(gtasks, "fetch", lambda since: (gtasks.parse_tasks(TASKS_TEXT), 1))
     monkeypatch.setattr(summaries, "summarize_pending", lambda s, f, l, progress=None: dict(summarized=0, failed=0))
 
