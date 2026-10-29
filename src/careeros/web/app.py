@@ -603,7 +603,8 @@ def create_app(dd: DataDir) -> FastAPI:
             return [dict(id=w.id, title=w.title, day=w.day) for w in nearby if w.id != e.work_item_id
                     and abs((date.fromisoformat(w.day) - d).days) <= work.WINDOW_DAYS][:20]
 
-        return [dict(id=e.id, day=e.day, source=SOURCE_LABEL.get(e.source, e.source), kind=e.kind,
+        return [dict(id=e.id, day=e.day, day_short=f"{date.fromisoformat(e.day):%b} {int(e.day[8:])}",
+                     source=SOURCE_LABEL.get(e.source, e.source), kind=e.kind,
                      kind_was=dict(SHEET_KIND).get(e.kind_was, ""),
                      text=e.text, reviewed=e.reviewed, ai_read=e.ai_read, links=links.get(e.id, []),
                      win=wins.get(e.id), notes=notes.get(e.id, ""),

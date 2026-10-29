@@ -32,7 +32,7 @@ uv run careeros schedule install
 
 - **The app** starts when you log in and restarts by itself if it ever stops. It's always at http://127.0.0.1:8765. If you'd started it yourself in a Terminal, stop that one (Ctrl+C) first.
 - **The sync** runs at 8:00 AM and 6:00 PM (after your 5 PM Slack automation), and once when you log in if a run was missed while the laptop was closed. Each run backs up the notebook first, then does exactly what the Sync Slack tracker and Sync Google buttons do, then pulls your GitHub pull requests. If nothing is due, it does nothing.
-- **If something fails**, for example a connector's sign-in expired, a macOS notification says which sync and what to do (usually: open AI Suite > Settings > Connections and sign in again). Nothing is shown when everything works; the **Last pulled in** box shows the times.
+- **If something fails**, for example a connector's sign-in expired, a macOS notification says which sync and what to do (usually: open AI Suite > Settings > Connections and sign in again). Nothing is shown when everything works; the status chips show the times.
 - **The digest** shows a notification on Fridays at 12:00 PM (if the laptop was asleep, as soon as it wakes). See **Weekly digest** below.
 - `uv run careeros schedule status` shows whether each is on and the last sync log line. Logs are in `logs/` in your notebook folder.
 - `uv run careeros sync all --force` runs a sync right now from Terminal.
@@ -104,7 +104,7 @@ The **Intake Review Queue** (in the Menu) lists every record (calendar meetings,
 - **Looks right** marks the row checked. Whatever Claude picked for it becomes yours, and the row leaves the **Not checked yet** list, so you can work down the list until it's empty.
 - **Remove** (under Looks right) takes a record out for good, for example a meeting you didn't attend. Its pasted notes, guide links, and any win Claude drafted from it go too; wins you made or edited stay. Calendar, Tasks, and Slack syncs skip removed records so they don't come back. Choose **Removed** in the Show menu to see them and **Restore** one if you change your mind.
 
-**Is everything pulled in?** The **Last pulled in** box at the top of the queue (and a line under each Sync button on Today & this week) shows when each source was last pulled, how many new items came in, and the date of the newest item. A green dot means up to date: Slack was pulled after 5:30 PM on the latest evening (the tracker automation runs at 5 PM), and Calendar was synced today. An orange dot says what's missing; press that Sync button. "(about)" means the time is estimated from when items were added, before the app kept a sync history.
+**Is everything pulled in?** A row of small status chips (at the top of the queue, and under each Sync button on Today & this week) shows each source with a dot, an icon, and when it was last pulled: a time for today, "Yesterday", or a date. A green dot means up to date: Slack was pulled after 5:30 PM on the latest evening (the tracker automation runs at 5 PM), and the others were synced today. An orange dot means it needs a pull; press that Sync button. Hover over a chip for the details: the exact time, how many new items came in, the date of the newest item, and what's missing. "(about)" means the time is estimated from when items were added, before the app kept a sync history.
 
 **One piece of work, counted once.** A deployment often shows up three times: a calendar meeting, a Slack thread, and a Google task. Claude groups records like that into one piece of work, and the Promo map counts the piece once, at its strongest evidence (a large win made from one of them beats a plain record). A grouped row shows **Part of: OCC 5.1.2 release · 3 records** (marked AI until you check the row). **Not the same work** takes a row out of its group, and **Group with…** puts it in a nearby group or starts a new one you name. Claude never regroups a row you grouped, split, or marked **Looks right**. A piece of work runs at most 30 days from its first record, and a record joins only work that's had activity in the last 14 days, so groups don't snowball. New records are grouped after every sync. To group everything already in the notebook (it shows what it would do first with `--dry-run`):
 
@@ -178,7 +178,7 @@ You can also mark any record as kudos yourself: press **Kudos** in its row of th
 
 What to expect: the first pull found 38 kudos in a year and took about 10 minutes; after that each sync only looks at the last couple of days. A week with more than 200 mentions (big release weeks) is read newest first, and the step says how many weeks were cut short.
 
-Messages from private channels pass through Claude Code to be checked (only ones with praise words, and only their text, sender, and channel name). Your Slack user id and name are looked up once and saved in `slack_user.json` in the notebook folder. Kudos' last pull shows as the **Kudos** pill on Today and in **Last pulled in**.
+Messages from private channels pass through Claude Code to be checked (only ones with praise words, and only their text, sender, and channel name). Your Slack user id and name are looked up once and saved in `slack_user.json` in the notebook folder. Kudos' last pull shows as the **Kudos** chip on Today and in the queue.
 
 ## Google Docs, Sheets and Slides you wrote
 
@@ -190,7 +190,7 @@ Messages from private channels pass through Claude Code to be checked (only ones
 
 Each file comes in as a **document** record like "Wrote doc: Release Manager Runbook" (or "Edited sheet: ..." for someone else's file), with a link, and Claude adds a two-line **AI summary** of what the file is and what it covers. If the same file changes again in a later week, a short "Updated doc: ..." record is added, which Claude groups with the first. A summary that fails is retried on the next sync, and the record stays meanwhile.
 
-The **first pull goes back a year**, which took about 12 minutes on your Drive (96 files). After that it's quick. Docs' last pull shows as the **Docs** pill on Today and in the **Last pulled in** box.
+The **first pull goes back a year**, which took about 12 minutes on your Drive (96 files). After that it's quick. Docs' last pull shows as the **Docs** chip on Today and in the queue.
 
 To keep files out by title (Drive's search doesn't show folders, so skipping is by title text):
 
@@ -212,7 +212,7 @@ The scheduled sync (8 AM and 6 PM) also reads your GitHub pull requests on githu
 - **PRs you wrote and merged** come in one record each, like "Merged PR: Add Cherry-Pick Report (irs-github-automations#12)", with a link to the PR.
 - **PRs you reviewed** come in as **one record per repo per week**, like "Reviewed 31 pull requests in ccirsgov-org, week of Oct 19", with the list of PRs attached. You review close to a thousand a year, nearly all routine branch PRs, so one record each would bury the Intake Review Queue. A week's record grows as more reviews arrive.
 - The **first pull goes back a year**; after that each pull starts two days before the last one. Nothing is ever deleted by a sync.
-- Then Claude links the new records to the leveling guide, like every other source. GitHub's last pull shows in the Intake Review Queue's **Last pulled in** box.
+- Then Claude links the new records to the leveling guide, like every other source. GitHub's last pull shows as the **GitHub** chip in the Intake Review Queue.
 
 To pull right away instead of waiting for the schedule:
 

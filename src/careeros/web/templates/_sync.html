@@ -1,12 +1,16 @@
-{% macro sync_pill(st, name) %}
-<span class="pill {{ 'ok' if st.ok else ('late' if st.ok is false else '') }}" title="{{ st.hint or 'Up to date' }}"><i aria-hidden="true"></i>{{ name }} &middot; {{ st.at_text }}<span class="sr">{{ ', up to date' if st.ok else (', needs a pull' if st.ok is false else '') }}</span></span>
+{% set ICONS = {
+  "calendar": '<rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/>',
+  "tasks": '<rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5 8.2l2 2 4-4.4"/>',
+  "docs": '<path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3M6 8h4M6 10.5h4"/>',
+  "slack": '<path d="M6 2.5l-1.5 11M11.5 2.5l-1.5 11M2.5 6h11M2 10h11"/>',
+  "kudos": '<path d="M8 2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.2 4.4 13.1l.7-4L2.2 6.3l4-.6z"/>',
+  "github": '<circle cx="4.5" cy="3.5" r="1.5"/><circle cx="4.5" cy="12.5" r="1.5"/><circle cx="11.5" cy="5.5" r="1.5"/><path d="M4.5 5v6M11.5 7c0 2.5-2 3-7 4"/>',
+} %}
+
+{% macro sync_chip(st, key, name) %}
+<span class="chip-sync {{ 'ok' if st.ok else ('late' if st.ok is false else '') }}" title="{{ st.label }}: last pulled {{ st.at_text }}{% if st.added is not none %}, {{ st.added }} new{% endif %}.{% if st.newest %} Newest item is from {{ st.newest }}.{% endif %}{% if st.hint %} {{ st.hint }}{% endif %}"><i aria-hidden="true"></i><svg viewBox="0 0 16 16" aria-hidden="true">{{ ICONS[key]|safe }}</svg>{{ name }} <span class="t">{{ st.short }}</span><span class="sr">{{ ', up to date' if st.ok else (', needs a pull' if st.ok is false else '') }}</span></span>
 {% endmacro %}
 
-{% macro sync_line(st) %}
-<p class="sync {{ 'ok' if st.ok else ('late' if st.ok is false else '') }}">
-  {% if st.ok %}<span class="dot" aria-hidden="true"></span><b>Up to date.</b>{% elif st.ok is false %}<span class="dot" aria-hidden="true"></span><b>Needs a pull.</b>{% endif %}
-  <b>{{ st.label }}</b> last pulled {{ st.at_text }}{% if st.estimated %} (about){% endif %}{% if st.added is not none %}, {{ st.added }} new{% endif %}.
-  {% if st.newest %}Newest item is from {{ st.newest }}.{% endif %}
-  {% if st.hint %}<span class="muted">{{ st.hint }}</span>{% endif %}
-</p>
+{% macro sync_chips(sync, keys) %}
+<div class="chips-sync">{% for key, name in keys %}{{ sync_chip(sync[key], key, name) }}{% endfor %}</div>
 {% endmacro %}

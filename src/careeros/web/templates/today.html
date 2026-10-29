@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 {% from "_entry.html" import attach_fields, entry_card with context %}
-{% from "_sync.html" import sync_line, sync_pill %}
+{% from "_sync.html" import sync_chips %}
 
 <section class="card slim fold" tabindex="-1" aria-label="Add to your notebook">
   <form method="post" action="/journal/add">
@@ -30,7 +30,7 @@
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="primary" data-label="Sync Google">Sync Google</button>
       </form>
-      <div class="pills">{{ sync_pill(sync.calendar, "Calendar") }}{{ sync_pill(sync.tasks, "Tasks") }}{{ sync_pill(sync.docs, "Docs") }}</div>
+      {{ sync_chips(sync, [("calendar", "Calendar"), ("tasks", "Tasks"), ("docs", "Docs")]) }}
       <div class="job" data-job="google" hidden></div>
     </div>
     <div class="sync-col">
@@ -38,7 +38,7 @@
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="primary" data-label="Sync Slack tracker" {{ 'disabled' if not slack_canvas }}>Sync Slack tracker</button>
       </form>
-      <div class="pills">{{ sync_pill(sync.slack, "Slack") }}{{ sync_pill(sync.kudos, "Kudos") }}</div>
+      {{ sync_chips(sync, [("slack", "Slack"), ("kudos", "Kudos")]) }}
       <div class="job" data-job="slack" hidden></div>
     </div>
   </div>
@@ -46,11 +46,9 @@
     <div class="sync-grid">
       <div>
         <p class="help">Pulls yesterday's and today's meetings, your recently changed Google Tasks, and summaries of any meeting notes, then has Claude link the new records to the leveling guide. Usually a minute or two. Meeting titles, times, task titles, and the text of meeting notes pass through the AI tool.</p>
-        {{ sync_line(sync.calendar) }}{{ sync_line(sync.tasks) }}{{ sync_line(sync.docs) }}
       </div>
       <div>
         <p class="help">{% if slack_canvas %}Reads your Slack Work Activity Tracker canvas, has Claude sort each new item into a meeting, conversation, document, task, or other, then links them to the leveling guide. Items already here are skipped, and each is tagged &ldquo;from Slack&rdquo;. The canvas text passes through the AI tool.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</p>
-        {{ sync_line(sync.slack) }}{{ sync_line(sync.kudos) }}
       </div>
     </div>
   </div></div>
