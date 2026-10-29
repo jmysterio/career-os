@@ -272,6 +272,57 @@ All three add records with `source` set to `github`, `docs` or `releases`, an `e
 
 ---
 
+## v1.1 — The sleek pass (five PRs, one per page group)
+
+**Goal:** look, don't read. Every page shows status at a glance (chips, bars, short dates) and keeps its explanations one click away. PRs #17 (status chips and the slim Intake Review Queue) set the style; this pass carries it everywhere. Same shipping rules as above: one PR per item to `main`, test on a copy, README and INSTRUCTIONS updated, screenshots only from the practice notebook.
+
+**Decided (Oct 29)**
+- **Help text:** every explanation paragraph folds behind a small **How this works** toggle, like the queue.
+- **Header:** the "Good evening" greeting and tagline go away on every page. In their place is just the app name, **Career Tracker** (also the browser tab title), placed so it doesn't sit on top of the coffee cup image.
+- **Today goes away.** The app tracks automatically, and the daily review happens in the queue and the Friday digest, so the Today and Yesterday day cards are removed. The home page becomes a simple **progress dashboard** about the goal: getting promoted and building skills. Keep it simple, clean, and quick to read.
+
+**Open questions (answer before S2)**
+- **Quick add:** keep the one-line "What did you get up to?" box on the home page, move it to the Menu, or drop it? *Suggestion: keep it, as a slim line under the dashboard.*
+- **Dashboard metrics:** a starting set is suggested in S2. Pick, cut, or swap.
+
+### S1. App shell — `feature/s1-shell`
+- Header: **Career Tracker** in place of the greeting and tagline on every page. Move it so it's clear of the coffee cup (left image) at common window widths. `<title>` becomes "Career Tracker", with the page name after it.
+- One `howto(text)` macro for folded help, applied to every explanation paragraph: Promo map, Wins, Promo case, Digest, Impact, Guide link, and the tab pages.
+- One `short_day` Jinja filter ("Oct 29"; full date in the tooltip) used for every date on every page.
+- **Tests:** every page renders with the new header and no greeting; every help paragraph is inside a `details.howto`; `short_day` formats this year and last year.
+
+### S2. Home becomes a progress dashboard — `feature/s2-home`
+- Remove the Today and Yesterday day cards and the "In the last 7 days you noted…" tally. The records stay reachable through the tabs (Meetings, Documents, …) and the queue.
+- **Keep:** the two Sync buttons with their status chips.
+- **Suggested dashboard** (all from data the app already has; no Claude):
+  - **Promotion readiness:** two bars, Grade 6 and Grade 7, showing key experiences shown out of total (the Promo map's progress), with the percentage.
+  - **Skills:** how many leveling-guide skills have evidence at the Grade 6 level, out of the total.
+  - **Momentum:** a small 12-week bar chart of evidence per week (wins plus records linked to the guide), drawn as inline SVG with no JavaScript.
+  - **Three stat tiles:** wins this half, kudos this half, and records waiting in the queue (links there).
+  - **Next step:** the Promo map's top "Aim for next", as one line with a link.
+- **Tests:** the dashboard numbers match `promo_map` and `counts` on a fixture; the chart has 12 bars; there are no day cards; the Sync buttons still work.
+
+### S3. Record cards on the tabs — `feature/s3-cards`
+- On the tab pages (Meetings, Documents, …), each record's actions ("Add more to this", "Count this as a win", "Link to the leveling guide", "Remove") become one small row of icon buttons with tooltips and screen-reader labels.
+- Link attachments show as short named chips (like "Google sheet", "Pull request", "Slack message") instead of full addresses. "Might show" becomes guide chips. Dates are short.
+- **Tests:** each action still posts to the same route; no full URL text is shown; the icon buttons have `aria-label`s.
+
+### S4. Wins — `feature/s4-wins`
+- The add-a-win form folds behind a **+ Add a win** button; the field explanations move into placeholders and the fold.
+- The year summary becomes stat chips (74 wins · 4 large · 27 medium · 43 small · 5 missing "why it mattered").
+- Each win is a compact card: title, size chip, and theme chip on one line. "Why it mattered" sits underneath, or a small orange "add why" badge when it's missing. The notebook source, guide link, and edit actions move into the icon row from S3.
+- **Tests:** add, edit, remove, and filter still work; the missing-impact badge shows only when impact is empty.
+
+### S5. Promo map and promo case — `feature/s5-promo`
+- **Promo map:** intro and "By the numbers" explanations fold away. The progress bars stay. The numbers table gets tighter rows. "Start with what you've already done" becomes a compact list of chips.
+- **Promo case:** the 16 help blocks fold away. The draft, the citations, and the Check this marks stay as they are.
+- **After S5:** refresh the README screenshots from the practice notebook, and check the light theme and a narrow window on every page.
+- **Tests:** existing promo tests pass; the pages render with the folds; no help text sits outside a fold.
+
+**Order:** S1 first (everything else uses its macro and filter), then S2, then S3, S4, and S5 in any order.
+
+---
+
 ## Not in this plan
 
 Backfilling older Slack and calendar history. Add it after 3 and 8, as a one-time `sync all --since <date>` run.
