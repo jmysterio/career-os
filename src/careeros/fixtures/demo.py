@@ -48,6 +48,9 @@ GUIDE = [  # (kind, grade, name, description)
     ("skill", None, "Environment/Sandbox Management", "Manages sandboxes and refreshes."),
 ]
 
+ACTIVITY = {2: "deployment", 4: "document", 5: "pr_review", 6: "sandbox_refresh", 7: "mentoring",
+            9: "hotfix"}  # record index -> what it counts toward on the Promo map
+
 LINKS = {  # record index -> guide names it shows
     2: ["Generates end-to-end DevOps documentation and runbooks."],
     6: ["Leads sandbox strategy across teams, including refresh cycles."],
@@ -66,7 +69,8 @@ def seed(s: Session, today: date | None = None) -> dict[str, int]:
     for ago, kind, source, text, notes in RECORDS:
         e = JournalEntry(day=(today - timedelta(days=ago)).isoformat(), kind=kind, text=text, created_at=now,
                          source=source, external_id=f"demo:{len(entries)}" if source else None,
-                         status="done" if kind == "task" else "")
+                         status="done" if kind == "task" else "", activity=ACTIVITY.get(len(entries), ""),
+                         activity_read=True, grouped=True)
         s.add(e)
         s.flush()
         if notes:
