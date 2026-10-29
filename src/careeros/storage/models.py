@@ -113,6 +113,8 @@ class PromoVersion(Base):
     name: Mapped[str] = mapped_column(String)
     voice: Mapped[str] = mapped_column(String, default="third")
     evidence: Mapped[list] = mapped_column(JSON, default=list)  # [{n, kind, text, day, refs}]
+    slices: Mapped[dict] = mapped_column(JSON, default=dict)  # section key -> evidence numbers it was written from
+    note: Mapped[str] = mapped_column(String, default="")  # how this draft came about, e.g. "Edited Impact"
     google_doc_url: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
 
 

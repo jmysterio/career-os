@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from typing import Callable
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..claude_cli import ClaudeError, ask
@@ -99,7 +100,7 @@ def write_case(s: Session, *, start: str, end: str, name: str,
         raise ClaudeError(f"There's no linked work between {start} and {end} to write from yet.")
     by_n = {p["n"]: p for p in pieces}
     version = PromoVersion(created_at=datetime.now(), window_start=start, window_end=end, name=name, voice="third",
-                           evidence=pieces)
+                           evidence=pieces, slices=slices, note="Written")
     s.add(version)
     s.flush()
 
@@ -127,3 +128,80 @@ def write_case(s: Session, *, start: str, end: str, name: str,
         raise ClaudeError("Claude couldn't write any section, so nothing was saved. Try again.")
     s.commit()
     return version
+
+
+# Editing and rewriting: each change saves a new draft that shares the original's frozen evidence, so its [numbers]
+# stay valid and any two drafts can be compared.
+
+CITE = re.compile(r"\s*\[(\d+)\]")
+
+
+def to_text(sentences: list[dict]) -> str:
+    """One sentence per line, its sources as [n] at the end: what the edit box shows."""
+    return "\n".join(x["text"] + "".join(f" [{n}]" for n in x["sources"]) for x in sentences)
+
+
+def from_text(text: str) -> list[dict]:
+    out = []
+    for line in text.splitlines():
+        sources = [int(n) for n in CITE.findall(line)]
+        body = " ".join(CITE.sub("", line).split())
+        if body:
+            out.append(dict(text=body, sources=sources))
+    return out
+
+
+def _clone(s: Session, v: PromoVersion, note: str) -> PromoVersion:
+    new = PromoVersion(created_at=datetime.now(), window_start=v.window_start, window_end=v.window_end, name=v.name,
+                       voice=v.voice, evidence=v.evidence, slices=v.slices or {}, note=note)
+    s.add(new)
+    s.flush()
+    for sec in s.scalars(select(PromoSection).where(PromoSection.version_id == v.id).order_by(PromoSection.position)):
+        s.add(PromoSection(version_id=new.id, key=sec.key, heading=sec.heading, position=sec.position,
+                           sentences=list(sec.sentences), edited=sec.edited, error=sec.error))
+    s.flush()
+    return new
+
+
+def _section(s: Session, v: PromoVersion, key: str) -> PromoSection:
+    sec = s.scalar(select(PromoSection).where(PromoSection.version_id == v.id, PromoSection.key == key))
+    if sec is None:
+        raise KeyError(key)
+    return sec
+
+
+def edit_section(s: Session, v: PromoVersion, key: str, text: str) -> PromoVersion:
+    """Save your wording as a new draft; it's checked against the draft's evidence like Claude's was."""
+    heading = _section(s, v, key).heading
+    new = _clone(s, v, f"Edited {heading}")
+    sec = _section(s, new, key)
+    sec.sentences, sec.edited, sec.error = check(from_text(text), v.evidence), True, ""
+    s.commit()
+    return new
+
+
+def rewrite_section(s: Session, v: PromoVersion, key: str,
+                    reader: Callable[[str, str, list[dict]], list[dict]] = read_section) -> PromoVersion:
+    """Have Claude redo one section from the evidence it was first written from, as a new draft."""
+    heading = _section(s, v, key).heading
+    by_n = {p["n"]: p for p in v.evidence}
+    ev = [by_n[n] for n in (v.slices or {}).get(key, []) if n in by_n] or v.evidence
+    sentences = check(reader(v.name, key, ev), ev)  # raises ClaudeError before anything is saved
+    new = _clone(s, v, f"Rewrote {heading}")
+    sec = _section(s, new, key)
+    sec.sentences, sec.edited, sec.error = sentences, False, ""
+    s.commit()
+    return new
+
+
+def compare(a: list[dict], b: list[dict]) -> list[dict]:
+    """Sentence-level differences between two versions of a section: [{op: same|removed|added, text}]."""
+    import difflib
+    ta, tb = [x["text"] for x in a], [x["text"] for x in b]
+    out = []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(a=ta, b=tb, autojunk=False).get_opcodes():
+        if op == "equal":
+            out += [dict(op="same", text=t) for t in ta[i1:i2]]
+        else:
+            out += [dict(op="removed", text=t) for t in ta[i1:i2]] + [dict(op="added", text=t) for t in tb[j1:j2]]
+    return out
