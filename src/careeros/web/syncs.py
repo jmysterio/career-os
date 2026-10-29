@@ -167,6 +167,28 @@ def run_gdoc(job: Job, Session_, dd: DataDir, vid: int) -> None:
     job.finish("Sent to Google Docs. The links are on the draft.")
 
 
+GITHUB_STEPS = ["Read your GitHub pull requests", "Link new records to the leveling guide"]
+
+
+def run_github(job: Job, Session_, lock) -> None:
+    from ..github import connector as gh
+    with Session_() as s:
+        job.start(0)
+        try:
+            me, prs = gh.fetch(gh.since(s))
+            with lock:
+                r = gh.merge(s, prs)
+        except gh.GitHubError as exc:
+            job.fail(0, str(exc))
+            job.skip(1)
+            job.finish("GitHub sync couldn't read anything.")
+            return
+        job.done(0, f"{_plural(r['added'], 'new record')} for {me}, {r['updated']} weeks of reviews grew"
+                    + (f", {r['skipped']} skipped by your rules" if r["skipped"] else ""))
+        _link_new(job, 1, s)
+    job.finish(f"GitHub synced: {_plural(r['added'], 'new record')}.")
+
+
 def run_slack(job: Job, Session_, lock, dd: DataDir) -> None:
     from ..slack.classify import classify
     from ..slack.connector import fetch_canvas

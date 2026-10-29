@@ -13,6 +13,11 @@ def no_real_claude(monkeypatch):
     monkeypatch.setattr(claude_cli, "_claude", refuse)
     monkeypatch.setattr("careeros.google.summaries._claude", refuse)  # imported by name, so patched separately
 
+    def no_gh(*args):
+        from careeros.github.connector import GitHubError
+        raise GitHubError("tests never call the real gh")
+    monkeypatch.setattr("careeros.github.connector._gh", no_gh)
+
 
 @pytest.fixture
 def session(tmp_path):

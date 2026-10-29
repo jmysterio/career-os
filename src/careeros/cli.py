@@ -479,6 +479,51 @@ def calendar_pull(days: int = typer.Option(1, help="How many past days to includ
                f"Summaries: {n['summarized']} written, {n['failed']} failed.")
 
 
+github_app = typer.Typer(no_args_is_help=True, help="Pull your GitHub pull requests into your notebook (read-only)")
+app.add_typer(github_app, name="github")
+
+
+@github_app.command("sync")
+def github_sync(data_dir: Optional[str] = DataOpt) -> None:
+    """Bring in PRs you merged or reviewed (the first run goes back a year), then link them to the guide."""
+    import threading
+    from .web import syncs
+    from .web.jobs import Job
+    dd, s = _open_personal(data_dir, "GitHub sync")
+    s.close()
+    engine = make_engine(dd.db)
+    job = Job(syncs.GITHUB_STEPS)
+    syncs.run_github(job, make_session_factory(engine), threading.Lock())
+    for st in job.steps:
+        typer.echo(f"{st['label']}: {st['state']}" + (f" ({st['detail']})" if st["detail"] else ""))
+    typer.echo(job.message)
+    if job.state in ("error", "partial"):
+        raise typer.Exit(1)
+
+
+@github_app.command("skip")
+def github_skip(text: Optional[str] = typer.Argument(None, help="Text to skip, e.g. a repo: \"jmysterio/career-os\""),
+                data_dir: Optional[str] = DataOpt) -> None:
+    """Never bring in PRs whose title or repo contains TEXT, and remove the ones already here. No TEXT lists them."""
+    from .storage.removal import add_skip_rule, skip_patterns
+    dd, s = _open_personal(data_dir, "GitHub rules")
+    if not text:
+        typer.echo("\n".join(f"Skipping PRs with: {p}" for p in skip_patterns(s, "github")) or "No skip rules yet.")
+        return
+    n = add_skip_rule(s, text, "github")
+    typer.echo(f"GitHub sync will skip PRs whose title or repo contains \"{' '.join(text.split())}\". "
+               f"Removed {n} already in the notebook (see Removed in the Intake Review Queue).")
+
+
+@github_app.command("unskip")
+def github_unskip(text: str = typer.Argument(..., help="The rule's text, as listed by `github skip`"),
+                  data_dir: Optional[str] = DataOpt) -> None:
+    """Stop skipping PRs with this text. Removed PRs stay removed until you restore them."""
+    from .storage.removal import drop_skip_rule
+    dd, s = _open_personal(data_dir, "GitHub rules")
+    typer.echo("Rule removed." if drop_skip_rule(s, text, "github") else "No rule with that text.")
+
+
 @app.command("serve")
 def serve(port: int = 8765, data_dir: Optional[str] = DataOpt) -> None:
     """Serve the review UI on loopback only (host is not configurable)."""

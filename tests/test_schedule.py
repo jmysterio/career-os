@@ -42,14 +42,15 @@ def fake_syncs(monkeypatch, fail=None):
         return run
     monkeypatch.setattr(sync_all.syncs, "run_slack", runner("slack", "slack"))
     monkeypatch.setattr(sync_all.syncs, "run_google", runner("google", "calendar"))
+    monkeypatch.setattr(sync_all.syncs, "run_github", runner("github", "github"))
     return calls
 
 
-def test_sync_all_backs_up_runs_both_and_logs(dd, monkeypatch):
+def test_sync_all_backs_up_runs_each_and_logs(dd, monkeypatch):
     calls = fake_syncs(monkeypatch)
     notes = []
     assert sync_all.run(dd, force=True, notify=lambda t, m: notes.append((t, m))) == 0
-    assert calls == ["slack", "google"] and not notes
+    assert calls == ["slack", "google", "github"] and not notes
     assert list(dd.backups.glob("careeros-*.db"))
     log = next((dd.root / "logs").glob("sync-*.log")).read_text()
     assert "slack synced" in log and "google synced" in log and "backup" in log.lower()
@@ -71,7 +72,7 @@ def test_catch_up_is_a_no_op_after_a_covered_run(dd, monkeypatch):
     assert sync_all.run(dd, now=datetime(2026, 10, 28, 21, 0), notify=lambda *a: None) == 0
     assert calls == []  # 6 PM run already happened
     assert sync_all.run(dd, now=datetime(2026, 10, 29, 9, 0), notify=lambda *a: None) == 0
-    assert calls == ["slack", "google"]  # 8 AM not covered yet
+    assert calls == ["slack", "google", "github"]  # 8 AM not covered yet
 
 
 def test_sync_all_waits_out_a_save_in_the_running_app(dd, monkeypatch):
@@ -93,7 +94,7 @@ def test_sync_all_waits_out_a_save_in_the_running_app(dd, monkeypatch):
         t.join()
         app.close()
     with make_session_factory(make_engine(dd.db))() as s:
-        assert s.query(SyncRun).count() == 2
+        assert s.query(SyncRun).count() == 3
 
 
 def test_last_scheduled_time():
@@ -203,7 +204,7 @@ def test_a_crashing_sync_does_not_stop_the_other_and_notifies(dd, monkeypatch):
     monkeypatch.setattr(sync_all.syncs, "run_slack", crash)
     notes = []
     assert sync_all.run(dd, force=True, notify=lambda t, m: notes.append((t, m))) == 1
-    assert calls == ["google"] and len(notes) == 1 and "Slack" in notes[0][0]
+    assert calls == ["google", "github"] and len(notes) == 1 and "Slack" in notes[0][0]
 
 
 def test_a_second_sync_exits_while_one_is_running(dd, monkeypatch):
