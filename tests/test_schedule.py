@@ -155,6 +155,24 @@ def test_a_signed_out_connector_gets_a_plain_message(monkeypatch):
         claude_cli.call_tool("x", "mcp__plugin_slack_slack__slack_read_canvas")
 
 
+def test_reinstall_waits_for_the_old_copy_to_stop(dd, tmp_path, monkeypatch):
+    agents_dir = tmp_path / "LaunchAgents"
+    tries = []
+
+    def launchctl(*args):
+        if args[0] == "bootstrap":
+            tries.append(args[-1])
+            return 5 if len(tries) <= 2 else 0  # macOS refuses while the old copy is still unloading
+        return 0
+    monkeypatch.setattr(schedule, "launchctl", launchctl)
+    monkeypatch.setattr(schedule, "pause", lambda s: None)
+    assert len(schedule.install(dd, agents_dir=agents_dir, uv="/opt/uv", repo=Path("/repo"))) == 2
+    assert len(tries) == 4  # two refusals, then the app agent loads, then the sync agent
+    monkeypatch.setattr(schedule, "launchctl", lambda *a: 5 if a[0] == "bootstrap" else 0)
+    with pytest.raises(RuntimeError, match="wouldn't load"):
+        schedule.install(dd, agents_dir=agents_dir, uv="/opt/uv", repo=Path("/repo"))
+
+
 def test_cli_sync_all_refuses_practice_notebook(tmp_path):
     d = DataDir(tmp_path / "practice")
     d.init_demo()

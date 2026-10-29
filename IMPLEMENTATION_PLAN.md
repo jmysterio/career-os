@@ -10,6 +10,7 @@ Companion to `PLAN.md`. `PLAN.md` says what and why; this says how, file by file
 - PR body: what changed in two or three lines, how it was tested, what is not covered. End with the Claude Code line.
 - When a PR is up, you run `/ponytail:ponytail-review the pr #N`. Fix the findings as extra commits on the same branch, then merge.
 - Each PR adds a short note to `INSTRUCTIONS.md` for anything you'll use by hand.
+- Each PR that adds or changes something you'd notice also updates `README.md`: keep its tone (short, plain, a little funny, about not spending your time justifying your paycheck), keep "What's next" current, and refresh a screenshot in `docs/img/` when a screen changes a lot. Screenshots come from the practice notebook only, never the real one; the repo is public.
 - No PRs exist yet. They get opened as each feature is built.
 
 ## Facts about the code that shape the plan

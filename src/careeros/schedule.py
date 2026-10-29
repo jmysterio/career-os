@@ -5,6 +5,7 @@ import os
 import plistlib
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 from .config import DataDir
@@ -13,6 +14,10 @@ APP, SYNC = "com.careeros.app", "com.careeros.sync"
 AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
 REPO = Path(__file__).resolve().parents[2]
 PATH = ":".join([str(Path.home() / ".local/bin"), "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"])
+
+
+BOOTSTRAP_TRIES = 5
+pause = time.sleep
 
 
 def launchctl(*args: str) -> int:
@@ -53,7 +58,12 @@ def install(dd: DataDir, agents_dir: Path = AGENTS_DIR, uv: str | None = None, r
         path = agents_dir / f"{label}.plist"
         launchctl("bootout", f"{_domain()}/{label}")
         path.write_bytes(plistlib.dumps(spec))
-        if launchctl("bootstrap", _domain(), str(path)) != 0:
+        for attempt in range(BOOTSTRAP_TRIES):  # bootout returns before the old copy has fully stopped
+            if launchctl("bootstrap", _domain(), str(path)) == 0:
+                break
+            if attempt < BOOTSTRAP_TRIES - 1:
+                pause(1)
+        else:
             raise RuntimeError(f"macOS wouldn't load {path.name}. Run `launchctl print {_domain()}/{label}` for details.")
         written.append(path)
     return written
