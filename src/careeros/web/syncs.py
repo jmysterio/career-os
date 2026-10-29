@@ -8,7 +8,7 @@ from ..config import DataDir
 from .jobs import Job
 
 GOOGLE_STEPS = ["Read Google Calendar (yesterday and today)", "Read Google Tasks", "Summarize meeting notes",
-                "Link new records to the leveling guide"]
+                "Read Google Docs you wrote or edited", "Link new records to the leveling guide"]
 SLACK_STEPS = ["Read your Slack tracker canvas", "Sort the new items", "Link new records to the leveling guide"]
 TASKS_LOOKBACK = timedelta(days=14)
 
@@ -50,7 +50,7 @@ def _link_new(job: Job, i: int, s) -> int:
 
 
 def run_google(job: Job, Session_, lock) -> None:
-    from ..google import calendar as gcal, connector, summaries, tasks as gtasks
+    from ..google import calendar as gcal, connector, docs as gdocs, summaries, tasks as gtasks
     last = date.today()
     first = last - timedelta(days=1)
     new = []
@@ -87,8 +87,25 @@ def run_google(job: Job, Session_, lock) -> None:
                 job.done(2, f"{n['summarized']} written" if n["summarized"] else "No new meeting notes.")
         except gcal.CalendarError as exc:
             job.fail(2, str(exc))
-        _link_new(job, 3, s)
-    job.finish(("Google synced: " + " and ".join(new) + " new.") if new else "Google sync couldn't read anything.")
+        job.start(3)
+        try:
+            found, short = gdocs.fetch(gdocs.since(s))
+            with lock:
+                r = gdocs.merge(s, found, complete=not short)
+            n = gdocs.summarize_pending(s, progress=job.sub)
+            detail = f"{_plural(r['added'], 'new file')}, {n['summarized']} summarized" + (
+                f", {r['skipped']} skipped by your rules" if r["skipped"] else "")
+            if short or n["failed"]:
+                job.fail(3, detail + (f"; {_plural(short, 'search')} came back incomplete" if short else "")
+                         + (f"; {n['failed']} couldn't be read" if n["failed"] else "") + ". Press Sync Google again.")
+            else:
+                job.done(3, detail)
+            new.append(_plural(r["added"], "file"))
+        except ClaudeError as exc:
+            job.fail(3, str(exc))
+        _link_new(job, 4, s)
+    listed = ", ".join(new[:-1]) + " and " + new[-1] if len(new) > 1 else "".join(new)
+    job.finish(f"Google synced: {listed} new." if new else "Google sync couldn't read anything.")
 
 
 def run_promo(job: Job, Session_, start: str, end: str, name: str) -> None:

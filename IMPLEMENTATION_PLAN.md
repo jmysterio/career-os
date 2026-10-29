@@ -199,6 +199,7 @@ All three add records with `source` set to `github`, `docs` or `releases`, an `e
 **Answer first:** only docs you own, or also ones you edited heavily? Folders to skip? **Answer: docs owned plus ones edited heavily; no folders skipped yet (keep the skip setting).**
 - Search Drive through `call_tool` with the Drive search tool, owner = you, modified since the last run. Reuse the `summaries.py` pattern for the two-line summary (the Read-only-saved-files setup is already there).
 - Store title, date, link, and the summary as an attachment labelled AI-written.
+- **Changed when built:** Drive's search shows only the last editor, so "edited heavily" = files others own where you were the last editor when the sync looked. Files are searched a month at a time (100 per search), Gemini notes and files already linked to a meeting are left out, and Sheets and Slides count too. One record per file per week it changed ("Wrote"/"Edited", then "Updated"). Summaries read the file with `get_drive_file_content`, then `ask` (no tools) trims to two lines. Folder skipping isn't possible from the search results, so skip rules match titles (`careeros docs skip`). It runs as a step of Sync Google. Real run: 96 files and 96 summaries in 12 minutes, then 37 drafted wins.
 - Skip folders: a small config file in the data folder, like the Slack canvas id.
 - Tests: canned Drive listing, skipped folder, summary failure keeps the record without a summary.
 - Risk: the Drive result format is unknown. First commit in the PR is capturing one real sample into a test fixture.

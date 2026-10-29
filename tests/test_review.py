@@ -291,6 +291,11 @@ def test_sync_google_runs_every_step(nb, monkeypatch):
          "end": f"{yesterday}T09:30:00-04:00", "links": []}])
     monkeypatch.setattr(gtasks, "fetch", lambda since: (gtasks.parse_tasks(TASKS_TEXT), 1))
     monkeypatch.setattr(summaries, "summarize_pending", lambda s, f, l, progress=None: dict(summarized=0, failed=0))
+    from careeros.google import docs as gdocs
+    monkeypatch.setattr(gdocs, "fetch", lambda since: (gdocs.parse('Found 1 files for me@x.com matching \'q\':\n- Name: "Runbook" '
+                        f'(ID: d1, Type: application/vnd.google-apps.document, Size: 1, Modified: {yesterday}T12:00:00Z, '
+                        'Last Edited By: Me <me@x.com>) Link: https://docs.google.com/document/d/d1/edit', True), 0))
+    monkeypatch.setattr(gdocs, "summarize", lambda gid, kind, name: "A runbook.")
 
     def fake_ask(prompt, data, timeout=0):
         recs = _json.loads(data)["records"]
@@ -308,10 +313,11 @@ def test_sync_google_runs_every_step(nb, monkeypatch):
         if job["state"] != "running":
             break
         time.sleep(0.05)
-    assert [st["state"] for st in job["steps"]] == ["done", "error", "done", "done"]
+    assert [st["state"] for st in job["steps"]] == ["done", "error", "done", "done", "done"]
     assert "1 task list couldn't be read" in job["steps"][1]["detail"] and job["state"] == "partial"
-    assert job["message"] == "Google synced: 1 meeting and 3 tasks new."
-    assert "4 guide links" in job["steps"][3]["detail"]
+    assert job["message"] == "Google synced: 1 meeting, 3 tasks and 1 file new."
+    assert "5 guide links" in job["steps"][4]["detail"]
+    assert job["steps"][3]["detail"] == "1 new file, 1 summarized"
     page = c.get("/").text
     assert 'data-sync="google"' in page and "/static/sync.js" in page and "Sync calendar" not in page
     assert c.get("/static/sync.js").status_code == 200
