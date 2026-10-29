@@ -2,13 +2,12 @@
 {% macro hidden() %}<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="ret" value="{{ ret }}">{% endmacro %}
 {% block body %}
 <section class="card">
-  <h2>Intake Review Queue</h2>
-  <p class="sub" style="margin:.1rem 0 .5rem">Everything coming in from Slack, Google, and GitHub lands here to be sorted.</p>
-  <p class="muted">Scan each row and fix what's off with one click: its type, the leveling guide items it shows, and whether it's a win. Purple <span class="chip ai">AI</span> marks are Claude's picks. They already count on the Promo map. <b>Looks right</b> makes a row's picks yours and moves it out of the "Not checked yet" list. <b>Remove</b> takes a record out for good, for example a meeting you didn't attend; syncs won't bring it back, and you can restore it from "Removed" in the first menu.</p>
-  {% if personal %}{% from "_sync.html" import sync_chips %}
-  <div class="pulled">{{ sync_chips(sync, [("slack", "Slack"), ("calendar", "Calendar"), ("tasks", "Tasks"), ("docs", "Docs"), ("kudos", "Kudos"), ("github", "GitHub")]) }}
-    {% if not (sync.slack.ok and sync.calendar.ok) %}<a class="muted" href="/">Sync on Today</a>{% endif %}</div>{% endif %}
-  <p class="tally">{{ counts.total }} records. Claude has read {{ counts.read }}, and you've checked {{ counts.checked }}. {{ counts.links }} guide link{{ '' if counts.links == 1 else 's' }} and {{ counts.wins }} win{{ '' if counts.wins == 1 else 's' }} picked by Claude are waiting for a check.</p>
+  <div class="qhead"><h2>Intake Review Queue</h2>
+  {% if personal %}{% from "_sync.html" import sync_chips %}{{ sync_chips(sync, [("slack", "Slack"), ("calendar", "Calendar"), ("tasks", "Tasks"), ("docs", "Docs"), ("kudos", "Kudos"), ("github", "GitHub")]) }}
+    {% if not (sync.slack.ok and sync.calendar.ok) %}<a class="muted" href="/">Sync on Today</a>{% endif %}{% endif %}</div>
+  <div class="stats"><span><b>{{ counts.total }}</b> records</span><span><b>{{ counts.read }}</b> read by Claude</span><span><b>{{ counts.checked }}</b> checked</span>{% if counts.links or counts.wins %}<span class="ai"><b>{{ counts.links }}</b> AI link{{ '' if counts.links == 1 else 's' }} &middot; <b>{{ counts.wins }}</b> AI win{{ '' if counts.wins == 1 else 's' }} to check</span>{% endif %}</div>
+  <details class="howto"><summary>How this works</summary>
+  <p class="muted">Everything coming in from Slack, Google, and GitHub lands here to be sorted. Scan each row and fix what's off with one click: its type, the leveling guide items it shows, and whether it's a win. Purple <span class="chip ai">AI</span> marks are Claude's picks. They already count on the Promo map. <b>Looks right</b> makes a row's picks yours and moves it out of the "Not checked yet" list. <b>Remove</b> takes a record out for good, for example a meeting you didn't attend; syncs won't bring it back, and you can restore it from "Removed" in the first menu.</p></details>
   {% if personal and guided and counts.unread %}
   <form method="post" action="/sheet/ai" class="row" style="margin-top:.6rem">{{ hidden() }}
     <button class="primary">Have Claude read the {{ counts.unread }} record{{ '' if counts.unread == 1 else 's' }} it hasn't read</button>

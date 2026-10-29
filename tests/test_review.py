@@ -120,7 +120,7 @@ def test_sheet_one_click_actions(nb):
             title="Wrote the refresh runbook", impact="Anyone can run a refresh.", size="medium"))}))
     page = c.get("/sheet").text
     assert "Wrote the refresh runbook" in page and "AI, was Other" in page and "AI win" in page
-    assert "1 guide link and 1 win picked by Claude" in page
+    assert "<b>1</b> AI link &middot; <b>1</b> AI win to check" in page
 
     r = form(c, f"/sheet/{a}/kind", token, kind="task", ret="show=all&source=any&kind=any&page=1")
     assert r.status_code == 303 and r.headers["location"].endswith(f"#r{a}") and "show=all" in r.headers["location"]
