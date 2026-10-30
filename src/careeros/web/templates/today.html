@@ -1,25 +1,40 @@
 {% extends "base.html" %}
 {% block body %}
-{% from "_entry.html" import attach_fields, entry_card with context %}
+{% from "_entry.html" import attach_fields with context %}
 {% from "_sync.html" import sync_chips %}
 
-<section class="card slim fold" tabindex="-1" aria-label="Add to your notebook">
-  <form method="post" action="/journal/add">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <div class="quick">
-      <select name="kind" aria-label="What kind of thing">
-        {% for k, label in kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
-      </select>
-      <input name="text" required maxlength="500" placeholder="What did you get up to?" aria-label="What did you get up to?">
-      <input type="date" name="day" value="{{ today }}" max="{{ today }}" aria-label="Day">
-      <button class="primary">Add</button>
-    </div>
-    <div class="reveal"><div>
-      <p class="help">A few words is plenty, like &ldquo;Sam, about the rollout&rdquo;. <b>Kind</b> sorts it into its tab, and <b>Day</b> lets you catch up on yesterday. It stays on this computer; only the Sync buttons send anything out.</p>
-      <details><summary>Paste notes, a link, or a transcript (optional)</summary>
-        <div class="stack">{{ attach_fields() }}</div></details>
-    </div></div>
-  </form>
+<section class="card dash" aria-label="Progress">
+  {% if dash.grades %}
+  <h2>Grade {{ dash.current }} to {{ dash.grades[0].grade }}, aiming at {{ dash.grades[-1].grade }}</h2>
+  <div class="ready">
+    {% for g in dash.grades %}
+    <a class="ready-row" href="/promo" title="Grade {{ g.grade }}: {{ g.shown }} of {{ g.total }} key experiences shown, {{ g.strong }} strong, {{ g.started }} started">
+      <span class="ready-label">Grade {{ g.grade }}</span>
+      <span class="bar" role="img" aria-label="Grade {{ g.grade }}: {{ g.pct }} percent of key experiences shown"><span class="b-strong" style="width:{{ 100 * g.strong / g.total if g.total else 0 }}%"></span><span class="b-shown" style="width:{{ 100 * (g.shown - g.strong) / g.total if g.total else 0 }}%"></span><span class="b-started" style="width:{{ 100 * g.started / g.total if g.total else 0 }}%"></span></span>
+      <span class="ready-num"><b>{{ g.pct }}%</b> <span class="muted">{{ g.shown }}/{{ g.total }}</span></span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <h2>Progress</h2>
+  <p class="muted">Load your leveling guide to see how close the promotion is: <code>uv run careeros guide import &lt;file&gt;</code>.</p>
+  {% endif %}
+
+  <div class="tiles">
+    {% if dash.skills %}<a class="tile" href="/promo" title="Leveling-guide skills with evidence"><b>{{ dash.skills.shown }}<span class="of">/{{ dash.skills.total }}</span></b><span>skills shown</span></a>{% endif %}
+    <a class="tile" href="/wins" title="Wins dated {{ dash.half }}"><b>{{ dash.wins }}</b><span>wins this half</span></a>
+    <a class="tile" href="/recognition" title="Kudos dated {{ dash.half }}"><b>{{ dash.kudos }}</b><span>kudos this half</span></a>
+    <a class="tile {{ 'warn-tile' if dash.queue }}" href="/sheet?show=todo" title="Records in the Intake Review Queue not checked yet"><b>{{ dash.queue }}</b><span>to check</span></a>
+  </div>
+
+  <div class="momentum">
+    <svg viewBox="0 0 {{ dash.weeks|length * 20 }} 40" role="img" aria-label="Evidence per week for the last {{ dash.weeks|length }} weeks">
+      {% for w in dash.weeks %}<rect class="{{ 'now' if loop.last }}" x="{{ loop.index0 * 20 + 2 }}" y="{{ 40 - [w.pct * 0.38, 1.5]|max }}" width="16" height="{{ [w.pct * 0.38, 1.5]|max }}" rx="2"><title>Week of {{ w.start|short_day }}: {{ w.n }}</title></rect>{% endfor %}
+    </svg>
+    <span class="muted">Evidence per week, last {{ dash.weeks|length }} weeks</span>
+  </div>
+
+  {% if dash.next %}<p class="next">Next: {{ dash.next.idea }} <a href="/promo">Promo map</a></p>{% endif %}
 </section>
 
 {% if personal %}
@@ -42,28 +57,27 @@
       <div class="job" data-job="slack" hidden></div>
     </div>
   </div>
-  <div class="reveal"><div>
-    <div class="sync-grid">
-      <div>
-        <p class="help">Pulls yesterday's and today's meetings, your recently changed Google Tasks, and summaries of any meeting notes, then has Claude link the new records to the leveling guide. Usually a minute or two. Meeting titles, times, task titles, and the text of meeting notes pass through the AI tool.</p>
-      </div>
-      <div>
-        <p class="help">{% if slack_canvas %}Reads your Slack Work Activity Tracker canvas, has Claude sort each new item into a meeting, conversation, document, task, or other, then links them to the leveling guide. Items already here are skipped, and each is tagged &ldquo;from Slack&rdquo;. The canvas text passes through the AI tool.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</p>
-      </div>
-    </div>
-  </div></div>
+  {% call howto() %}
+    <p class="help"><b>Sync Google</b> pulls yesterday's and today's meetings, your recently changed Google Tasks and Docs, and summaries of meeting notes, then has Claude link the new records to the leveling guide. Meeting titles, task titles, and document text pass through the AI tool.</p>
+    <p class="help">{% if slack_canvas %}<b>Sync Slack tracker</b> reads your Slack Work Activity Tracker canvas and looks for kudos, has Claude sort the new items, then links them to the leveling guide. The canvas text passes through the AI tool.{% else %}Not connected yet. In Terminal run <code>uv run careeros slack connect &lt;canvas link&gt;</code>.{% endif %}</p>
+    <p class="help">Both also run on their own at 8 AM and 6 PM.</p>
+  {% endcall %}
 </section>
 <script src="/static/sync.js" defer></script>
 {% endif %}
 
-{% for d in days %}
-<section class="card">
-  <h2>{{ d.label }}</h2>
-  {% for e in d.entries %}
-  {{ entry_card(e) }}
-  {% else %}<p class="muted">Nothing noted yet. {{ 'A quiet day is fine too.' if d.is_today else '' }}</p>{% endfor %}
+<section class="card slim" aria-label="Add to your notebook">
+  <form method="post" action="/journal/add">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="quick">
+      <select name="kind" aria-label="What kind of thing">
+        {% for k, label in kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
+      </select>
+      <input name="text" required maxlength="500" placeholder="Something the syncs missed?" aria-label="Something the syncs missed?">
+      <input type="date" name="day" value="{{ today }}" max="{{ today }}" aria-label="Day">
+      <button>Add</button>
+    </div>
+    <details class="howto"><summary>Paste notes, a link, or a transcript</summary><div class="stack">{{ attach_fields() }}</div></details>
+  </form>
 </section>
-{% endfor %}
-
-<p class="tally">{{ tally or 'Nothing noted in the last 7 days yet.' }}</p>
 {% endblock %}

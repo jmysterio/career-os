@@ -61,8 +61,9 @@ def test_demo_seed_fills_every_page_with_made_up_data(tmp_path):
     with make_session_factory(make_engine(dd.db))() as s:
         assert s.query(JournalEntry).count() == 10 and s.query(Win).count() == 2 and s.query(GuideItem).count() == 10
     c = TestClient(create_app(dd), base_url=BASE)
-    today = c.get("/").text
-    assert "practice notebook" in today and "Release readiness review" in today and "Sync Google" not in today
+    home = c.get("/").text
+    assert "practice notebook" in home and "Grade 5 to 6, aiming at 7" in home and "Sync Google" not in home
+    assert "Release readiness review" in c.get("/meetings").text
     for path in ("/wins", "/promo", "/sheet?show=all", "/meetings", "/conversations", "/documents", "/tasks", "/other",
                  "/search?q=rollback"):
         assert c.get(path).status_code == 200, path
@@ -103,17 +104,17 @@ def test_dark_by_default_and_theme_toggle_persists(seeded):
 def test_journal_add_show_and_remove(seeded):
     dd, c, token = seeded
     r = form(c, "/journal/add", token, kind="meeting", text="Met with Sam about the rollout")
-    assert r.status_code == 303 and r.headers["location"] == "/"
+    assert r.status_code == 303 and r.headers["location"] == "/meetings?msg=Added."
     form(c, "/journal/add", token, kind="document", text="Wrote the <b>runbook</b>")
-    html = c.get("/").text
-    assert "Met with Sam about the rollout" in html and "Had a meeting" in html
-    assert "&lt;b&gt;runbook" in html and "<b>runbook" not in html
-    assert "1 meeting, 1 document" in html
+    assert "Met with Sam about the rollout" in c.get("/meetings").text
+    docs = c.get("/documents").text
+    assert "&lt;b&gt;runbook" in docs and "<b>runbook" not in docs
+    assert "Met with Sam" not in c.get("/").text  # home is the dashboard, not a day list
     from careeros.storage.models import JournalEntry
     with make_session_factory(make_engine(dd.db))() as s:
         eid = s.scalar(select(JournalEntry.id).where(JournalEntry.kind == "meeting"))
     form(c, f"/journal/{eid}/delete", token)
-    assert "Met with Sam" not in c.get("/").text
+    assert "Met with Sam" not in c.get("/meetings").text
 
 
 def test_journal_needs_csrf_and_ignores_future_or_bad_dates(seeded):
@@ -121,7 +122,7 @@ def test_journal_needs_csrf_and_ignores_future_or_bad_dates(seeded):
     assert c.post("/journal/add", data={"kind": "note", "text": "x"}).status_code == 403
     form(c, "/journal/add", token, kind="bogus", text="Back-dated", day="2999-01-01")
     form(c, "/journal/add", token, kind="note", text="Garbled date", day="nope")
-    html = c.get("/").text
+    html = c.get("/other").text
     assert "Back-dated" in html and "Garbled date" in html and "Something else" in html
 
 
@@ -142,7 +143,7 @@ def test_journal_attachments_multiple_escaped_and_removed_with_entry(seeded):
     form(c, f"/journal/{eid}/attach", token, a_kind="link", a_body="https://docs.example.com/x")
     form(c, f"/journal/{eid}/attach", token, a_kind="link", a_body="javascript:alert(1)")
     form(c, f"/journal/{eid}/attach", token, a_kind="prompt", a_title="My prompt", a_body="Summarize my week")
-    html = c.get("/").text
+    html = c.get("/meetings").text
     assert "Gemini notes" in html and "<script>alert" not in html and "&lt;script&gt;alert(1)" in html
     assert 'href="https://docs.example.com/x"' in html and 'href="javascript' not in html
     assert "Summarize my week" in html
@@ -171,7 +172,7 @@ def test_search_finds_titles_and_pasted_text_escaped(seeded):
 def test_page_has_help_text_and_paste_warning(seeded):
     dd, c, token = seeded
     html = c.get("/").text
-    assert "Before you paste" in html and "IRS" in html and "<b>Kind</b> sorts it" in html
+    assert "Before you paste" in html and "IRS" in html and "Something the syncs missed?" in html
 
 
 def test_personal_notebook_is_journal_only(tmp_path):

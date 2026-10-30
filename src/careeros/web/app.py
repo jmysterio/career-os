@@ -46,9 +46,6 @@ KINDS = [("meeting", "Had a meeting"), ("conversation", "Had a conversation"),
          ("document", "Worked on a document"), ("task", "Finished a task"), ("recognition", "Got recognition"),
          ("note", "Something else")]
 KIND_LABEL = dict(KINDS)
-KIND_PLURAL = {"meeting": ("meeting", "meetings"), "conversation": ("conversation", "conversations"),
-               "document": ("document", "documents"), "task": ("task", "tasks"),
-               "recognition": ("kudos", "kudos"), "note": ("other note", "other notes")}
 ATTACH_KINDS = [("notes", "Meeting notes"), ("transcript", "Transcript"), ("link", "Link"),
                 ("canvas", "Slack canvas"), ("prompt", "A prompt I wrote"), ("other", "Other text")]
 ATTACH_LABEL = dict(ATTACH_KINDS)
@@ -193,24 +190,9 @@ def create_app(dd: DataDir) -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     def today_page(request: Request, msg: str | None = None, s: Session = Depends(db)):
         today = date.today()
-        week = [today - timedelta(days=i) for i in range(7)]
-        rows = list(s.scalars(select(JournalEntry).where(
-            JournalEntry.day.in_([d.isoformat() for d in week]), JournalEntry.status != "open")
-            .order_by(JournalEntry.id.desc())))
-        ents = entry_dicts(s, rows)
-        days = []
-        for d in week:
-            es = [e for e in ents if e["day"] == d.isoformat()]
-            if es or d == today:
-                days.append(dict(label=day_label(d, today), entries=es, is_today=d == today))
-        parts = []
-        for k, (one, many) in KIND_PLURAL.items():
-            n = sum(1 for e in rows if e.kind == k)
-            if n:
-                parts.append(f"{n} {one if n == 1 else many}")
-        tally = ("In the last 7 days you noted " + ", ".join(parts) + ".") if parts else ""
+        from .. import dashboard
         html = env.get_template("today.html").render(
-            days=days, tally=tally, kinds=KINDS, attach_kinds=ATTACH_KINDS, today=today.isoformat(),
+            dash=dashboard.build(s, today), kinds=KINDS, attach_kinds=ATTACH_KINDS, today=today.isoformat(),
             csrf=csrf_token, msg=msg,
             sync_warning=dd.sync_warning(), theme=theme_of(request), page="/", personal=personal, q="",
             slack_canvas=slack_imp.load_canvas_id(dd) if personal else None, sync=sync_status(s))
@@ -305,7 +287,8 @@ def create_app(dd: DataDir) -> FastAPI:
                 s.add(JournalAttachment(entry_id=entry.id, kind=a_kind if a_kind in ATTACH_LABEL else "other",
                                         title=a_title.strip(), body=a_body.strip(), created_at=datetime.now()))
             s.commit()
-        return back(to="/")
+            kind = entry.kind
+        return back("Added.", next(p for p, (k, *_rest) in TABS.items() if k == kind))
 
     def start_sync(request: Request, name: str):
         if not personal:
