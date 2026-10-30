@@ -52,15 +52,17 @@ It holds a week of made-up meetings, Slack items, tasks, and notes, two wins, an
 
 The **Wins** tab is where accomplishments go, small to large, all year. You can add one in two ways:
 
-- On the **Wins** tab, type what you did, why it mattered, how big it was, and a theme, then click **Save to my wins**.
+- On the **Wins** tab, press **+ Add a win**, type what you did, why it mattered, how big it was, and a theme, then click **Save to my wins**.
 - On any entry in the other tabs (a meeting, a finished task), press its trophy button (**Count this as a win**). It starts with the entry's text so you can reword it, and it remembers which entry it came from.
 
 Tips:
 
 - **What I did** is one line starting with a verb: "Led", "Fixed", "Mentored", "Automated".
-- **Why it mattered** is the result: who it helped, what got faster, cheaper, or safer. Numbers help. You can leave it blank and fill it in later with **Edit**; the page reminds you which wins still need it.
+- **Why it mattered** is the result: who it helped, what got faster, cheaper, or safer. Numbers help. You can leave it blank and fill it in later with the pencil button; a win without it shows an orange **add why it mattered** badge, and the **missing why** chip at the top lists just those.
 - **Size** is your own call: small for a helpful fix, large for something you'd lead a promotion case with.
 - **Theme** (Delivery, Leadership, Mentoring, and so on) groups wins in the export, which maps nicely onto promotion criteria.
+
+**Reading the page.** The chips at the top count the year's wins (all, small, medium, large, missing why); click one to show only those, and the year chips switch years. Each win is one line: the date, the title, its size and theme, and three icon buttons (pencil to edit, target to link it to the leveling guide, × to remove). Under it is why it mattered, the record it came from, and the guide items it shows.
 
 ## Leveling guide and Promo map
 

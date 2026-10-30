@@ -244,7 +244,11 @@ def test_wins_add_from_entry_edit_filter_search_and_export(seeded):
     html = c.get("/wins", params={"year": 2026}).text
     assert "&lt;b&gt;deploy" in html and "<b>deploy" not in html
     assert "From your notebook: Fixed the deploy script" in html
-    assert "1 large, 1 medium" in html and "Why did this matter?" in html
+    assert "<b>1</b> large" in html and "<b>1</b> medium" in html and "<b>2</b> missing why" in html
+    assert html.count("add why it mattered") == 2 and "Shipped on time" in html  # the badge only where impact is empty
+    assert 'aria-label="Edit this win"' in html and 'aria-label="Remove this win"' in html
+    gaps = c.get("/wins", params={"year": 2026, "missing": 1}).text
+    assert "<b>Odd input</b>" in gaps and "<b>Led the October B release</b>" not in gaps
     big = c.get("/wins", params={"year": 2026, "size": "large"}).text
     assert "Led the October B release" in big and "deploy</b> script" not in big
     assert "Led the October B" in c.get("/search", params={"q": "on time"}).text

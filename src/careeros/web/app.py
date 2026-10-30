@@ -367,12 +367,12 @@ def create_app(dd: DataDir) -> FastAPI:
                               .order_by(Win.day.desc(), Win.id.desc())))
 
     @app.get("/wins", response_class=HTMLResponse)
-    def wins_page(request: Request, year: int | None = None, size: str = "", msg: str | None = None,
-                  s: Session = Depends(db)):
+    def wins_page(request: Request, year: int | None = None, size: str = "", missing: bool = False,
+                  msg: str | None = None, s: Session = Depends(db)):
         year = year or date.today().year
         rows = year_wins(s, year)
         counts = {k: sum(1 for w in rows if w.size == k) for k in SIZE_LABEL}
-        shown = [w for w in rows if not size or w.size == size]
+        shown = [w for w in rows if (not size or w.size == size) and (not missing or not w.impact)]
         entries = {e.id: e.text for e in s.scalars(select(JournalEntry).where(
             JournalEntry.id.in_([w.entry_id for w in shown if w.entry_id])))}
         chips = guide_chips(s, win_ids=[w.id for w in shown])
@@ -384,7 +384,7 @@ def create_app(dd: DataDir) -> FastAPI:
             months[-1]["wins"].append(dict(w=w, size_label=SIZE_LABEL.get(w.size, w.size),
                                            from_entry=entries.get(w.entry_id), guide=chips.get(("win", w.id), [])))
         html = env.get_template("wins.html").render(
-            year=year, years=win_years(s), size=size, months=months, total=len(rows), counts=counts,
+            year=year, years=win_years(s), size=size, only_missing=missing, months=months, total=len(rows), counts=counts,
             missing=sum(1 for w in rows if not w.impact), today=date.today().isoformat(), guided=gsvc.has_guide(s),
             csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), page="/wins", personal=personal, q="")
         return HTMLResponse(html)

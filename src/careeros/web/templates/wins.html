@@ -1,55 +1,52 @@
 {% extends "base.html" %}
 {% block body %}
 {% from "_entry.html" import win_fields with context %}
+{% from "_ui.html" import icon %}
+{% set base = "/wins?year=" ~ year %}
 <section class="card">
-  <h2>My wins</h2>
-  {% call howto() %}<p class="muted">Every accomplishment you want to remember, small or large, kept in one place for your year-end review, a promotion case, or your resume. Add one here, or open any entry on the other tabs and choose <b>Count this as a win</b>.</p>{% endcall %}
-  <form method="post" action="/wins/add" class="stack">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    {{ win_fields(show_day=True) }}
-    {% call howto() %}<p class="help"><b>What I did</b> is one line in your own words, starting with a verb works well (&ldquo;Led&rdquo;, &ldquo;Fixed&rdquo;, &ldquo;Mentored&rdquo;). <b>Why it mattered</b> is the result: who it helped, what got faster, cheaper, or safer. Numbers help if you have them. <b>Size</b> is your own sense of it: small for a helpful fix, large for something you'd lead a promotion case with. <b>Theme</b> groups wins in the export.</p>{% endcall %}
-    <div><button class="primary">Save to my wins</button></div>
-  </form>
-</section>
-
-<section class="card">
-  <div class="row" style="justify-content:space-between">
-    <div class="row">
-      {% for y in years %}<a href="/wins?year={{ y }}" class="chip {{ 'done' if y == year }}">{{ y }}</a>{% endfor %}
-    </div>
-    <form method="get" action="/wins/export"><input type="hidden" name="year" value="{{ year }}">
-      <button class="primary">Download {{ year }} as Markdown</button></form>
+  <div class="qhead"><h2>Wins</h2>
+    <div class="row">{% for y in years %}<a href="/wins?year={{ y }}" class="chip {{ 'done' if y == year }}">{{ y }}</a>{% endfor %}</div>
+    <form method="get" action="/wins/export" style="margin-left:auto"><input type="hidden" name="year" value="{{ year }}">
+      <button title="Download {{ year }} as Markdown">Download {{ year }}</button></form></div>
+  <div class="stats filters">
+    <a href="{{ base }}" class="{{ 'on' if not size and not only_missing }}"><b>{{ total }}</b> win{{ '' if total == 1 else 's' }}</a>
+    {% for k, label in sizes %}<a href="{{ base }}&size={{ k }}" class="{{ 'on' if size == k }}"><b>{{ counts[k] }}</b> {{ label|lower }}</a>{% endfor %}
+    {% if missing %}<a href="{{ base }}&missing=1" class="late {{ 'on' if only_missing }}" title="Wins without &ldquo;why it mattered&rdquo;"><b>{{ missing }}</b> missing why</a>{% endif %}
   </div>
-  <p class="tally">{{ total }} win{{ '' if total == 1 else 's' }} in {{ year }}: {{ counts.large }} large, {{ counts.medium }} medium, {{ counts.small }} small.
-    {% if missing %}{{ missing }} still need a line on why {{ 'it' if missing == 1 else 'they' }} mattered.{% endif %}</p>
-  <p class="row muted">Show:
-    <a href="/wins?year={{ year }}" class="chip {{ 'done' if not size }}">All</a>
-    {% for k, label in sizes %}<a href="/wins?year={{ year }}&size={{ k }}" class="chip {{ 'done' if size == k }}">{{ label }}</a>{% endfor %}</p>
+  <details class="addwin"><summary><span class="btnlike">{{ icon("plus") }} Add a win</span></summary>
+    <form method="post" action="/wins/add" class="stack" style="margin-top:.6rem">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {{ win_fields(show_day=True) }}
+      {% call howto() %}<p class="help">Every accomplishment you want to remember, small or large, for your year-end review, a promotion case, or your resume. You can also count any record on the tabs as a win with its trophy button.</p><p class="help"><b>What I did</b> is one line in your own words, starting with a verb works well (&ldquo;Led&rdquo;, &ldquo;Fixed&rdquo;, &ldquo;Mentored&rdquo;). <b>Why it mattered</b> is the result: who it helped, what got faster, cheaper, or safer. Numbers help if you have them. <b>Size</b> is your own sense of it: small for a helpful fix, large for something you'd lead a promotion case with. <b>Theme</b> groups wins in the export.</p>{% endcall %}
+      <div><button class="primary">Save to my wins</button></div>
+    </form></details>
 </section>
 
 {% for m in months %}
 <section class="card">
   <h2>{{ m.label }}</h2>
   {% for x in m.wins %}{% set w = x.w %}
-  <div class="entry">
+  <div class="entry win">
     <div class="entry-head">
-      <div><span class="muted" title="{{ w.day }}">{{ w.day|short_day }}</span> <span class="chip">{{ x.size_label }}</span>{% if w.theme %} <span class="chip">{{ w.theme }}</span>{% endif %}{% if w.by_ai %} <span class="chip ai">AI-drafted</span>{% endif %} <b>{{ w.title }}</b></div>
-      <form method="post" action="/wins/{{ w.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove</button></form>
+      <span class="src muted" title="{{ w.day }}">{{ w.day|short_day }}</span>
+      <div class="entry-text"><b>{{ w.title }}</b> <span class="chip size-{{ w.size }}">{{ x.size_label }}</span>{% if w.theme %} <span class="chip">{{ w.theme }}</span>{% endif %}{% if w.by_ai %} <span class="chip ai">AI-drafted</span>{% endif %}</div>
+      <div class="acts">
+        <details class="act"><summary title="Edit this win" aria-label="Edit this win">{{ icon("edit") }}</summary>
+          <form method="post" action="/wins/{{ w.id }}/edit" class="stack act-panel"><input type="hidden" name="csrf" value="{{ csrf }}"><b>Edit this win</b>
+            {{ win_fields(w, show_day=True) }}<div><button class="primary">Save changes</button></div></form></details>
+        {% if guided %}<a class="act" href="/guide/link?win={{ w.id }}&next=/wins" title="Link to the leveling guide" aria-label="Link to the leveling guide">{{ icon("guide") }}</a>{% endif %}
+        <form method="post" action="/wins/{{ w.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="act" title="Remove this win" aria-label="Remove this win">{{ icon("remove") }}</button></form>
+      </div>
     </div>
-    {% if w.impact %}<p class="att">{{ w.impact }}</p>{% else %}<p class="attn">Why did this matter? Add it while you still remember.</p>{% endif %}
-    {% if x.from_entry %}<p class="help">From your notebook: {{ x.from_entry }}</p>{% endif %}
-    {% if x.guide %}<p class="help">Shows: {% for g in x.guide %}<span class="chip guide">{{ g }}</span>{% endfor %}
-      <a href="/guide/link?win={{ w.id }}&next=/wins">change</a></p>
-    {% elif guided %}<p class="attn"><a href="/guide/link?win={{ w.id }}&next=/wins">Link this to the leveling guide</a></p>{% endif %}
-    <details><summary>Edit</summary>
-      <form method="post" action="/wins/{{ w.id }}/edit" class="stack">
-        <input type="hidden" name="csrf" value="{{ csrf }}">{{ win_fields(w, show_day=True) }}
-        <div><button class="primary">Save changes</button></div></form>
-    </details>
+    <div class="entry-meta">
+      {% if w.impact %}<span class="why">{{ w.impact }}</span>{% else %}<span class="chip late" title="Use the pencil to add a sentence on why it mattered">add why it mattered</span>{% endif %}
+      {% if x.from_entry %}<span class="chip att" title="From your notebook: {{ x.from_entry }}">{{ icon("note") }}{{ x.from_entry|truncate(48) }}</span>{% endif %}
+      {% if x.guide %}<span class="meta-label">Shows</span>{% for g in x.guide %}<span class="chip guide">{{ g }}</span>{% endfor %}{% endif %}
+    </div>
   </div>
   {% endfor %}
 </section>
 {% else %}
-<section class="card"><p class="muted">No wins saved for {{ year }} yet. Start with something from this week, even a small one.</p></section>
+<section class="card"><p class="muted">{% if only_missing or size %}No wins match. <a href="/wins?year={{ year }}">Show all</a>.{% else %}No wins saved for {{ year }} yet. Start with something from this week, even a small one.{% endif %}</p></section>
 {% endfor %}
 {% endblock %}
