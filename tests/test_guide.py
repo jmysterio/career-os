@@ -120,13 +120,13 @@ def test_entry_links_count_once_and_entry_cards_show_hints(nb):
     dd, c, tok, _ = nb
     form(c, "/journal/add", tok, kind="meeting", text="Demo of the pipeline to the customer")
     form(c, "/journal/add", tok, kind="note", text="Lunch")
-    html = c.get("/").text
+    html = c.get("/meetings").text
     assert "Might show:" in html and "Communication, demos, and solution reviews" in html
     with session(dd) as s:
         eid = s.scalar(select(JournalEntry.id).where(JournalEntry.text.startswith("Demo")))
         demo7 = s.scalar(select(GuideItem.id).where(GuideItem.name.startswith("Runs demos")))
     form(c, "/guide/link", tok, entry=eid, item=[demo7], next="/")
-    assert "Shows:" in c.get("/").text
+    assert "Shows:" in c.get("/meetings").text
     # a win made from that entry starts with the entry's links, and the entry isn't counted twice
     r = form(c, "/wins/add", tok, title="Ran the customer pipeline demo", size="small", entry_id=eid, next="/")
     with session(dd) as s:
