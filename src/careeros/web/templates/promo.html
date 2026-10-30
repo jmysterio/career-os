@@ -2,8 +2,8 @@
 {% macro evidence(x) %}
   {% set n = x.wins|length + x.entries|length %}
   {% if n %}<details><summary>{{ x.wins|length }} win{{ '' if x.wins|length == 1 else 's' }}{% if x.entries %}, {{ x.entries|length }} entr{{ 'y' if x.entries|length == 1 else 'ies' }}{% endif %}</summary>
-    <ul>{% for w in x.wins %}<li><span class="muted">{{ w.day }}</span> <b>{{ w.title }}</b> <span class="chip">{{ w.size }}</span>{% if w.by_ai %} <span class="chip ai">AI</span>{% endif %}{% if w.impact %}<br><span class="muted">{{ w.impact }}</span>{% endif %}</li>{% endfor %}
-    {% for e in x.entries %}<li><span class="muted">{{ e.day }}</span> {{ e.text }}</li>{% endfor %}</ul></details>
+    <ul>{% for w in x.wins %}<li><span class="muted" title="{{ w.day }}">{{ w.day|short_day }}</span> <b>{{ w.title }}</b> <span class="chip">{{ w.size }}</span>{% if w.by_ai %} <span class="chip ai">AI</span>{% endif %}{% if w.impact %}<br><span class="muted">{{ w.impact }}</span>{% endif %}</li>{% endfor %}
+    {% for e in x.entries %}<li><span class="muted" title="{{ e.day }}">{{ e.day|short_day }}</span> {{ e.text }}</li>{% endfor %}</ul></details>
   {% endif %}
 {% endmacro %}
 {% block body %}
@@ -21,7 +21,7 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
     <div class="row"><a class="chip" href="/promo/case" style="font-size:.9rem;padding:.3rem .9rem">Write my promo case</a>
       <form method="get" action="/promo/export"><button>Download evidence (Markdown)</button></form></div>
   </div>
-  <p class="muted">Each key experience from the leveling guide, colored by how much of your own logged work backs it up. Link wins and entries to the guide to fill it in. Wins count more than plain entries, and bigger wins count more.</p>
+  {% call howto() %}<p class="muted">Each key experience from the leveling guide, colored by how much of your own logged work backs it up. Link wins and entries to the guide to fill it in. Wins count more than plain entries, and bigger wins count more.</p>{% endcall %}
   {% if ai.links or ai.wins %}<p class="note">{{ ai.links }} guide link{{ '' if ai.links == 1 else 's' }} and {{ ai.wins }} win{{ '' if ai.wins == 1 else 's' }} on this map were picked by Claude and not checked yet. They count already. <a href="/sheet?show=ai">Check them in the Intake Review Queue</a>.</p>{% endif %}
   {% for gr in pm.grades %}{% set p = pm.progress[gr] %}
   <p style="margin:.9rem 0 0"><b>Grade {{ gr }}</b>: {{ p.shown + p.strong }} of {{ p.total }} key experiences shown{% if p.strong %} ({{ p.strong }} strong){% endif %}, {{ p.started }} started, {{ p.gap }} not yet.</p>
@@ -36,7 +36,7 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
 {% if pm.impact %}
 <section class="card">
   <h2>By the numbers</h2>
-  <p class="muted">How many times you did each kind of activity. A piece of work counts once per day it was done, so a deploy logged as a meeting, a Slack thread, and a task on the same day counts once. Halves are calendar halves (January to June, July to December). Click a number to see what's behind it.</p>
+  {% call howto() %}<p class="muted">How many times you did each kind of activity. A piece of work counts once per day it was done, so a deploy logged as a meeting, a Slack thread, and a task on the same day counts once. Halves are calendar halves (January to June, July to December). Click a number to see what's behind it.</p>{% endcall %}
   <table class="sheet" style="max-width:34rem">
     <thead><tr><th>Activity</th><th style="text-align:right">This half</th><th style="text-align:right">This year</th><th style="text-align:right">All time</th></tr></thead>
     <tbody>{% for c in pm.impact %}<tr><td>{{ c.label[:1]|upper }}{{ c.label[1:] }}</td>
@@ -54,7 +54,7 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
 {% if pm.next %}
 <section class="card">
   <h2>Aim for next</h2>
-  <p class="muted">One step per topic: topics you've started come first, and a topic moves to its Grade {{ pm.grades[-1] }} step once Grade {{ pm.grades[0] }} is shown. More ideas are under each topic below.</p>
+  {% call howto() %}<p class="muted">One step per topic: topics you've started come first, and a topic moves to its Grade {{ pm.grades[-1] }} step once Grade {{ pm.grades[0] }} is shown. More ideas are under each topic below.</p>{% endcall %}
   {% for n in pm.next[:6] %}
   <div class="exp {{ 'started' if n.started }}"><span class="chip">Grade {{ n.grade }}</span> <b>{{ n.topic.name }}</b>
     <br>{{ n.idea }}<br><span class="help">Guide: {{ n.item.name }}</span></div>
@@ -79,7 +79,7 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
 
 <section class="card">
   <h2>Skills where Grade {{ pm.grades[-1] }} asks for more</h2>
-  <p class="muted">The guide rates each skill from 1 to 4. These are the ones whose bar goes up between Grade {{ pm.grades[0] }} and Grade {{ pm.grades[-1] }}. Link wins to them to show you're already working at the higher level.</p>
+  {% call howto() %}<p class="muted">The guide rates each skill from 1 to 4. These are the ones whose bar goes up between Grade {{ pm.grades[0] }} and Grade {{ pm.grades[-1] }}. Link wins to them to show you're already working at the higher level.</p>{% endcall %}
   {% for x in pm.rising %}
   <div class="exp {{ x.status }}"><span class="st">{{ x.status_label }}</span><br><b>{{ x.item.name }}</b>
     <span class="muted">Grade {{ pm.current }}: {{ x.now }} &middot; Grade {{ pm.grades[0] }}: {{ x['g' ~ pm.grades[0]] }} &middot; Grade {{ pm.grades[-1] }}: {{ x['g' ~ pm.grades[-1]] }}</span>

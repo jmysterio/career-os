@@ -7,7 +7,7 @@
   {% else %}<p class="muted">{{ hits|length }} found for &ldquo;{{ q }}&rdquo;, newest first.</p>{% endif %}
   {% for h in hits %}
   <div class="entry">
-    <div><span class="muted">{{ h.day }}</span> <span class="chip">{{ h.kind_label }}</span> {{ h.text }}</div>
+    <div><span class="muted" title="{{ h.day }}">{{ h.day|short_day }}</span> <span class="chip">{{ h.kind_label }}</span> {{ h.text }}</div>
     {% for sn in h.snippets %}<div class="att muted">{% if sn.label %}<span class="chip">{{ sn.label }}</span> {% endif %}{{ sn.before }}<mark>{{ sn.hit }}</mark>{{ sn.after }}</div>{% endfor %}
   </div>
   {% endfor %}

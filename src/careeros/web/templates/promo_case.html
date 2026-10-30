@@ -11,7 +11,7 @@
   </form>
   <div class="job" data-job="promo" hidden></div>
   <div class="reveal"><div>
-    <p class="help">Claude writes each section (Summary, Key accomplishments, Impact, Behaviors &amp; values, Growth areas) from your own wins, pieces of work, linked records, and impact numbers in that window, and nothing else. Every sentence cites its sources. The app then checks each sentence: one with no source, or with a number that isn't in your evidence, is marked <span class="check">Check this</span> so nothing invented slips through. It takes a minute or two. The evidence text passes through the AI tool. {% if not guided %}Load the leveling guide first.{% endif %}</p>
+    {% call howto() %}<p class="help">Claude writes each section (Summary, Key accomplishments, Impact, Behaviors &amp; values, Growth areas) from your own wins, pieces of work, linked records, and impact numbers in that window, and nothing else. Every sentence cites its sources. The app then checks each sentence: one with no source, or with a number that isn't in your evidence, is marked <span class="check">Check this</span> so nothing invented slips through. It takes a minute or two. The evidence text passes through the AI tool. {% if not guided %}Load the leveling guide first.{% endif %}</p>{% endcall %}
   </div></div>
 </section>
 
@@ -27,7 +27,7 @@
   {% if personal %}<form method="post" action="/promo/case/{{ v.id }}/gdoc" data-sync="promo" class="row">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <button data-label="Send to Google Docs">Send to Google Docs</button>
-    <span class="help">Makes two Docs in My Drive: one with the [numbers] and sources (for you), one clean copy for sharing. {% if flagged %}<b>The {{ flagged }} sentence{{ '' if flagged == 1 else 's' }} marked Check this go too</b>; fix {{ 'it' if flagged == 1 else 'them' }} first if you're sharing. {% endif %}The draft text passes through the AI tool on the way to Google, and the app reads each Doc back to check every word arrived.</span>
+    {% call howto() %}<p class="help">Makes two Docs in My Drive: one with the [numbers] and sources (for you), one clean copy for sharing. {% if flagged %}<b>The {{ flagged }} sentence{{ '' if flagged == 1 else 's' }} marked Check this go too</b>; fix {{ 'it' if flagged == 1 else 'them' }} first if you're sharing. {% endif %}The draft text passes through the AI tool on the way to Google, and the app reads each Doc back to check every word arrived.</p>{% endcall %}
   </form>{% endif %}
   {% if v.google_doc_url or v.google_doc_clean_url %}<p class="help">In Google Docs:
     {% if v.google_doc_url %}<a href="{{ v.google_doc_url }}" target="_blank" rel="noreferrer noopener">with sources</a>{% endif %}
@@ -50,7 +50,7 @@
   <details><summary>Edit</summary>
     <form method="post" action="/promo/case/{{ v.id }}/edit/{{ sec.key }}" class="stack">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <p class="help">One sentence per line. Keep the [numbers] at the end of a line to keep its sources; your wording is checked the same way as Claude's. Saving makes a new draft.</p>
+      {% call howto() %}<p class="help">One sentence per line. Keep the [numbers] at the end of a line to keep its sources; your wording is checked the same way as Claude's. Saving makes a new draft.</p>{% endcall %}
       <textarea name="text" maxlength="20000" aria-label="Edit {{ sec.heading }}">{{ texts[sec.key] }}</textarea>
       <div><button class="primary">Save as a new draft</button></div></form>
   </details>
@@ -62,7 +62,7 @@
 {% endfor %}
 <section class="card">
   <h2>Sources</h2>
-  <p class="help">What each [number] in the draft points to, as it was when the draft was written.</p>
+  {% call howto() %}<p class="help">What each [number] in the draft points to, as it was when the draft was written.</p>{% endcall %}
   <ol class="sources">{% for p in sources %}<li id="src-{{ p.n }}" value="{{ p.n }}">{{ p.text }}</li>{% endfor %}</ol>
 </section>
 {% endif %}

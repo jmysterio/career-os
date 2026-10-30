@@ -5,7 +5,7 @@
     </select>
     <input name="a_title" maxlength="200" placeholder="A name for it (optional)" aria-label="Name">
   </div>
-  <p class="help"><b>What it is</b> labels the pasted text. <b>Name</b> is optional, like &ldquo;Gemini notes, Oct 22&rdquo;. A link only needs the web address. The long text is kept exactly as pasted and shown as plain text.</p>
+  {% call howto() %}<p class="help"><b>What it is</b> labels the pasted text. <b>Name</b> is optional, like &ldquo;Gemini notes, Oct 22&rdquo;. A link only needs the web address. The long text is kept exactly as pasted and shown as plain text.</p>{% endcall %}
   <p class="warn"><b>Before you paste:</b> only keep what you're allowed to keep on this laptop. Meeting notes and transcripts can hold names, decisions, or sensitive details, and some work (for example anything IRS-related) has handling rules. If you're unsure, write a short summary in your own words instead. Notes you paste here stay on this laptop (only the Sync buttons send anything out, and only what they read from your calendar or Slack canvas), and Remove deletes them for good.</p>
   <textarea name="a_body" maxlength="200000" placeholder="Paste a link, meeting notes, a transcript, a Slack canvas, or a prompt here" aria-label="Paste here"></textarea>
 {% endmacro %}

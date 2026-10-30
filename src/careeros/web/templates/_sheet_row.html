@@ -3,7 +3,7 @@
     <td style="white-space:nowrap">{% if r.reviewed %}<form method="post" action="/sheet/{{ r.id }}/undo">{{ hidden() }}<button aria-label="Mark not checked">Checked &check;</button></form>
       {% else %}<form method="post" action="/sheet/{{ r.id }}/ok">{{ hidden() }}<input type="hidden" name="after" value="{{ nxt }}"><button class="primary">Looks right</button></form>{% endif %}
       <br><form method="post" action="/sheet/{{ r.id }}/remove">{{ hidden() }}<input type="hidden" name="after" value="{{ nxt }}"><button class="remove" aria-label="Remove this record">Remove</button></form></td>
-    <td style="white-space:nowrap" title="{{ r.day }}">{{ r.day_short }}</td>
+    <td style="white-space:nowrap" title="{{ r.day }}">{{ r.day|short_day }}</td>
     <td>{{ r.source }}</td>
     <td>{{ r.text }}
       {% if r.work %}<br><span class="chip {{ 'ai' if r.work.ai else 'guide' }}" title="Records in the same piece of work count once on the Promo map">{% if r.work.ai %}AI: {% endif %}Part of: {{ r.work.title }}{% if r.work.size > 1 %} &middot; {{ r.work.size }} records{% endif %}</span>
@@ -14,7 +14,7 @@
         <button>Set</button></form>
       <details><summary>Group with&hellip;</summary>
         <form method="post" action="/sheet/{{ r.id }}/group" class="row">{{ hidden() }}
-          {% if r.near %}<select name="item" aria-label="Piece of work"><option value="">Pick nearby work</option>{% for w in r.near %}<option value="{{ w.id }}">{{ w.title }} ({{ w.day }})</option>{% endfor %}</select> or {% endif %}
+          {% if r.near %}<select name="item" aria-label="Piece of work"><option value="">Pick nearby work</option>{% for w in r.near %}<option value="{{ w.id }}">{{ w.title }} ({{ w.day|short_day }})</option>{% endfor %}</select> or {% endif %}
           <input name="title" maxlength="200" placeholder="New piece of work, e.g. OCC 5.1.2 release" aria-label="New piece of work">
           <button>Group</button></form></details>
       {% if r.notes %}<details><summary>Notes</summary><pre class="paper" style="max-height:12rem">{{ r.notes }}</pre></details>{% endif %}</div></td>
