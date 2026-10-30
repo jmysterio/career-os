@@ -1,11 +1,11 @@
-<h1 align="center">Career OS</h1>
+<h1 align="center">Career Tracker</h1>
 
 <p align="center">
   <em>You were hired to do the work, not to write essays about the work.</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/today.jpg" width="880" alt="The Today page: a coffee-shop notebook with a latte in the corner, house plants down the side, a quick entry row, and the day's records from Slack, calendar, and tasks.">
+  <img src="docs/img/home.jpg" width="880" alt="Career Tracker's Home page in dark mode: a latte in the corner, house plants down the side, and one card with Grade 6 and Grade 7 readiness bars, tiles for skills, wins, kudos and records to check, a 12-week evidence chart, and the next step.">
 </p>
 
 ---
@@ -14,7 +14,7 @@ Every year it's the same ritual. Promotion season opens, and a perfectly product
 
 Two weeks later there's a promotion case and nothing got deployed. That's backwards.
 
-**Career OS keeps the receipts so you don't have to.** It quietly collects what you actually did (meetings, Slack threads, tasks, the 9 PM hotfix), sorts it against your leveling guide, and keeps a running tally of the evidence. When it's time to make the case, the case is mostly already made.
+**Career Tracker keeps the receipts so you don't have to.** It quietly collects what you actually did (meetings, Slack threads, tasks, the 9 PM hotfix), sorts it against your leveling guide, and keeps a running tally of the evidence. When it's time to make the case, the case is mostly already made.
 
 You go back to doing the job. Which, conveniently, is also the best evidence for the promotion.
 
@@ -27,7 +27,7 @@ You go back to doing the job. Which, conveniently, is also the best evidence for
 5. **Writes the case.** Press **Write my promo case** and Claude drafts it (Summary, Key accomplishments, Impact, Behaviors & values, Growth areas) from your own evidence, with a little [3] after every sentence pointing to where it came from. The app double-checks each sentence: no source, or a number that isn't in your data, and it's flagged **Check this**. Your manager can't fact-check you harder than this. Then edit it in place or have Claude rewrite one section; every change is a new draft you can compare. When it's ready, **Send to Google Docs** makes a copy with sources for you and a clean one for your manager.
 
 <p align="center">
-  <img src="docs/img/promo-map.jpg" width="880" alt="The Promo map: progress bars for Grade 6 and Grade 7 key experiences, and a By the numbers table counting deployments, sandbox refreshes, PR reviews, documents, mentoring sessions, and hotfixes.">
+  <img src="docs/img/promo-map.jpg" width="880" alt="The Promo map: compact Grade 6 and Grade 7 readiness bars, a By the numbers table of activity counts, and one-line Aim for next steps.">
 </p>
 
 <p align="center"><sub>Both screenshots are the practice notebook: made-up records, a made-up release called "Pine," and zero real people. It's going to keep changing; the coffee stays.</sub></p>
@@ -61,8 +61,8 @@ uv run careeros serve --data-dir /tmp/cos-demo
 
 There isn't one. That's the point. But if you're the type who likes to check:
 
-- **Morning:** glance at the **Intake Review Queue**. Green dots mean everything's in. Click **Looks right** on what's right, fix what isn't, **Remove** the meeting you didn't actually attend.
-- **When something big happens:** **Count this as a win**, and write one sentence on why it mattered while you still remember.
+- **Morning:** glance at **Home** (how close the promotion is), then the **Intake Review Queue**. Green dots mean everything's in. Click **Looks right** on what's right, fix what isn't, **Remove** the meeting you didn't actually attend.
+- **When something big happens:** press the trophy on the record (**Count this as a win**), and write one sentence on why it mattered while you still remember.
 - **Promotion season:** open the Promo map, click **Write my promo case**, read what comes back, fix the bits marked **Check this**, and enjoy the unfamiliar feeling of being early.
 
 ## Your data and Claude

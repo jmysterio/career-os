@@ -321,6 +321,12 @@ All three add records with `source` set to `github`, `docs` or `releases`, an `e
 
 **Order:** S1 first (everything else uses its macro and filter), then S2, then S3, S4, and S5 in any order.
 
+### After the sleek pass: kudos from screenshots — `feature/kudos-screenshots`
+A folder of saved Slack kudos screenshots, some of which may already be in the notebook. Claude Code can read images, so:
+- `careeros kudos import <folder>` hands each image to Claude (with only the `Read` tool, limited to that folder), which returns who said it, the channel, the date, and a short word-for-word quote. Nothing but that text is kept, and the images aren't copied.
+- Duplicates of kudos already in the notebook (same person, same day, and an overlapping quote) are skipped; the rest come in as kudos records marked "from a screenshot", so they count like a medium win and go through the queue like any other record.
+- **Answer first:** where the folder is; whether the screenshots may hold DMs (if so, the earlier "never DMs" choice means skipping those, or making an exception for screenshots you saved yourself).
+
 ---
 
 ## Not in this plan

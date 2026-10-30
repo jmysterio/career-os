@@ -1,10 +1,10 @@
-# Career OS: How to use it
+# Career Tracker: How to use it
 
 Plain-language notes on running and testing the app. New questions and answers get added at the bottom under **Q&A**. For what the app *is*, see [README.md](README.md).
 
 ## Where things stand
 
-Career OS is your work notebook. It pulls in your Google Calendar meetings, Google Tasks, and Slack tracker items, has Claude sort each one and link it to the DevOps leveling guide, and keeps your wins so the Promo map and promo case reflect what you've actually done. Everything is stored on this laptop. The only things that send anything out are the Sync buttons and the Claude review (see the README for what Claude sees).
+Career Tracker is your work notebook. It pulls in your Google Calendar meetings, Google Tasks, and Slack tracker items, has Claude sort each one and link it to the DevOps leveling guide, and keeps your wins so the Promo map and promo case reflect what you've actually done. Everything is stored on this laptop. The only things that send anything out are the Sync buttons and the Claude review (see the README for what Claude sees).
 
 There's also a **practice notebook** of made-up data, for trying things out without touching your real one.
 
@@ -81,16 +81,18 @@ Links you've made are kept. Anything the new guide drops leaves the map but stay
 
 **The Promo map tab.** It shows:
 
-- A progress bar for Grade 6 and for Grade 7 (how many key experiences you've shown).
-- **Aim for next**: one concrete step per topic. Topics you've started come first, and a topic moves to its Grade 7 step once Grade 6 is shown.
-- The 12 topics, each with the Grade 6 experiences beside the Grade 7 ones. Each is colored **Not yet**, **Started**, **Shown**, or **Strong**, with **Ideas to get here** underneath.
-- The skills whose bar rises from Grade 6 to Grade 7, with your evidence for each.
+- A progress bar for Grade 6 and for Grade 7 with the percent shown (hover for the strong/started/not-yet detail), plus chips for Claude's unchecked picks and for records that might show guide items (each opens the right list in the Intake Review Queue).
+- **Aim for next**: one concrete step per topic, one line each (hover for the guide item). Topics you've started come first, and a topic moves to its Grade 7 step once Grade 6 is shown.
+- The 12 topics, each with the Grade 6 experiences beside the Grade 7 ones. Each has a colored dot and edge for **Not yet**, **Started**, **Shown**, or **Strong** (hover the dot for the word), with **Ideas to get here** underneath.
+- The skills whose bar rises from Grade 6 to Grade 7, with the guide's rating as Grade 5 → 6 → 7 (hover a skill for its description) and your evidence for each.
 
 Colors come from points. A linked entry is worth 1, and a small, medium, or large win is worth 2, 3, or 4. One point makes an item Started, 3 make it Shown, and 6 make it Strong. So one large win shows an experience, and a large win plus a medium one makes it strong. An entry and the win made from it only count once.
 
 **Write my promo case** (on the Promo map, or at http://127.0.0.1:8765/promo/case) has Claude draft the case itself. Pick who it's about (your first name, remembered for next time) and the window (the last 12 months by default), then press the button; it takes a minute or two, with progress per section. The draft has five sections: **Summary, Key accomplishments, Impact, Behaviors & values, Growth areas**, written in the third person. Claude writes them only from your notebook: wins and why they mattered, pieces of work, linked records, the impact numbers, and the Promo map's gaps and next steps, all dated inside the window. Every sentence ends with small [numbers] that jump to its sources, listed at the bottom as they were when the draft was written. The app then checks each sentence itself: one with no source, or with a number that doesn't appear in its evidence, is marked **Check this** with the reason. The check catches invented numbers and missing sources, not every wrong word, so read the draft before you use it. Every draft is kept. From Terminal: `uv run careeros promo write` (with `--start`, `--end`, `--name`).
 
-**Editing and rewriting a draft.** Under each section, **Edit** opens it as plain text, one sentence per line, with its sources as [numbers] at the end of the line: keep a number to keep that source, and your wording is checked the same way as Claude's. **Rewrite this section** has Claude redo just that section from the same evidence; if you've edited it, tick **Replace my edits** first. Either way the result is saved as a **new draft**, so nothing is ever overwritten. **All drafts and compare** lists every draft with what changed ("Edited Impact", "Rewrote Growth areas") and shows any two side by side: struck-through sentences are only in the first, underlined ones only in the second. Viewing an older draft shows a link to the newest.
+**Reading a draft.** The top of a draft shows chips for its number and date, the window it's written from, and how many sentences to check (or "every sentence sourced"). The **Sources** list at the bottom is folded; clicking any [number] in the draft opens it at that source.
+
+**Editing and rewriting a draft.** Under each section, **Edit** opens it as plain text, one sentence per line, with its sources as [numbers] at the end of the line: keep a number to keep that source, and your wording is checked the same way as Claude's. **Rewrite** (beside the section's heading) has Claude redo just that section from the same evidence; if you've edited it, tick **Replace my edits** first. Either way the result is saved as a **new draft**, so nothing is ever overwritten. **All drafts and compare** lists every draft with what changed ("Edited Impact", "Rewrote Growth areas") and shows any two side by side: struck-through sentences are only in the first, underlined ones only in the second. Viewing an older draft shows a link to the newest.
 
 **Sending a draft to Google Docs.** On a draft, **Send to Google Docs** makes two Docs in My Drive: one with the [numbers], the **Check this** notes, and a Sources list (for you), and a clean copy without them (for sharing). Fix any **Check this** sentences first if you're sharing, since the clean copy includes them without the warning. The draft passes through the AI tool on its way to Google (the Google connector can't read files on this laptop), so the app reads each new Doc back and compares its words with the draft: a step that doesn't match shows an error, and its link is still saved so you can look. Links to both Docs appear on the draft, and a copy of what was sent is kept in `exports/` in the notebook folder.
 
@@ -278,7 +280,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `153 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `154 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

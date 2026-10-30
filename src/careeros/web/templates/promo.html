@@ -16,19 +16,24 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
 </section>
 {% else %}
 <section class="card">
-  <div class="row" style="justify-content:space-between">
-    <h2>Promo map: Grade {{ pm.current }} to {{ pm.grades[0] }}, aiming at {{ pm.grades[-1] }}</h2>
-    <div class="row"><a class="chip" href="/promo/case" style="font-size:.9rem;padding:.3rem .9rem">Write my promo case</a>
-      <form method="get" action="/promo/export"><button>Download evidence (Markdown)</button></form></div>
+  <div class="qhead"><h2>Promo map: Grade {{ pm.current }} to {{ pm.grades[0] }}, aiming at {{ pm.grades[-1] }}</h2>
+    <div class="row" style="margin-left:auto"><a class="btnlike" href="/promo/case">Write my promo case</a>
+      <form method="get" action="/promo/export"><button title="Download the evidence as Markdown">Download evidence</button></form></div>
   </div>
   {% call howto() %}<p class="muted">Each key experience from the leveling guide, colored by how much of your own logged work backs it up. Link wins and entries to the guide to fill it in. Wins count more than plain entries, and bigger wins count more.</p>{% endcall %}
-  {% if ai.links or ai.wins %}<p class="note">{{ ai.links }} guide link{{ '' if ai.links == 1 else 's' }} and {{ ai.wins }} win{{ '' if ai.wins == 1 else 's' }} on this map were picked by Claude and not checked yet. They count already. <a href="/sheet?show=ai">Check them in the Intake Review Queue</a>.</p>{% endif %}
-  {% for gr in pm.grades %}{% set p = pm.progress[gr] %}
-  <p style="margin:.9rem 0 0"><b>Grade {{ gr }}</b>: {{ p.shown + p.strong }} of {{ p.total }} key experiences shown{% if p.strong %} ({{ p.strong }} strong){% endif %}, {{ p.started }} started, {{ p.gap }} not yet.</p>
-  <div class="bar" role="img" aria-label="Grade {{ gr }}: {{ p.strong }} strong, {{ p.shown }} shown, {{ p.started }} started, {{ p.gap }} not yet">
-    {% for k in ('strong', 'shown', 'started') %}{% if p[k] %}<span class="b-{{ k }}" style="width:{{ (100 * p[k] / p.total)|round(1) }}%"></span>{% endif %}{% endfor %}
-  </div>
+  {% if ai.links or ai.wins or hints %}<div class="stats filters">
+    {% if ai.links or ai.wins %}<a href="/sheet?show=ai" class="ai" title="Picked by Claude and not checked yet. They count already."><b>{{ ai.links }}</b> AI link{{ '' if ai.links == 1 else 's' }} &middot; <b>{{ ai.wins }}</b> AI win{{ '' if ai.wins == 1 else 's' }} to check</a>{% endif %}
+    {% if hints %}<a href="/sheet?show=unlinked" title="Records that look related to the guide but aren't linked yet. Link the real evidence, or count the bigger ones as wins."><b>{{ hints }}</b> records might show guide items</a>{% endif %}
+  </div>{% endif %}
+  <div class="ready" style="margin-top:.8rem">
+  {% for gr in pm.grades %}{% set p = pm.progress[gr] %}{% set shown = p.shown + p.strong %}
+    <div class="ready-row" title="Grade {{ gr }}: {{ shown }} of {{ p.total }} key experiences shown ({{ p.strong }} strong), {{ p.started }} started, {{ p.gap }} not yet">
+      <span class="ready-label">Grade {{ gr }}</span>
+      <span class="bar" role="img" aria-label="Grade {{ gr }}: {{ p.strong }} strong, {{ p.shown }} shown, {{ p.started }} started, {{ p.gap }} not yet">{% for k in ('strong', 'shown', 'started') %}{% if p[k] %}<span class="b-{{ k }}" style="width:{{ (100 * p[k] / p.total)|round(1) }}%"></span>{% endif %}{% endfor %}</span>
+      <span class="ready-num"><b>{{ (100 * shown / p.total)|round|int if p.total else 0 }}%</b> <span class="muted">{{ shown }}/{{ p.total }}</span></span>
+    </div>
   {% endfor %}
+  </div>
   <p class="help key"><span class="b-strong"></span>Strong <span class="b-shown"></span>Shown <span class="b-started"></span>Started <span></span>Not yet</p>
   {% for gr in pm.grades %}{% if pm.summaries.get(gr) %}<details><summary>What Grade {{ gr }} looks like, in the guide's words</summary><p class="muted">{{ pm.summaries[gr] }}</p></details>{% endif %}{% endfor %}
 </section>
@@ -45,19 +50,12 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
 </section>
 {% endif %}
 
-{% if hints %}
-<section class="card">
-  <h2>Start with what you've already done</h2>
-  <p class="muted">{{ hints }} of your notebook entries look related to the guide and aren't linked yet. They're marked <span class="chip hint">Might show</span> on the <a href="/meetings">Meetings</a> and <a href="/tasks">Tasks</a> tabs. Link the ones that are real evidence, or turn the bigger ones into wins with <b>Count this as a win</b>.</p>
-</section>
-{% endif %}
 {% if pm.next %}
 <section class="card">
   <h2>Aim for next</h2>
   {% call howto() %}<p class="muted">One step per topic: topics you've started come first, and a topic moves to its Grade {{ pm.grades[-1] }} step once Grade {{ pm.grades[0] }} is shown. More ideas are under each topic below.</p>{% endcall %}
   {% for n in pm.next[:6] %}
-  <div class="exp {{ 'started' if n.started }}"><span class="chip">Grade {{ n.grade }}</span> <b>{{ n.topic.name }}</b>
-    <br>{{ n.idea }}<br><span class="help">Guide: {{ n.item.name }}</span></div>
+  <div class="exp line {{ 'started' if n.started }}" title="Guide: {{ n.item.name }}"><span class="chip">Grade {{ n.grade }}</span> <b>{{ n.topic.name }}</b> <span class="muted">{{ n.idea }}</span></div>
   {% endfor %}
   {% if pm.next|length > 6 %}<p class="help">{{ pm.next|length - 6 }} more topics have a next step below.</p>{% endif %}
 </section>
@@ -67,9 +65,9 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
 <section class="card">
   <h2>{{ row.topic.name }}</h2>
   <div class="grid2">
-    {% for gr in pm.grades %}<div><p class="muted" style="margin:.4rem 0 0">Grade {{ gr }}</p>
+    {% for gr in pm.grades %}<div><p class="st" style="margin:.4rem 0 0">Grade {{ gr }}</p>
       {% for x in row.cells[gr] %}
-      <div class="exp {{ x.status }}"><span class="st">{{ x.status_label }}</span><br>{{ x.item.name }}{{ evidence(x) }}</div>
+      <div class="exp {{ x.status }}"><span class="st" title="{{ x.status_label }}"><i></i><span class="sr">{{ x.status_label }}: </span></span>{{ x.item.name }}{{ evidence(x) }}</div>
       {% else %}<p class="help">The guide has nothing for this at Grade {{ gr }}.</p>{% endfor %}
     </div>{% endfor %}
   </div>
@@ -79,15 +77,14 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"</pre>
 
 <section class="card">
   <h2>Skills where Grade {{ pm.grades[-1] }} asks for more</h2>
-  {% call howto() %}<p class="muted">The guide rates each skill from 1 to 4. These are the ones whose bar goes up between Grade {{ pm.grades[0] }} and Grade {{ pm.grades[-1] }}. Link wins to them to show you're already working at the higher level.</p>{% endcall %}
+  {% call howto() %}<p class="muted">The guide rates each skill from 1 to 4; the numbers after each name are Grade {{ pm.current }} &rarr; Grade {{ pm.grades[0] }} &rarr; Grade {{ pm.grades[-1] }}. These are the ones whose bar goes up between Grade {{ pm.grades[0] }} and Grade {{ pm.grades[-1] }}. Hover over one for its description. Link wins to them to show you're already working at the higher level.</p>{% endcall %}
   {% for x in pm.rising %}
-  <div class="exp {{ x.status }}"><span class="st">{{ x.status_label }}</span><br><b>{{ x.item.name }}</b>
-    <span class="muted">Grade {{ pm.current }}: {{ x.now }} &middot; Grade {{ pm.grades[0] }}: {{ x['g' ~ pm.grades[0]] }} &middot; Grade {{ pm.grades[-1] }}: {{ x['g' ~ pm.grades[-1]] }}</span>
-    <br><span class="help">{{ x.item.description }}</span>{{ evidence(x) }}</div>
+  <div class="exp {{ x.status }}" title="{{ x.item.description }}"><span class="st" title="{{ x.status_label }}"><i></i><span class="sr">{{ x.status_label }}: </span></span><b>{{ x.item.name }}</b>
+    <span class="muted">{{ x.now }} &rarr; {{ x['g' ~ pm.grades[0]] }} &rarr; {{ x['g' ~ pm.grades[-1]] }}</span>{{ evidence(x) }}</div>
   {% endfor %}
   <details><summary>Other skills ({{ pm.steady|length }}), same bar at both grades</summary>
-    {% for x in pm.steady %}<div class="exp {{ x.status }}"><span class="st">{{ x.status_label }}</span><br><b>{{ x.item.name }}</b>
-      <span class="muted">Grade {{ pm.grades[0] }} and {{ pm.grades[-1] }}: {{ x['g' ~ pm.grades[0]] }}</span>{{ evidence(x) }}</div>{% endfor %}
+    {% for x in pm.steady %}<div class="exp {{ x.status }}" title="{{ x.item.description }}"><span class="st" title="{{ x.status_label }}"><i></i><span class="sr">{{ x.status_label }}: </span></span><b>{{ x.item.name }}</b>
+      <span class="muted">{{ x['g' ~ pm.grades[0]] }}</span>{{ evidence(x) }}</div>{% endfor %}
   </details>
 </section>
 {% endif %}

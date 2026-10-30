@@ -101,7 +101,8 @@ def test_win_flow_suggests_then_saves_only_what_user_confirms(nb):
     assert f'value="{sandbox[6]}" checked' in page and f'value="{sandbox[7]}" checked' not in page
 
     promo = c.get("/promo").text
-    assert "Grade 6</b>: 1 of 3 key experiences shown" in promo and "Grade 7</b>: 0 of 3" in promo
+    assert 'title="Grade 6: 1 of 3 key experiences shown' in promo and 'title="Grade 7: 0 of 3' in promo
+    assert "<b>33%</b> <span class=\"muted\">1/3</span>" in promo
     assert "Automated the sandbox refresh for UAT" in promo and "Aim for next" in promo
     md = c.get("/promo/export")
     assert md.headers["content-type"].startswith("text/markdown")

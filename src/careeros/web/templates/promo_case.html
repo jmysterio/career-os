@@ -21,9 +21,12 @@
 {% if v.id != latest %}<div class="note">You're looking at draft {{ v.id }}. <a href="/promo/case/{{ latest }}">The newest is draft {{ latest }}</a>.</div>{% endif %}
 <section class="card">
   <h2>Promotion case: {{ v.name }}</h2>
-  <p class="muted">Draft {{ v.id }}{% if v.note %} ({{ v.note|lower }}){% endif %}, {{ v.created_at.strftime('%b %-d, %Y at %-I:%M %p') }}, from work between {{ v.window_start }} and {{ v.window_end }}.
-    {% if flagged %}<b>{{ flagged }} sentence{{ '' if flagged == 1 else 's' }} to check</b> before you use it.{% else %}Every sentence has a source.{% endif %}
-    It's a draft: read it, fix it, and make it yours. Every edit or rewrite saves a new draft, so nothing is lost.</p>
+  <div class="stats">
+    <span title="{{ v.created_at.strftime('%b %-d, %Y at %-I:%M %p') }}"><b>Draft {{ v.id }}</b>{% if v.note %} &middot; {{ v.note|lower }}{% endif %} &middot; {{ v.created_at.date()|short_day }}</span>
+    <span title="The work this draft is written from">{{ v.window_start|short_day }} to {{ v.window_end|short_day }}</span>
+    {% if flagged %}<a href="#sec-{{ sections[0].key if sections else '' }}" class="late-stat"><b>{{ flagged }}</b> to check</a>{% else %}<span class="ok-stat">every sentence sourced</span>{% endif %}
+  </div>
+  {% call howto("About drafts") %}<p class="help">It's a draft: read it, fix it, and make it yours. Every edit or rewrite saves a new draft, so nothing is lost. A sentence with no source, or with a number that isn't in your evidence, is marked <span class="check">Check this</span>.</p>{% endcall %}
   {% if personal %}<form method="post" action="/promo/case/{{ v.id }}/gdoc" data-sync="promo" class="row">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <button data-label="Send to Google Docs">Send to Google Docs</button>
@@ -44,7 +47,11 @@
 </section>
 {% for sec in sections %}
 <section class="card" id="sec-{{ sec.key }}">
-  <h2>{{ sec.heading }}{% if sec.edited %} <span class="chip guide">edited by you</span>{% endif %}</h2>
+  <div class="qhead"><h2>{{ sec.heading }}</h2>{% if sec.edited %}<span class="chip guide">edited by you</span>{% endif %}
+    {% if personal %}<form method="post" action="/promo/case/{{ v.id }}/rewrite/{{ sec.key }}" data-sync="promo" class="row" style="margin-left:auto">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if sec.edited %}<label class="help"><input type="checkbox" name="confirm" value="yes"> Replace my edits</label>{% endif %}
+      <button data-label="Rewrite" title="Have Claude rewrite this section (saved as a new draft)">Rewrite</button></form>{% endif %}</div>
   {% if sec.error %}<p class="muted">{{ sec.error }}</p>{% endif %}
   <p class="case">{% for x in sec.sentences %}<span class="{{ '' if x.valid else 'check' }}"{% if not x.valid %} title="Check this: {{ x.reason }}"{% endif %}>{% if not x.valid %}<b class="check-tag">Check this ({{ x.reason }}):</b> {% endif %}{{ x.text }}{% for n in x.sources %}<a class="cite" href="#src-{{ n }}">[{{ n }}]</a>{% endfor %}</span> {% endfor %}</p>
   <details><summary>Edit</summary>
@@ -54,16 +61,12 @@
       <textarea name="text" maxlength="20000" aria-label="Edit {{ sec.heading }}">{{ texts[sec.key] }}</textarea>
       <div><button class="primary">Save as a new draft</button></div></form>
   </details>
-  {% if personal %}<form method="post" action="/promo/case/{{ v.id }}/rewrite/{{ sec.key }}" data-sync="promo" class="row">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    {% if sec.edited %}<label class="help"><input type="checkbox" name="confirm" value="yes"> Replace my edits</label>{% endif %}
-    <button data-label="Rewrite this section">Rewrite this section</button></form>{% endif %}
 </section>
 {% endfor %}
 <section class="card">
-  <h2>Sources</h2>
-  {% call howto() %}<p class="help">What each [number] in the draft points to, as it was when the draft was written.</p>{% endcall %}
-  <ol class="sources">{% for p in sources %}<li id="src-{{ p.n }}" value="{{ p.n }}">{{ p.text }}</li>{% endfor %}</ol>
+  <details class="sources-d"><summary><h2 style="display:inline">Sources ({{ sources|length }})</h2></summary>
+    <p class="help">What each [number] in the draft points to, as it was when the draft was written.</p>
+    <ol class="sources">{% for p in sources %}<li id="src-{{ p.n }}" value="{{ p.n }}">{{ p.text }}</li>{% endfor %}</ol></details>
 </section>
 {% endif %}
 <script src="/static/sync.js" defer></script>

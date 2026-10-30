@@ -1,5 +1,6 @@
 """Claude writes the promotion case from numbered evidence; the app checks every sentence (fake Claude)."""
 import json
+import re
 import time
 from datetime import date, datetime
 
@@ -106,7 +107,7 @@ def test_write_button_shows_the_draft_with_sources(nb, monkeypatch):
     page = c.get("/promo/case").text
     assert "Promotion case: Jordan" in page and "&lt;b&gt;for four teams" in page and "<b>for four teams" not in page
     assert 'href="#src-' in page and 'id="src-' in page and "Check this (40 isn" in page
-    assert "sentences to check" in page
+    assert re.search(r"<b>\d+</b> to check", page) and '<details class="sources-d">' in page
     assert c.get("/promo/case/999").status_code == 404
     assert c.post("/promo/write", data={"csrf": "nope"}).status_code == 403
     assert pw.load_name(dd) == "Jordan"

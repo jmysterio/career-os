@@ -32,3 +32,18 @@ def test_short_day():
     this_year = date.today().year
     assert short_day(f"{this_year}-10-29") == "Oct 29"
     assert short_day(date(this_year - 1, 3, 5)) == f"Mar 5, {this_year - 1}"
+
+
+def test_promo_map_is_compact(nb):
+    from datetime import datetime
+    from careeros.storage.models import JournalEntry
+    from test_guide import session
+    dd, c, *_ = nb
+    with session(dd) as s:
+        s.add(JournalEntry(day="2026-10-20", kind="meeting", text="Demo of the pipeline to the customer",
+                           created_at=datetime.now()))
+        s.commit()
+    html = c.get("/promo").text
+    assert 'href="/sheet?show=unlinked"' in html and "records might show guide items" in html
+    assert "Start with what you've already done" not in html
+    assert 'class="ready-row"' in html and html.count('<span class="st" title=') >= 6
