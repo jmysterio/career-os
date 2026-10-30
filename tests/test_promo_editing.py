@@ -64,7 +64,7 @@ def test_pages_edit_rewrite_confirm_and_compare(nb, monkeypatch):
     with session(dd) as s:
         vid = draft(s).id
     page = c.get("/promo/case").text
-    assert "Rewrite this section" in page and "Save as a new draft" in page and "[" in page
+    assert 'data-label="Rewrite"' in page and "Save as a new draft" in page and "[" in page
     r = form(c, f"/promo/case/{vid}/edit/summary", token, text="Jordan is ready for Grade 6.")
     assert r.status_code == 303 and r.headers["location"].endswith("#sec-summary")
     with session(dd) as s:

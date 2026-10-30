@@ -47,7 +47,9 @@ h1,h2,h3{font-family:Georgia,'Iowan Old Style',serif;font-weight:600;margin:0}
 h1{font-size:1.9rem}h2{font-size:1.35rem}
 h3{font-size:1.02rem;color:var(--muted);margin:1.4rem 0 .3rem;letter-spacing:.01em}
 .top{display:flex;justify-content:flex-end;align-items:center;gap:.6rem}
-.brand{font-family:Georgia,'Iowan Old Style',serif;font-size:1.3rem;font-weight:600;color:var(--text);text-decoration:none;letter-spacing:.01em}
+.brand{font-family:Georgia,'Iowan Old Style',serif;font-size:1.3rem;font-weight:600;color:var(--text);text-decoration:none;letter-spacing:.01em;
+  background:color-mix(in srgb,var(--card) 82%,transparent);border-radius:12px;padding:.15rem .7rem;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+nav .here{background:color-mix(in srgb,var(--card) 82%,transparent);border-radius:10px;padding:.1rem .6rem;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 button.icon{width:2rem;height:2rem;padding:0;border-radius:50%;font-size:1rem;line-height:1}
 .dash h2{margin-bottom:.6rem}.ready{display:grid;gap:.35rem}
 .ready-row{display:grid;grid-template-columns:4.5rem 1fr 6.5rem;gap:.7rem;align-items:center;color:var(--text);text-decoration:none}
@@ -61,6 +63,13 @@ button.icon{width:2rem;height:2rem;padding:0;border-radius:50%;font-size:1rem;li
 .momentum rect{fill:var(--st-shown)}.momentum rect.now{fill:var(--st-strong)}
 p.next{margin:.8rem 0 0;font-size:.9rem;border-top:1px dashed var(--line);padding-top:.6rem}
 .howto{margin:.35rem 0 0}
+.stats .late-stat{border-color:var(--st-started);color:var(--text);text-decoration:none}.stats .ok-stat{border-color:var(--st-strong)}
+.sources-d>summary{cursor:pointer}
+.exp{padding:.35rem .6rem;margin:.3rem 0}.exp .st{display:inline-flex;vertical-align:.05rem;margin-right:.4rem}
+.exp .st i{display:inline-block;width:.55rem;height:.55rem;border-radius:50%;background:var(--line)}
+.exp.strong .st i{background:var(--st-strong)}.exp.shown .st i{background:var(--st-shown)}.exp.started .st i{background:var(--st-started)}
+.exp details{margin:.15rem 0 0}.exp details>summary{font-size:.78rem}.exp.line{font-size:.88rem}
+table.sheet td{padding:.22rem .4rem}a.btnlike{color:var(--text);text-decoration:none}
 .stats.filters a{border:1px solid var(--line);border-radius:6px;padding:.05rem .5rem;color:var(--muted);text-decoration:none}
 .stats.filters a.on{border-color:var(--accent);color:var(--text)}.stats.filters a.late{border-color:var(--st-started)}
 .chip.late{background:transparent;border:1px solid var(--st-started);color:var(--st-started)}
