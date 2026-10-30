@@ -53,8 +53,6 @@ ATTACH_KINDS = [("notes", "Meeting notes"), ("transcript", "Transcript"), ("link
                 ("canvas", "Slack canvas"), ("prompt", "A prompt I wrote"), ("other", "Other text")]
 ATTACH_LABEL = dict(ATTACH_KINDS)
 MAX_BODY = 200_000
-TAGLINES = ["Fresh cup, fresh page.", "Pull up a chair. Nothing here is a test.",
-            "Take your time. Jot down what you did."]
 TABS = {  # path -> (kind, tab name, heading, what's on it)
     "/meetings": ("meeting", "Meetings", "Meetings", "Every meeting you've logged or pulled from your calendar, newest first. Notes and documents linked to a meeting show underneath it."),
     "/conversations": ("conversation", "Conversations", "Conversations", "Chats and calls you've noted, newest first."),
@@ -86,9 +84,10 @@ def day_label(d: date, today: date) -> str:
     return d.strftime("%A, %B ") + str(d.day)
 
 
-def greeting(now: datetime | None = None) -> str:
-    h = (now or datetime.now()).hour
-    return "Good morning" if h < 12 else "Good afternoon" if h < 18 else "Good evening"
+def short_day(day: str | date) -> str:
+    """Oct 29 this year, Oct 29, 2025 before that."""
+    d = date.fromisoformat(day) if isinstance(day, str) else day
+    return f"{d:%b} {d.day}" + ("" if d.year == date.today().year else f", {d.year}")
 
 
 def _hostname(value: str) -> str:
@@ -123,6 +122,8 @@ def create_app(dd: DataDir) -> FastAPI:
     csrf_token = hmac.new(dd.secret(), b"csrf", hashlib.sha256).hexdigest()
     env = Environment(loader=FileSystemLoader(Path(__file__).parent / "templates"), autoescape=True)
     env.globals.update(tabs=TABS, sizes=SIZES, themes=THEMES)
+    env.filters["short_day"] = short_day
+    env.globals["howto"] = env.get_template("_ui.html").module.howto
     app = FastAPI(debug=False, docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.middleware("http")
@@ -210,8 +211,8 @@ def create_app(dd: DataDir) -> FastAPI:
         tally = ("In the last 7 days you noted " + ", ".join(parts) + ".") if parts else ""
         html = env.get_template("today.html").render(
             days=days, tally=tally, kinds=KINDS, attach_kinds=ATTACH_KINDS, today=today.isoformat(),
-            tagline=TAGLINES[today.toordinal() % len(TAGLINES)], csrf=csrf_token, msg=msg,
-            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), page="/", personal=personal, q="",
+            csrf=csrf_token, msg=msg,
+            sync_warning=dd.sync_warning(), theme=theme_of(request), page="/", personal=personal, q="",
             slack_canvas=slack_imp.load_canvas_id(dd) if personal else None, sync=sync_status(s))
         return HTMLResponse(html)
 
@@ -234,7 +235,7 @@ def create_app(dd: DataDir) -> FastAPI:
             html = env.get_template("list.html").render(
                 title=title, intro=intro, count=count, shown=len(rows), days=days, open_entries=ents[:len(open_rows)],
                 kinds=KINDS, attach_kinds=ATTACH_KINDS, csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(),
-                theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0], page=path, personal=personal, q="")
+                theme=theme_of(request), page=path, personal=personal, q="")
             return HTMLResponse(html)
         return view
 
@@ -280,7 +281,7 @@ def create_app(dd: DataDir) -> FastAPI:
             hits.sort(key=lambda h: h["day"], reverse=True)
         html = env.get_template("search.html").render(
             q=q, hits=hits, csrf=csrf_token, msg=None, sync_warning=dd.sync_warning(), theme=theme_of(request),
-            greeting=greeting(), tagline=TAGLINES[0], page="/search", personal=personal)
+            page="/search", personal=personal)
         return HTMLResponse(html)
 
     @app.post("/journal/add", dependencies=[Depends(check_csrf)])
@@ -400,8 +401,7 @@ def create_app(dd: DataDir) -> FastAPI:
         html = env.get_template("wins.html").render(
             year=year, years=win_years(s), size=size, months=months, total=len(rows), counts=counts,
             missing=sum(1 for w in rows if not w.impact), today=date.today().isoformat(), guided=gsvc.has_guide(s),
-            csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(),
-            tagline=TAGLINES[0], page="/wins", personal=personal, q="")
+            csrf=csrf_token, msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), page="/wins", personal=personal, q="")
         return HTMLResponse(html)
 
     def win_fields(title: str, impact: str, size: str, theme: str, day: str) -> dict:
@@ -474,7 +474,7 @@ def create_app(dd: DataDir) -> FastAPI:
         html = env.get_template("guide_link.html").render(
             obj=obj, is_win=isinstance(obj, Win), ref=ref, checked=linked or suggested, suggested=bool(suggested),
             pm=pm, next=next if next in PAGES else "/wins", csrf=csrf_token, msg=None, sync_warning=dd.sync_warning(),
-            theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0], page="/promo", personal=personal, q="")
+            theme=theme_of(request), page="/promo", personal=personal, q="")
         return HTMLResponse(html)
 
     @app.post("/guide/link", dependencies=[Depends(check_csrf)])
@@ -569,8 +569,7 @@ def create_app(dd: DataDir) -> FastAPI:
             **gsvc.ai_counts(s))
         html = env.get_template("sheet.html").render(
             rows=out, f=f, total=total, pages=pages, counts=counts, show_opts=SHEET_SHOW, source_opts=SOURCE_LABEL,
-            msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(),
-            tagline=TAGLINES[0], page="/sheet", personal=personal, q="", wide=True, sync=sync_status(s),
+            msg=msg, sync_warning=dd.sync_warning(), theme=theme_of(request), page="/sheet", personal=personal, q="", wide=True, sync=sync_status(s),
             **sheet_ctx(s, f))
         return HTMLResponse(html)
 
@@ -603,8 +602,7 @@ def create_app(dd: DataDir) -> FastAPI:
             return [dict(id=w.id, title=w.title, day=w.day) for w in nearby if w.id != e.work_item_id
                     and abs((date.fromisoformat(w.day) - d).days) <= work.WINDOW_DAYS][:20]
 
-        return [dict(id=e.id, day=e.day, day_short=f"{date.fromisoformat(e.day):%b} {int(e.day[8:])}",
-                     source=SOURCE_LABEL.get(e.source, e.source), kind=e.kind,
+        return [dict(id=e.id, day=e.day, source=SOURCE_LABEL.get(e.source, e.source), kind=e.kind,
                      kind_was=dict(SHEET_KIND).get(e.kind_was, ""),
                      text=e.text, reviewed=e.reviewed, ai_read=e.ai_read, links=links.get(e.id, []),
                      win=wins.get(e.id), notes=notes.get(e.id, ""),
@@ -753,8 +751,7 @@ def create_app(dd: DataDir) -> FastAPI:
                 JournalEntry.ai_read.is_(False))) if eid not in linked and suggest(text)[0])
         html = env.get_template("promo.html").render(
             pm=gsvc.promo_map(s) if guided else None, hints=hints, ai=gsvc.ai_counts(s), csrf=csrf_token, msg=msg,
-            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
-            page="/promo", personal=personal, q="")
+            sync_warning=dd.sync_warning(), theme=theme_of(request), page="/promo", personal=personal, q="")
         return HTMLResponse(html)
 
     @app.get("/digest", response_class=HTMLResponse)
@@ -770,8 +767,7 @@ def create_app(dd: DataDir) -> FastAPI:
             [dict(iso=nxt.isoformat(), label="Week after")] if nxt <= date.today() else [])
         html = env.get_template("digest.html").render(
             d=digest.build(s, end), weeks=weeks, size_label=SIZE_LABEL, csrf=csrf_token, msg=None,
-            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
-            page="/digest", personal=personal, q="")
+            sync_warning=dd.sync_warning(), theme=theme_of(request), page="/digest", personal=personal, q="")
         return HTMLResponse(html)
 
     @app.get("/impact/{key}", response_class=HTMLResponse)
@@ -783,8 +779,7 @@ def create_app(dd: DataDir) -> FastAPI:
         groups = activities.records(s, key, window)
         html = env.get_template("impact.html").render(
             label=activities.LABEL[key], key=key, window=window, groups=groups, csrf=csrf_token, msg=None,
-            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
-            page="/promo", personal=personal, q="")
+            sync_warning=dd.sync_warning(), theme=theme_of(request), page="/promo", personal=personal, q="")
         return HTMLResponse(html)
 
     @app.post("/sheet/{eid}/activity", dependencies=[Depends(check_csrf)])
@@ -883,7 +878,7 @@ def create_app(dd: DataDir) -> FastAPI:
             rows.append(dict(heading=heading, diff=pw.compare(sa.sentences if sa else [], sb.sentences if sb else [])))
         html = env.get_template("promo_compare.html").render(
             a=va, b=vb, rows=rows, csrf=csrf_token, msg=None, sync_warning=dd.sync_warning(), theme=theme_of(request),
-            greeting=greeting(), tagline=TAGLINES[0], page="/promo", personal=personal, q="")
+            page="/promo", personal=personal, q="")
         return HTMLResponse(html)
 
     @app.get("/promo/case", response_class=HTMLResponse)
@@ -905,8 +900,7 @@ def create_app(dd: DataDir) -> FastAPI:
             latest=versions[0].id if versions else None, texts={x.key: pw.to_text(x.sentences) for x in sections},
             flagged=sum(1 for sec in sections for x in sec.sentences if not x["valid"]),
             start=lo, end=hi, name=pw.load_name(dd), guided=gsvc.has_guide(s), csrf=csrf_token, msg=msg,
-            sync_warning=dd.sync_warning(), theme=theme_of(request), greeting=greeting(), tagline=TAGLINES[0],
-            page="/promo", personal=personal, q="")
+            sync_warning=dd.sync_warning(), theme=theme_of(request), page="/promo", personal=personal, q="")
         return HTMLResponse(html)
 
     @app.get("/promo/export")

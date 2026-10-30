@@ -26,13 +26,13 @@
 <section class="card" style="padding:.6rem .8rem">
 {% if not rows %}<p class="muted">Nothing here. Try "Everything" in the first menu.</p>
 {% elif f.show == "removed" %}
-<p class="help" style="margin:.3rem .4rem .6rem">Records you removed. Syncs from Calendar, Tasks, and Slack skip them, so they don't come back. <b>Restore</b> puts one back as a plain record (pasted notes, guide links, and drafted wins from before aren't restored).</p>
+{% call howto() %}<p class="help" style="margin:.3rem .4rem .6rem">Records you removed. Syncs from Calendar, Tasks, and Slack skip them, so they don't come back. <b>Restore</b> puts one back as a plain record (pasted notes, guide links, and drafted wins from before aren't restored).</p>{% endcall %}
 <table class="sheet">
   <thead><tr><th></th><th>Date</th><th>From</th><th>Type</th><th style="width:60%">What</th></tr></thead>
   <tbody>
   {% for r in rows %}<tr id="r{{ r.id }}">
     <td><form method="post" action="/sheet/removed/{{ r.id }}/restore">{{ hidden() }}<button>Restore</button></form></td>
-    <td style="white-space:nowrap">{{ r.day }}</td><td>{{ r.source }}</td><td>{{ r.kind }}</td><td>{{ r.text }}</td></tr>{% endfor %}
+    <td style="white-space:nowrap" title="{{ r.day }}">{{ r.day|short_day }}</td><td>{{ r.source }}</td><td>{{ r.kind }}</td><td>{{ r.text }}</td></tr>{% endfor %}
   </tbody>
 </table>
 {% else %}

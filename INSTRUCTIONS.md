@@ -245,7 +245,7 @@ The app has these pages, opened from the three-bar **Menu** at the top left (Tod
 - **Wins**, **Promo map**, and the **Intake Review Queue**: described in their own sections above.
 - **Meetings / Conversations / Documents / Tasks / Other**: one tab per kind of entry, newest first, with everything saved under it. On **Tasks**, anything still open is listed at the top, and finished tasks are grouped by the day you completed them.
 
-The page opens in **dark mode**; **Switch to light** (top right) changes it, and the app remembers your choice.
+The page opens in **dark mode**; the small sun button next to **Career Tracker** (top right) switches to light (a moon switches back), and the app remembers your choice. Longer explanations on each page are folded behind **How this works**; click it to open. Dates are short ("Oct 29"); hover over one for the full date.
 
 ## Testing steps (about 5 minutes, in the practice notebook)
 
@@ -265,7 +265,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `145 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `148 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 

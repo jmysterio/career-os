@@ -1,7 +1,11 @@
 <!doctype html>
 <html lang="en" data-theme="{{ theme }}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>My work notebook</title>
+{% set main_pages = [("/", "Home"), ("/wins", "Wins"), ("/promo", "Promo map"), ("/sheet", "Intake Review Queue"), ("/digest", "Weekly digest")] %}
+{% set ns = namespace(here='Search' if page == '/search' else '') %}
+{% for path, label in main_pages %}{% if path == page %}{% set ns.here = label %}{% endif %}{% endfor %}
+{% for path, tab in tabs.items() %}{% if path == page %}{% set ns.here = tab[1] %}{% endif %}{% endfor %}
+<title>Career Tracker{% if ns.here %} · {{ ns.here }}{% endif %}</title>
 <style>
 /* Latte palette. Light: white subway tile, foam cards, espresso text and buttons. Dark: an espresso bar at night,
    warm charcoal with latte-foam buttons. Accents stay soft caramel, never orange. */
@@ -42,7 +46,10 @@ body{background-color:var(--bg);color:var(--text);font:16px/1.5 -apple-system,sy
 h1,h2,h3{font-family:Georgia,'Iowan Old Style',serif;font-weight:600;margin:0}
 h1{font-size:1.9rem}h2{font-size:1.35rem}
 h3{font-size:1.02rem;color:var(--muted);margin:1.4rem 0 .3rem;letter-spacing:.01em}
-.top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
+.top{display:flex;justify-content:flex-end;align-items:center;gap:.6rem}
+.brand{font-family:Georgia,'Iowan Old Style',serif;font-size:1.3rem;font-weight:600;color:var(--text);text-decoration:none;letter-spacing:.01em}
+button.icon{width:2rem;height:2rem;padding:0;border-radius:50%;font-size:1rem;line-height:1}
+.howto{margin:.35rem 0 0}.howto>summary{font-size:.82rem}.howto-body{margin:.25rem 0 .2rem}.howto-body p{margin:.3rem 0}
 .sub{color:var(--muted);margin:.2rem 0 0}
 .note{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.55rem .9rem;margin:1rem 0;font-size:.92rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.2rem 1.4rem;margin:1.4rem 0}
@@ -115,7 +122,7 @@ table.sheet{width:100%;border-collapse:collapse;font-size:.86rem}
 form.mini{display:inline-flex;gap:.3rem;align-items:center}form.mini label{white-space:nowrap}form.mini select{width:auto;max-width:10.5rem;font-size:.76rem;padding:.08rem .3rem}
 .qhead{display:flex;gap:.4rem 1rem;align-items:center;flex-wrap:wrap}.qhead .chips-sync{margin:0}
 .stats{display:flex;gap:.35rem;flex-wrap:wrap;margin:.5rem 0 .2rem;font-size:.8rem;color:var(--muted)}.stats span{border:1px solid var(--line);border-radius:6px;padding:.05rem .5rem}.stats b{color:var(--text)}.stats .ai{border-color:var(--ai, var(--line))}
-.howto{margin:.3rem 0 0}.howto p{margin:.3rem 0}
+
 .sheet tr.ok td{opacity:.62}.sheet tr:target td{background:var(--note-bg)}
 .sheet tr td{transition:opacity .35s ease}.sheet tr.busy td{opacity:.5}.sheet tr.gone td{opacity:0}
 .sheet button{font-size:.76rem;padding:.1rem .45rem;margin:.1rem .1rem .1rem 0;border-radius:6px}
@@ -158,17 +165,13 @@ ol.sources{font-size:.85rem;color:var(--muted);padding-left:1.6rem}ol.sources li
 .help{color:var(--muted);font-size:.84rem;margin:.15rem 0 0}.warn{background:var(--note-bg);border:1px solid var(--note-line);border-radius:10px;padding:.5rem .8rem;font-size:.86rem;margin:.2rem 0}mark{background:var(--accent);color:var(--accent-text);border-radius:3px;padding:0 .15rem}
 </style></head><body{% if wide %} class="wide"{% endif %}>
 <div class="decor" aria-hidden="true"><i class="d-cup"></i><i class="d-vine"></i><i class="d-plants"></i></div>
-<div class="top">
-  <div><h1>{{ greeting }}</h1><p class="sub">{{ tagline }}</p></div>
+<header class="top">
+  <a class="brand" href="/">Career Tracker</a>
   <form method="post" action="/theme"><input type="hidden" name="csrf" value="{{ csrf }}">
     <input type="hidden" name="next" value="{{ page }}">
     <input type="hidden" name="theme" value="{{ 'light' if theme == 'dark' else 'dark' }}">
-    <button>{{ 'Switch to light' if theme == 'dark' else 'Switch to dark' }}</button></form>
-</div>
-{% set main_pages = [("/", "Today & this week"), ("/wins", "Wins"), ("/promo", "Promo map"), ("/sheet", "Intake Review Queue"), ("/digest", "Weekly digest")] %}
-{% set ns = namespace(here='Search' if page == '/search' else '') %}
-{% for path, label in main_pages %}{% if path == page %}{% set ns.here = label %}{% endif %}{% endfor %}
-{% for path, tab in tabs.items() %}{% if path == page %}{% set ns.here = tab[1] %}{% endif %}{% endfor %}
+    <button class="icon" title="{{ 'Switch to light' if theme == 'dark' else 'Switch to dark' }}" aria-label="{{ 'Switch to light' if theme == 'dark' else 'Switch to dark' }}">{{ '☀' if theme == 'dark' else '☾' }}</button></form>
+</header>
 <nav><details class="menu"><summary aria-label="Menu"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span> Menu</summary>
     <div class="menu-list">
       {% for path, label in main_pages %}<a href="{{ path }}" class="{{ 'on' if page == path }}">{{ label }}</a>{% endfor %}
@@ -184,6 +187,6 @@ ol.sources{font-size:.85rem;color:var(--muted);padding-left:1.6rem}ol.sources li
 {% block body %}{% endblock %}
 <footer class="row muted" style="margin-top:2.5rem">
   <form method="get" action="/export/everything"><button>Download everything (CSV)</button></form>
-  <span class="help">Every entry, pasted note, and win as spreadsheets in one zip, to keep or open without this app. The copy includes everything you pasted, so store it somewhere as safe as this laptop.</span>
+  {% call howto("What's in it") %}<p class="help">Every entry, pasted note, and win as spreadsheets in one zip, to keep or open without this app. The copy includes everything you pasted, so store it somewhere as safe as this laptop.</p>{% endcall %}
 </footer>
 </body></html>
