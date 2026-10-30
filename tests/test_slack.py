@@ -175,7 +175,7 @@ def test_web_sync_and_cards(tmp_path, monkeypatch):
     assert job["message"] == "Slack synced: 3 new items." and job["pct"] == 100
     assert [st["state"] for st in job["steps"]] == ["done", "done", "done", "skipped"]  # no leveling guide loaded
     tasks = c.get("/tasks").text
-    assert "from Slack" in tasks and "suggested win" in tasks and "Stopped the error spike before the weekend." in tasks
+    assert 'title="Slack &middot; Finished a task' in tasks and "suggested win" in tasks and "Stopped the error spike before the weekend." in tasks
     assert "Written by Slack" in tasks
     assert run_sync(c, token, "slack")["message"] == "Slack synced: 0 new items."
 

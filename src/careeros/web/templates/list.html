@@ -2,9 +2,8 @@
 {% block body %}
 {% from "_entry.html" import entry_card with context %}
 <section class="card">
-  <h2>{{ title }}</h2>
-  <p class="muted">{{ intro }}</p>
-  <p class="tally">{{ count }} saved{{ ' (showing the newest ' ~ shown ~ ')' if shown < count }}.</p>
+  <div class="qhead"><h2>{{ title }}</h2><span class="muted">{{ count }} saved{{ ' (showing the newest ' ~ shown ~ ')' if shown < count }}</span></div>
+  {% call howto("What's here") %}<p class="help">{{ intro }}</p>{% endcall %}
 </section>
 {% if open_entries %}
 <section class="card">

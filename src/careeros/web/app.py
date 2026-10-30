@@ -166,6 +166,7 @@ def create_app(dd: DataDir) -> FastAPI:
             atts.setdefault(a.entry_id, []).append(dict(
                 id=a.id, label=ATTACH_LABEL.get(a.kind, "Text"), title=a.title, body=a.body,
                 url=a.body.strip() if link else None,
+                name=a.title or (urlparse(a.body.strip()).hostname or "Link" if link else ATTACH_LABEL.get(a.kind, "Text")),
                 ai=a.kind == "notes" and a.title == summaries.AI_TITLE,
                 slack_ai=a.kind == "notes" and a.title.startswith(slack_imp.NOTES_TITLE)))
         guided = gsvc.has_guide(s)
@@ -180,6 +181,7 @@ def create_app(dd: DataDir) -> FastAPI:
             has_notes = any(summaries.doc_ids([a["url"]]) for a in mine if a["url"])
             from_cal = e.source == "calendar"
             out.append(dict(id=e.id, day=e.day, text=e.text, kind_label=KIND_LABEL.get(e.kind, "Note"),
+                            source=e.source or "typed", source_label=SOURCE_LABEL.get(e.source or "", e.source),
                             from_calendar=from_cal, status=e.status, attachments=mine, guided=guided,
                             guide=linked, hint=hint, from_slack=e.source == slack_imp.SOURCE, win_impact=impact,
                             suggested_win=bool(impact) and e.id not in has_win,
