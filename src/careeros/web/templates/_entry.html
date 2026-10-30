@@ -1,3 +1,4 @@
+{% from "_ui.html" import icon %}
 {% macro attach_fields() %}
   <div class="row">
     <select name="a_kind" aria-label="What are you adding">
@@ -26,40 +27,41 @@
 {% endmacro %}
 
 {% macro entry_card(e) %}
+  {% set hidden %}<input type="hidden" name="csrf" value="{{ csrf }}">{% endset %}
   <div class="entry">
     <div class="entry-head">
-      <div><span class="chip">{{ e.kind_label }}</span>{% if e.status == "open" %} <span class="chip">to do</span>{% endif %}{% if e.from_calendar %} <span class="chip">from calendar</span>{% endif %}{% if e.from_slack %} <span class="chip">from Slack</span>{% endif %}{% if e.suggested_win %} <span class="chip hint">suggested win</span>{% endif %} {{ e.text }}</div>
-      <form method="post" action="/journal/{{ e.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove</button></form>
+      <span class="src" title="{{ e.source_label or 'Typed' }} &middot; {{ e.kind_label }} &middot; {{ e.day }}">{{ icon(e.source) }}</span>
+      <div class="entry-text">{% if e.status == "open" %}<span class="chip">to do</span> {% endif %}{% if e.suggested_win %}<span class="chip hint">suggested win</span> {% endif %}{{ e.text }}</div>
+      <div class="acts">
+        <details class="act"><summary title="Add notes or a link" aria-label="Add notes or a link to this">{{ icon("plus") }}</summary>
+          <form method="post" action="/journal/{{ e.id }}/attach" class="stack act-panel">{{ hidden }}<b>Add notes or a link</b>{{ attach_fields() }}<div><button>Add</button></div></form>
+        </details>
+        <details class="act"><summary title="Count this as a win" aria-label="Count this as a win">{{ icon("win") }}</summary>
+          <form method="post" action="/wins/add" class="stack act-panel">{{ hidden }}<b>Count this as a win</b>
+            <input type="hidden" name="entry_id" value="{{ e.id }}"><input type="hidden" name="day" value="{{ e.day }}"><input type="hidden" name="next" value="{{ page }}">
+            {% if e.suggested_win %}<p class="help">The Slack log says why this mattered, so it's filled in below. Edit it into your own words.</p>{% endif %}
+            {{ win_fields(dict(title=e.text, impact=e.win_impact, size='', theme='', day=e.day)) }}
+            <div><button class="primary">Save to my wins</button></div></form>
+        </details>
+        {% if e.guided %}<a class="act" href="/guide/link?entry={{ e.id }}&next={{ page|urlencode }}" title="Link to the leveling guide" aria-label="Link to the leveling guide">{{ icon("guide") }}</a>{% endif %}
+        <form method="post" action="/journal/{{ e.id }}/delete">{{ hidden }}<button class="act" title="Remove this record" aria-label="Remove this record">{{ icon("remove") }}</button></form>
+      </div>
     </div>
-    {% for a in e.attachments %}
-    <div class="att">
-      <details {{ 'open' if a.url or a.ai }}><summary><span class="chip">{{ 'AI summary' if a.ai else a.label }}</span> {{ a.title or ('Link' if a.url else 'Show') }}</summary>
-        {% if a.ai %}<p class="help">Written by Claude from the linked meeting notes. Check it against the notes before relying on it.</p>{% endif %}
-        {% if a.slack_ai %}<p class="help">Written by Slack's AI from your Slack activity, then sorted into a kind by Claude. Check it against the Slack thread before relying on it.</p>{% endif %}
-        {% if a.url %}<a href="{{ a.url }}" rel="noreferrer noopener" target="_blank">{{ a.url }}</a>
-        {% else %}<pre class="paper">{{ a.body }}</pre>{% endif %}
-        <form method="post" action="/journal/attachment/{{ a.id }}/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove this</button></form>
-      </details>
+    {% if e.attachments or e.guide or e.hint or e.notes_state == "pending" %}
+    <div class="entry-meta">
+      {% for a in e.attachments %}
+        {% if a.url %}<span class="chip att"><a href="{{ a.url }}" rel="noreferrer noopener" target="_blank" title="{{ a.url }}">{{ icon("link") }}{{ a.name }}</a><form method="post" action="/journal/attachment/{{ a.id }}/delete">{{ hidden }}<button aria-label="Remove {{ a.name }}" title="Remove this link">&times;</button></form></span>
+        {% else %}<details class="att-d"><summary class="chip att">{{ icon("ai" if a.ai else "note") }}{{ 'AI summary' if a.ai else a.name }}</summary>
+          <div class="att-body">
+            {% if a.ai %}<p class="help">Written by Claude from the linked meeting notes. Check it against the notes before relying on it.</p>{% endif %}
+            {% if a.slack_ai %}<p class="help">Written by Slack's AI from your Slack activity, then sorted into a kind by Claude. Check it against the Slack thread before relying on it.</p>{% endif %}
+            <pre class="paper">{{ a.body }}</pre>
+            <form method="post" action="/journal/attachment/{{ a.id }}/delete">{{ hidden }}<button>Remove this</button></form></div></details>{% endif %}
+      {% endfor %}
+      {% if e.guide %}<span class="meta-label">Shows</span>{% for g in e.guide %}<span class="chip guide">{{ g }}</span>{% endfor %}
+      {% elif e.hint %}<span class="meta-label">Might show</span>{% for h in e.hint %}<span class="chip hint">{{ h }}</span>{% endfor %}{% endif %}
+      {% if e.notes_state == "pending" %}<span class="chip" title="Press Sync Google to write a summary">notes, no summary yet</span>{% endif %}
     </div>
-    {% endfor %}
-    {% if e.guide %}<p class="help">Shows: {% for g in e.guide %}<span class="chip guide">{{ g }}</span>{% endfor %}
-      <a href="/guide/link?entry={{ e.id }}&next={{ page|urlencode }}">change</a></p>
-    {% elif e.hint %}<p class="help">Might show: {% for h in e.hint %}<span class="chip hint">{{ h }}</span>{% endfor %}
-      <a href="/guide/link?entry={{ e.id }}&next={{ page|urlencode }}">Link to the leveling guide</a></p>
-    {% elif e.guided %}<p class="help"><a href="/guide/link?entry={{ e.id }}&next={{ page|urlencode }}">Link to the leveling guide</a></p>{% endif %}
-    {% if e.notes_state == "none" %}<p class="muted">No meeting notes or transcript attached.</p>
-    {% elif e.notes_state == "pending" %}<p class="muted">Notes found, but no summary yet. Press Sync Google to write one.</p>{% endif %}
-    <details><summary>Add more to this</summary>
-      <form method="post" action="/journal/{{ e.id }}/attach" class="stack">
-        <input type="hidden" name="csrf" value="{{ csrf }}">{{ attach_fields() }}<div><button>Add</button></div></form>
-    </details>
-    <details><summary>Count this as a win</summary>
-      <form method="post" action="/wins/add" class="stack">
-        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="entry_id" value="{{ e.id }}">
-        <input type="hidden" name="day" value="{{ e.day }}"><input type="hidden" name="next" value="{{ page }}">
-        {% if e.suggested_win %}<p class="help">The Slack log says why this mattered, so it's filled in below. Edit it into your own words.</p>{% endif %}
-        {{ win_fields(dict(title=e.text, impact=e.win_impact, size='', theme='', day=e.day)) }}
-        <div><button class="primary">Save to my wins</button></div></form>
-    </details>
+    {% endif %}
   </div>
 {% endmacro %}

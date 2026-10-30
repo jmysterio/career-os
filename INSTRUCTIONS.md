@@ -53,7 +53,7 @@ It holds a week of made-up meetings, Slack items, tasks, and notes, two wins, an
 The **Wins** tab is where accomplishments go, small to large, all year. You can add one in two ways:
 
 - On the **Wins** tab, type what you did, why it mattered, how big it was, and a theme, then click **Save to my wins**.
-- On any entry in the other tabs (a meeting, a finished task), open **Count this as a win**. It starts with the entry's text so you can reword it, and it remembers which entry it came from.
+- On any entry in the other tabs (a meeting, a finished task), press its trophy button (**Count this as a win**). It starts with the entry's text so you can reword it, and it remembers which entry it came from.
 
 Tips:
 
@@ -75,7 +75,7 @@ uv run careeros guide import "guides/Leveling Guides - DevOps.csv"
 
 Links you've made are kept. Anything the new guide drops leaves the map but stays on the wins that pointed to it.
 
-**Linking your work.** Each time you save a win, the app asks **Which parts of the leveling guide does this show?** It ticks the items that look related based on your words, such as "sandbox", "deploy", "merge", or "demo". Untick what doesn't fit, tick what it missed, and click **Save**, or choose **Skip for now**. Nothing is linked until you save. Notebook entries can be linked too. Entries that look related show a dashed **Might show** label with a link, and linked ones show **Shows:** with the items.
+**Linking your work.** Each time you save a win, the app asks **Which parts of the leveling guide does this show?** It ticks the items that look related based on your words, such as "sandbox", "deploy", "merge", or "demo". Untick what doesn't fit, tick what it missed, and click **Save**, or choose **Skip for now**. Nothing is linked until you save. Notebook entries can be linked too. Entries that look related show dashed **Might show** chips, and linked ones show **Shows** with the items; the target button on the entry links or changes them.
 
 **The Promo map tab.** It shows:
 
@@ -249,7 +249,12 @@ The app has these pages, opened from the three-bar **Menu** at the top left (Hom
   - **Below:** the Sync buttons with their status chips, and one slim line to add something the syncs missed. Pick a kind, type a few words, and click **Add**; you land on that kind's tab with the new entry. **Paste notes, a link, or a transcript** folds out under it.
   - There's no day-by-day list here any more. The daily review happens in the Intake Review Queue, and the Friday digest covers the week. Every record is still on its tab.
 - **Wins**, **Promo map**, and the **Intake Review Queue**: described in their own sections above.
-- **Meetings / Conversations / Documents / Tasks / Other**: one tab per kind of entry, newest first, with everything saved under it. On **Tasks**, anything still open is listed at the top, and finished tasks are grouped by the day you completed them.
+- **Meetings / Conversations / Documents / Tasks / Kudos / Other**: one tab per kind of entry, newest first. Each entry is one line: a small icon for where it came from (calendar, Slack, Docs, GitHub, Tasks, kudos, or a pencil for typed), the text, and four icon buttons on the right (hover for their names):
+  - **+** adds notes or a link to it.
+  - **Trophy** counts it as a win.
+  - **Target** links it to the leveling guide.
+  - **×** removes it.
+  The add and win buttons open a small panel over the list; only one is open at a time, and Escape closes it. Under the line, small chips show what's attached: links by name (hover for the address; **×** on the chip removes it), notes and AI summaries (click to read), and the guide items it shows or might show. On **Tasks**, anything still open is listed at the top, and finished tasks are grouped by the day you completed them.
 
 The page opens in **dark mode**; the small sun button next to **Career Tracker** (top right) switches to light (a moon switches back), and the app remembers your choice. Longer explanations on each page are folded behind **How this works**; click it to open. Dates are short ("Oct 29"); hover over one for the full date.
 
@@ -271,7 +276,7 @@ cd ~/Documents/career-os
 uv run pytest
 ```
 
-You should see `151 passed`. A failure means something broke. Don't use the app until it's fixed.
+You should see `153 passed`. A failure means something broke. Don't use the app until it's fixed.
 
 ## What comes next
 
@@ -325,7 +330,7 @@ This uses your calendar's private address, so no Google Cloud setup or admin sig
 3. In Terminal (in `~/Documents/career-os`): `uv run careeros calendar connect`, paste it (nothing shows as you paste), and press Enter.
 4. `uv run careeros calendar sync` pulls the last 14 days (`--days 30` for more, max 60).
 
-Meetings show on the **Meetings** tab as "Had a meeting" with a "from calendar" tag. Only the **title and time** are kept; attendees, descriptions, locations, and video links are dropped before anything is saved. All-day items and cancelled meetings are skipped. Running sync again never duplicates; a renamed or moved meeting is updated, and a meeting that disappeared is removed unless you've attached notes to it. Anything you typed yourself is never touched. The address is stored in `calendar.url` in your notebook folder, readable only by you. If you ever reset the secret address in Google, run `connect` again.
+Meetings show on the **Meetings** tab with a small calendar icon (hover it for the source, kind, and date). Only the **title and time** are kept; attendees, descriptions, locations, and video links are dropped before anything is saved. All-day items and cancelled meetings are skipped. Running sync again never duplicates; a renamed or moved meeting is updated, and a meeting that disappeared is removed unless you've attached notes to it. Anything you typed yourself is never touched. The address is stored in `calendar.url` in your notebook folder, readable only by you. If you ever reset the secret address in Google, run `connect` again.
 
 Before using it on a work calendar, check that titles of meetings (which can name other people or IRS-related topics) are okay to keep on this laptop. This iCal route isn't part of the scheduled sync; the scheduled sync uses the Sync Google route below.
 
